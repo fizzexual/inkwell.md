@@ -69,10 +69,11 @@ export default function SearchPanel() {
         </div>
       )}
       <div className="search-results">
-        {hits.map((h) => (
+        {hits.map((h, i) => (
           <button
             key={h.id}
             className="search-hit"
+            style={{ animationDelay: `${Math.min(i * 22, 320)}ms` }}
             onClick={() => openArticle(h.id)}
             onMouseEnter={() => select(h.id)}
           >

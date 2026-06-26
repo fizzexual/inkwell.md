@@ -49,6 +49,7 @@
   text-align: left;
   padding: 8px 9px;
   border-radius: var(--radius-sm);
+  animation: rise-in-sm var(--dur-2) var(--ease-out) backwards;
 }
 .search-hit:hover {
   background: var(--bg-hover);

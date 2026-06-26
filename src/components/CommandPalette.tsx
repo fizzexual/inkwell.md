@@ -94,6 +94,7 @@ export default function CommandPalette() {
             <button
               key={r.note.id}
               className={"palette-item" + (i === active ? " active" : "")}
+              style={{ animationDelay: `${Math.min(i * 16, 220)}ms` }}
               onMouseEnter={() => setActive(i)}
               onClick={() => choose(r.note.id)}
             >

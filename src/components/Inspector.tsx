@@ -8,10 +8,14 @@ function kindLabel(n: Note) {
   return n.kind === "source" ? "Source" : "Article";
 }
 
-function LinkRow({ note }: { note: Note }) {
+function LinkRow({ note, index }: { note: Note; index: number }) {
   const openArticle = useVault((s) => s.openArticle);
   return (
-    <button className="link-row" onClick={() => openArticle(note.id)}>
+    <button
+      className="link-row"
+      style={{ animationDelay: `${Math.min(index * 18, 260)}ms` }}
+      onClick={() => openArticle(note.id)}
+    >
       <span className="link-text">
         <span className="link-title">{note.title}</span>
         <span className="link-kind">{kindLabel(note)}</span>
@@ -41,7 +45,7 @@ export default function Inspector() {
 
   return (
     <aside className="inspector" style={{ width, minWidth: width }}>
-      <div className="insp-scroll">
+      <div className="insp-scroll" key={selectedId}>
         <div className="insp-eyebrow">{note.kind === "source" ? "SOURCE" : "ARTICLE"}</div>
         <h2 className="insp-title">{note.title}</h2>
         <div className="insp-meta">{note.kind === "source" ? "Source" : "Note"}</div>
@@ -83,7 +87,7 @@ export default function Inspector() {
           <div className="section-label">Links To ({links.length})</div>
           <div className="link-list">
             {links.length ? (
-              links.map((n) => <LinkRow key={n.id} note={n} />)
+              links.map((n, i) => <LinkRow key={n.id} note={n} index={i} />)
             ) : (
               <div className="empty">No outgoing links.</div>
             )}
@@ -94,7 +98,7 @@ export default function Inspector() {
           <div className="section-label">Backlinks ({backlinks.length})</div>
           <div className="link-list">
             {backlinks.length ? (
-              backlinks.map((n) => <LinkRow key={n.id} note={n} />)
+              backlinks.map((n, i) => <LinkRow key={n.id} note={n} index={i} />)
             ) : (
               <div className="empty">No backlinks.</div>
             )}
