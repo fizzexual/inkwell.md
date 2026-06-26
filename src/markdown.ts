@@ -44,8 +44,37 @@ function expandWikilinks(md: string, resolve: Resolver): string {
   });
 }
 
+export function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export interface Heading {
+  level: number;
+  text: string;
+  slug: string;
+}
+
+/** Level 1-3 headings in document order, with [[wikilink]] markup stripped. */
+export function parseHeadings(md: string): Heading[] {
+  const out: Heading[] = [];
+  for (const m of md.matchAll(/^(#{1,3})\s+(.+?)\s*$/gm)) {
+    const text = m[2].replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, "$1").replace(/[*_`]/g, "");
+    out.push({ level: m[1].length, text, slug: slugify(text) });
+  }
+  return out;
+}
+
 marked.setOptions({ gfm: true, breaks: false });
 
 export function renderMarkdown(md: string, resolve: Resolver): string {
-  return marked.parse(expandWikilinks(md, resolve), { async: false }) as string;
+  const html = marked.parse(expandWikilinks(md, resolve), { async: false }) as string;
+  // give headings stable ids so the outline can scroll to them
+  return html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_m, lvl, inner) => {
+    const text = inner.replace(/<[^>]+>/g, "");
+    return `<h${lvl} id="${slugify(text)}">${inner}</h${lvl}>`;
+  });
 }

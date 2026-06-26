@@ -1,4 +1,4 @@
-import { useMemo, useRef, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
 import { renderMarkdown } from "../markdown";
 import { Graph, Pencil, Doc, Bold, Italic, Heading, ListIcon, Quote, Code, Link } from "../icons";
@@ -20,10 +20,20 @@ export default function ArticleView() {
   const updateContent = useVault((s) => s.updateContent);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const scrollTarget = useVault((s) => s.scrollTarget);
+  const clearScrollTarget = useVault((s) => s.clearScrollTarget);
 
   const note = notesById.get(selectedId);
   const md = note?.content ?? "";
   const html = useMemo(() => renderMarkdown(md, resolve), [md, resolve]);
+
+  useEffect(() => {
+    if (!scrollTarget || editing) return;
+    const el = bodyRef.current?.querySelector(`#${CSS.escape(scrollTarget)}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    clearScrollTarget();
+  }, [scrollTarget, editing, html, clearScrollTarget]);
 
   const surround = (left: string, right = left, placeholder = "text") => {
     const ta = taRef.current;
@@ -116,7 +126,7 @@ export default function ArticleView() {
           </button>
         </div>
       )}
-      <div className="article-body">
+      <div className="article-body" ref={bodyRef}>
         {editing ? (
           <textarea
             ref={taRef}

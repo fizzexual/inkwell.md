@@ -93,6 +93,9 @@ interface VaultState extends Derived {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   openTag: (tag: string) => void;
+  scrollTarget: string | null;
+  scrollToHeading: (slug: string) => void;
+  clearScrollTarget: () => void;
   select: (id: string) => void;
   openArticle: (id: string) => void;
   toggleFolder: (path: string) => void;
@@ -136,6 +139,9 @@ export const useVault = create<VaultState>((set, get) => ({
   searchQuery: "",
   setSearchQuery: (q) => set({ searchQuery: q }),
   openTag: (tag) => set({ searchQuery: `#${tag}`, sidebarView: "search" }),
+  scrollTarget: null,
+  scrollToHeading: (slug) => set({ centerView: "article", editing: false, scrollTarget: slug }),
+  clearScrollTarget: () => set({ scrollTarget: null }),
   select: (id) => set({ selectedId: id }),
   openArticle: (id) => set({ selectedId: id, centerView: "article", sidebarView: "notes" }),
   toggleFolder: (path) =>

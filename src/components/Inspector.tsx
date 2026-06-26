@@ -1,6 +1,6 @@
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
-import { parseTags } from "../markdown";
+import { parseTags, parseHeadings } from "../markdown";
 import { ArrowRight, OpenExternal } from "../icons";
 import "./Inspector.css";
 
@@ -28,6 +28,7 @@ export default function Inspector() {
   const backlinksOf = useVault((s) => s.backlinksOf);
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
+  const scrollToHeading = useVault((s) => s.scrollToHeading);
 
   const width = useVault((s) => s.inspectorWidth);
   const note = notesById.get(selectedId);
@@ -36,6 +37,7 @@ export default function Inspector() {
   const links = linksOf(note.id);
   const backlinks = backlinksOf(note.id);
   const tags = parseTags(note.content ?? "");
+  const headings = parseHeadings(note.content ?? "").filter((h) => h.level > 1);
 
   return (
     <aside className="inspector" style={{ width, minWidth: width }}>
@@ -57,6 +59,24 @@ export default function Inspector() {
               </button>
             ))}
           </div>
+        )}
+
+        {headings.length >= 2 && (
+          <section className="link-section">
+            <div className="section-label">On this page</div>
+            <div className="outline">
+              {headings.map((h, i) => (
+                <button
+                  key={`${h.slug}-${i}`}
+                  className="outline-row"
+                  style={{ paddingLeft: 2 + (h.level - 2) * 14 }}
+                  onClick={() => scrollToHeading(h.slug)}
+                >
+                  {h.text}
+                </button>
+              ))}
+            </div>
+          </section>
         )}
 
         <section className="link-section">
