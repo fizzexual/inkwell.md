@@ -53,3 +53,57 @@ button {
 svg {
   display: block;
 }
+
+/* ---- theme crossfade: structural surfaces ease between light/dark ---- */
+.app,
+.titlebar,
+.sidebar,
+.inspector,
+.map,
+.article,
+.map-canvas,
+.stat-card,
+.link-row,
+.open-btn {
+  transition:
+    background-color var(--dur-3) var(--ease),
+    border-color var(--dur-3) var(--ease),
+    color var(--dur-3) var(--ease);
+}
+
+/* ---- shared entrance keyframes ---- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes rise-in-sm {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* ---- respect the user's motion preference ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

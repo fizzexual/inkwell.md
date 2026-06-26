@@ -61,6 +61,15 @@
     sans-serif;
 
   --shadow-pop: 0 8px 28px rgba(20, 20, 24, 0.12);
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 480ms;
 }
 
 :root[data-theme="dark"] {
