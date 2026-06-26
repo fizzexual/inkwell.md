@@ -134,7 +134,10 @@ export const useVault = create<VaultState>((set, get) => ({
   setEditing: (v) => set({ editing: v }),
   updateContent: (id, md) =>
     set((s) => {
-      const notes = s.notes.map((n) => (n.id === id ? { ...n, content: md } : n));
+      const heading = md.match(/^#\s+(.+?)\s*$/m)?.[1]?.trim();
+      const notes = s.notes.map((n) =>
+        n.id === id ? { ...n, content: md, title: heading || n.title } : n,
+      );
       return { notes, ...derive(notes) };
     }),
   createNote: (folder = "") =>
