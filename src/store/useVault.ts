@@ -43,6 +43,7 @@ const seedContents = buildContents(vault);
 const STORAGE_KEY = "inkwell.vault.v1";
 interface Persisted {
   contents?: Record<string, string>;
+  newNotes?: Note[];
   selectedId?: string;
   expanded?: string[];
   sidebarView?: SidebarView;
@@ -58,10 +59,14 @@ function loadPersisted(): Persisted {
 }
 const persisted = loadPersisted();
 
-const seedNotes: Note[] = vault.notes.map((n) => ({
-  ...n,
-  content: persisted.contents?.[n.id] ?? seedContents[n.id],
-}));
+const seedIds = new Set(vault.notes.map((n) => n.id));
+const seedNotes: Note[] = [
+  ...vault.notes.map((n) => ({
+    ...n,
+    content: persisted.contents?.[n.id] ?? seedContents[n.id],
+  })),
+  ...(persisted.newNotes ?? []).filter((n) => !seedIds.has(n.id)),
+];
 
 interface VaultState extends Derived {
   vaultName: string;
@@ -179,11 +184,17 @@ useVault.subscribe(() => {
     persistQueued = false;
     const s = useVault.getState();
     const contents: Record<string, string> = {};
+    const newNotes: Note[] = [];
     for (const n of s.notes) {
-      if (n.content !== undefined && n.content !== seedContents[n.id]) contents[n.id] = n.content;
+      if (!seedIds.has(n.id)) {
+        newNotes.push(n);
+      } else if (n.content !== undefined && n.content !== seedContents[n.id]) {
+        contents[n.id] = n.content;
+      }
     }
     const data: Persisted = {
       contents,
+      newNotes,
       selectedId: s.selectedId,
       expanded: [...s.expanded],
       sidebarView: s.sidebarView,
