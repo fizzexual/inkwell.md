@@ -26,6 +26,7 @@ export default function ArticleView() {
 
   const note = notesById.get(selectedId);
   const md = note?.content ?? "";
+  const words = wordCount(md);
   const html = useMemo(() => renderMarkdown(md, resolve), [md, resolve]);
 
   useEffect(() => {
@@ -148,7 +149,9 @@ export default function ArticleView() {
       <footer className="article-footer">
         <span>{note.kind === "source" ? "Source" : "Note"}</span>
         <span className="dot-sep">·</span>
-        <span>{wordCount(md)} words</span>
+        <span>{words} words</span>
+        <span className="dot-sep">·</span>
+        <span>{Math.max(1, Math.round(words / 200))} min read</span>
         <span className="dot-sep">·</span>
         <span>{editing ? "Editing" : "Reading"}</span>
       </footer>
