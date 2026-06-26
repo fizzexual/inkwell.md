@@ -118,3 +118,20 @@
 .graph-edge.faded {
   opacity: 0.4;
 }
+
+/* hover highlight */
+.graph-node.hover-faded {
+  opacity: 0.22;
+}
+.graph-node.hover-hot text {
+  fill: var(--tx-1);
+  font-weight: 600;
+}
+.graph-node.hover-hot circle.dot {
+  stroke: var(--ring);
+  stroke-width: 1.2;
+}
+.graph-edge.hover-hot {
+  stroke: var(--edge-active);
+  stroke-width: 1.5;
+}

@@ -79,6 +79,30 @@ export default function KnowledgeGraph() {
         openArticleRef.current(d.id);
       });
 
+    // neighbour lookup for hover highlighting
+    const neighbours = new Map<string, Set<string>>();
+    const addNbr = (a: string, b: string) => {
+      if (!neighbours.has(a)) neighbours.set(a, new Set());
+      neighbours.get(a)!.add(b);
+    };
+    for (const e of graph.edges) {
+      addNbr(e.source, e.target);
+      addNbr(e.target, e.source);
+    }
+    const idOf = (x: SimNode | string) => (typeof x === "string" ? x : x.id);
+
+    node
+      .on("mouseenter", (_e, d) => {
+        const near = neighbours.get(d.id);
+        node.classed("hover-hot", (n) => n.id === d.id || !!near?.has(n.id));
+        node.classed("hover-faded", (n) => n.id !== d.id && !near?.has(n.id));
+        link.classed("hover-hot", (l) => idOf(l.source) === d.id || idOf(l.target) === d.id);
+      })
+      .on("mouseleave", () => {
+        node.classed("hover-hot", false).classed("hover-faded", false);
+        link.classed("hover-hot", false);
+      });
+
     node.append("circle").attr("class", "ring").attr("r", (d) => radius(d) + 4);
     node
       .append("circle")
