@@ -42,6 +42,35 @@
   flex-shrink: 0;
 }
 
+/* ---- editor toolbar ---- */
+.md-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.md-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-toolbar button:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.tb-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line-strong);
+  margin: 0 6px;
+}
+
 /* ---- body ---- */
 .article-body {
   flex: 1;

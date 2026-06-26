@@ -138,6 +138,42 @@ export const Fit = (p: P) => (
   </svg>
 );
 
+export const Bold = (p: P) => (
+  <svg {...base({ ...p, strokeWidth: 2.1 })}>
+    <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />
+  </svg>
+);
+
+export const Italic = (p: P) => (
+  <svg {...base({ ...p, strokeWidth: 2 })}>
+    <path d="M19 5h-6M11 19H5M15 5 9 19" />
+  </svg>
+);
+
+export const Heading = (p: P) => (
+  <svg {...base({ ...p, strokeWidth: 2 })}>
+    <path d="M6 5v14M18 5v14M6 12h12" />
+  </svg>
+);
+
+export const ListIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+  </svg>
+);
+
+export const Quote = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v-2M19 7h-3a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v-2" />
+  </svg>
+);
+
+export const Code = (p: P) => (
+  <svg {...base(p)}>
+    <path d="m9 8-4 4 4 4M15 8l4 4-4 4" />
+  </svg>
+);
+
 export const Sun = (p: P) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="4" />

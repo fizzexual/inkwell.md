@@ -1,7 +1,7 @@
-import { useMemo, type MouseEvent } from "react";
+import { useMemo, useRef, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
 import { renderMarkdown } from "../markdown";
-import { Graph, Pencil, Doc } from "../icons";
+import { Graph, Pencil, Doc, Bold, Italic, Heading, ListIcon, Quote, Code, Link } from "../icons";
 import "./ArticleView.css";
 
 function wordCount(md: string): number {
@@ -19,9 +19,37 @@ export default function ArticleView() {
   const openArticle = useVault((s) => s.openArticle);
   const updateContent = useVault((s) => s.updateContent);
 
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
   const note = notesById.get(selectedId);
   const md = note?.content ?? "";
   const html = useMemo(() => renderMarkdown(md, resolve), [md, resolve]);
+
+  const surround = (left: string, right = left, placeholder = "text") => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const { selectionStart: a, selectionEnd: b, value } = ta;
+    const sel = value.slice(a, b) || placeholder;
+    const next = value.slice(0, a) + left + sel + right + value.slice(b);
+    updateContent(selectedId, next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(a + left.length, a + left.length + sel.length);
+    });
+  };
+
+  const prefixLine = (prefix: string) => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const { selectionStart: a, value } = ta;
+    const lineStart = value.lastIndexOf("\n", a - 1) + 1;
+    const next = value.slice(0, lineStart) + prefix + value.slice(lineStart);
+    updateContent(selectedId, next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(a + prefix.length, a + prefix.length);
+    });
+  };
 
   if (!note) return <main className="article" />;
 
@@ -62,9 +90,36 @@ export default function ArticleView() {
         </div>
       </header>
 
+      {editing && (
+        <div className="md-toolbar">
+          <button title="Heading" onClick={() => prefixLine("## ")}>
+            <Heading size={15} />
+          </button>
+          <button title="Bold" onClick={() => surround("**")}>
+            <Bold size={15} />
+          </button>
+          <button title="Italic" onClick={() => surround("_")}>
+            <Italic size={15} />
+          </button>
+          <button title="Inline code" onClick={() => surround("`")}>
+            <Code size={15} />
+          </button>
+          <span className="tb-sep" />
+          <button title="List item" onClick={() => prefixLine("- ")}>
+            <ListIcon size={15} />
+          </button>
+          <button title="Quote" onClick={() => prefixLine("> ")}>
+            <Quote size={15} />
+          </button>
+          <button title="Wiki link" onClick={() => surround("[[", "]]", "Note Title")}>
+            <Link size={15} />
+          </button>
+        </div>
+      )}
       <div className="article-body">
         {editing ? (
           <textarea
+            ref={taRef}
             className="md-editor"
             value={md}
             spellCheck={false}
