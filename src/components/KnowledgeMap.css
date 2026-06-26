@@ -5,6 +5,7 @@
   flex-direction: column;
   background: var(--bg-canvas);
   overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
 }
 
 .map-header {

@@ -4,6 +4,7 @@
   flex-direction: column;
   min-height: 0;
   padding: 2px 8px 8px;
+  animation: fade-in var(--dur-2) var(--ease);
 }
 
 .search-box {

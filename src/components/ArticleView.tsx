@@ -139,6 +139,7 @@ export default function ArticleView() {
           />
         ) : (
           <div
+            key={selectedId}
             className="md-preview"
             onClick={onPreviewClick}
             dangerouslySetInnerHTML={{ __html: html }}

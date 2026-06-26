@@ -5,6 +5,7 @@
   flex-direction: column;
   background: var(--bg-canvas);
   overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
 }
 
 /* ---- header ---- */
@@ -107,6 +108,7 @@
   color: var(--tx-2);
   -webkit-user-select: text;
   user-select: text;
+  animation: rise-in var(--dur-3) var(--ease-out);
 }
 .md-preview h1 {
   font-size: 26px;

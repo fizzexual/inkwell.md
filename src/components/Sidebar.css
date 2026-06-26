@@ -98,6 +98,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 6px 6px 16px;
+  animation: fade-in var(--dur-2) var(--ease);
 }
 .tree-children {
   display: block;
