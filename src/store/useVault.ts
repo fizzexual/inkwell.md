@@ -39,7 +39,29 @@ function derive(notes: Note[]): Derived {
 }
 
 const seedContents = buildContents(vault);
-const seedNotes: Note[] = vault.notes.map((n) => ({ ...n, content: seedContents[n.id] }));
+
+const STORAGE_KEY = "inkwell.vault.v1";
+interface Persisted {
+  contents?: Record<string, string>;
+  selectedId?: string;
+  expanded?: string[];
+  sidebarView?: SidebarView;
+  centerView?: CenterView;
+  mapView?: MapView;
+}
+function loadPersisted(): Persisted {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+const persisted = loadPersisted();
+
+const seedNotes: Note[] = vault.notes.map((n) => ({
+  ...n,
+  content: persisted.contents?.[n.id] ?? seedContents[n.id],
+}));
 
 interface VaultState extends Derived {
   vaultName: string;
@@ -68,16 +90,18 @@ export const useVault = create<VaultState>((set, get) => ({
   vaultName: vault.name,
   notes: seedNotes,
   ...derive(seedNotes),
-  selectedId: "convolutional-neural-networks",
-  expanded: new Set([
-    "00 - Meta",
-    "01 - Foundations",
-    "02 - Neural Network Fundamentals",
-    "03 - Training & Optimization",
-  ]),
-  sidebarView: "graph",
-  mapView: "links",
-  centerView: "graph",
+  selectedId: persisted.selectedId ?? "convolutional-neural-networks",
+  expanded: new Set(
+    persisted.expanded ?? [
+      "00 - Meta",
+      "01 - Foundations",
+      "02 - Neural Network Fundamentals",
+      "03 - Training & Optimization",
+    ],
+  ),
+  sidebarView: persisted.sidebarView ?? "graph",
+  mapView: persisted.mapView ?? "links",
+  centerView: persisted.centerView ?? "graph",
   editing: false,
   fitNonce: 0,
   select: (id) => set({ selectedId: id }),
@@ -112,3 +136,31 @@ export const useVault = create<VaultState>((set, get) => ({
     return (backlinkMap.get(id) ?? []).map((t) => notesById.get(t)).filter((n): n is Note => !!n);
   },
 }));
+
+// Persist edited content + light UI state (debounced via microtask coalescing).
+let persistQueued = false;
+useVault.subscribe(() => {
+  if (persistQueued) return;
+  persistQueued = true;
+  queueMicrotask(() => {
+    persistQueued = false;
+    const s = useVault.getState();
+    const contents: Record<string, string> = {};
+    for (const n of s.notes) {
+      if (n.content !== undefined && n.content !== seedContents[n.id]) contents[n.id] = n.content;
+    }
+    const data: Persisted = {
+      contents,
+      selectedId: s.selectedId,
+      expanded: [...s.expanded],
+      sidebarView: s.sidebarView,
+      centerView: s.centerView,
+      mapView: s.mapView,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      /* storage full / unavailable — ignore */
+    }
+  });
+});
