@@ -1,17 +1,43 @@
 import { marked } from "marked";
-import { vault } from "./data/vault";
 
-const titleToId = new Map(vault.notes.map((n) => [n.title.toLowerCase(), n.id]));
+export type Resolver = (title: string) => string | undefined;
 
-export function resolveNoteId(title: string): string | undefined {
-  return titleToId.get(title.trim().toLowerCase());
+const WIKILINK = /\[\[([^\]]+)\]\]/g;
+
+/** Ordered, unique target note ids referenced by [[wikilinks]] in `md`. */
+export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const m of md.matchAll(WIKILINK)) {
+    const title = m[1].split("|")[0];
+    const id = resolve(title);
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
 }
 
-// Turn [[Title]] / [[Title|alias]] into anchors the ArticleView can intercept.
-function expandWikilinks(md: string): string {
-  return md.replace(/\[\[([^\]]+)\]\]/g, (_m, inner: string) => {
+/** #tags found in `md` (lowercased, without the #). */
+const TAG = /(^|\s)#([a-z0-9][a-z0-9_-]*)/gi;
+export function parseTags(md: string): string[] {
+  const tags: string[] = [];
+  const seen = new Set<string>();
+  for (const m of md.matchAll(TAG)) {
+    const t = m[2].toLowerCase();
+    if (!seen.has(t)) {
+      seen.add(t);
+      tags.push(t);
+    }
+  }
+  return tags;
+}
+
+function expandWikilinks(md: string, resolve: Resolver): string {
+  return md.replace(WIKILINK, (_m, inner: string) => {
     const [rawTitle, rawAlias] = inner.split("|");
-    const id = resolveNoteId(rawTitle);
+    const id = resolve(rawTitle);
     const label = (rawAlias ?? rawTitle).trim();
     if (id) return `<a class="wikilink" href="#/note/${id}" data-note="${id}">${label}</a>`;
     return `<span class="wikilink missing">${label}</span>`;
@@ -20,6 +46,6 @@ function expandWikilinks(md: string): string {
 
 marked.setOptions({ gfm: true, breaks: false });
 
-export function renderMarkdown(md: string): string {
-  return marked.parse(expandWikilinks(md), { async: false }) as string;
+export function renderMarkdown(md: string, resolve: Resolver): string {
+  return marked.parse(expandWikilinks(md, resolve), { async: false }) as string;
 }

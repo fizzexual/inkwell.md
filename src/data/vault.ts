@@ -5,7 +5,8 @@ export interface Note {
   title: string;
   folder: string; // "/" separated path, "" = vault root
   kind: NoteKind;
-  links: string[]; // ids this note links to
+  links: string[]; // seed link ids (used to generate starter content)
+  content?: string; // markdown body; live links are parsed from this
 }
 
 export interface VaultData {

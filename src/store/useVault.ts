@@ -1,20 +1,49 @@
 import { create } from "zustand";
 import { vault } from "../data/vault";
-import { buildTree, buildGraph } from "../data/derive";
+import type { Note } from "../data/vault";
+import {
+  buildTree,
+  buildGraph,
+  buildLinkMap,
+  buildBacklinks,
+  titleResolver,
+  type TreeFolder,
+} from "../data/derive";
 import { buildContents } from "../data/content";
+import type { Resolver } from "../markdown";
 
 export type SidebarView = "stats" | "notes" | "graph" | "search";
 export type MapView = "links" | "sources";
 export type CenterView = "graph" | "article";
 
-const tree = buildTree(vault);
-const graph = buildGraph(vault);
-const initialContents = buildContents(vault);
+interface Derived {
+  tree: TreeFolder;
+  graph: ReturnType<typeof buildGraph>;
+  linkMap: Map<string, string[]>;
+  backlinkMap: Map<string, string[]>;
+  notesById: Map<string, Note>;
+  resolve: Resolver;
+}
 
-interface VaultState {
-  tree: typeof tree;
-  graph: typeof graph;
-  contents: Record<string, string>;
+function derive(notes: Note[]): Derived {
+  const resolve = titleResolver(notes);
+  const linkMap = buildLinkMap(notes, resolve);
+  return {
+    tree: buildTree(notes, vault.name),
+    graph: buildGraph(notes, linkMap),
+    linkMap,
+    backlinkMap: buildBacklinks(linkMap),
+    notesById: new Map(notes.map((n) => [n.id, n])),
+    resolve,
+  };
+}
+
+const seedContents = buildContents(vault);
+const seedNotes: Note[] = vault.notes.map((n) => ({ ...n, content: seedContents[n.id] }));
+
+interface VaultState extends Derived {
+  vaultName: string;
+  notes: Note[];
   selectedId: string;
   expanded: Set<string>;
   sidebarView: SidebarView;
@@ -31,12 +60,14 @@ interface VaultState {
   setEditing: (v: boolean) => void;
   updateContent: (id: string, md: string) => void;
   requestFit: () => void;
+  linksOf: (id: string) => Note[];
+  backlinksOf: (id: string) => Note[];
 }
 
-export const useVault = create<VaultState>((set) => ({
-  tree,
-  graph,
-  contents: initialContents,
+export const useVault = create<VaultState>((set, get) => ({
+  vaultName: vault.name,
+  notes: seedNotes,
+  ...derive(seedNotes),
   selectedId: "convolutional-neural-networks",
   expanded: new Set([
     "00 - Meta",
@@ -67,6 +98,17 @@ export const useVault = create<VaultState>((set) => ({
   setCenterView: (v) => set({ centerView: v }),
   setEditing: (v) => set({ editing: v }),
   updateContent: (id, md) =>
-    set((s) => ({ contents: { ...s.contents, [id]: md } })),
+    set((s) => {
+      const notes = s.notes.map((n) => (n.id === id ? { ...n, content: md } : n));
+      return { notes, ...derive(notes) };
+    }),
   requestFit: () => set((s) => ({ fitNonce: s.fitNonce + 1 })),
+  linksOf: (id) => {
+    const { linkMap, notesById } = get();
+    return (linkMap.get(id) ?? []).map((t) => notesById.get(t)).filter((n): n is Note => !!n);
+  },
+  backlinksOf: (id) => {
+    const { backlinkMap, notesById } = get();
+    return (backlinkMap.get(id) ?? []).map((t) => notesById.get(t)).filter((n): n is Note => !!n);
+  },
 }));

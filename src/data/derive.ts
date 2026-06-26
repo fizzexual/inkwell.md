@@ -1,4 +1,5 @@
-import type { Note, VaultData } from "./vault";
+import type { Note } from "./vault";
+import { parseWikilinkIds, type Resolver } from "../markdown";
 
 export interface TreeFolder {
   type: "folder";
@@ -8,9 +9,28 @@ export interface TreeFolder {
   notes: Note[];
 }
 
+/** Map of note title (lowercased) → id, for resolving [[wikilinks]]. */
+export function titleResolver(notes: Note[]): Resolver {
+  const map = new Map(notes.map((n) => [n.title.toLowerCase(), n.id]));
+  return (title) => map.get(title.trim().toLowerCase());
+}
+
+/** id → ordered unique target ids, parsed from each note's content. */
+export function buildLinkMap(notes: Note[], resolve: Resolver): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  const valid = new Set(notes.map((n) => n.id));
+  for (const note of notes) {
+    const ids = parseWikilinkIds(note.content ?? "", resolve).filter(
+      (id) => id !== note.id && valid.has(id),
+    );
+    out.set(note.id, ids);
+  }
+  return out;
+}
+
 /** Build a nested folder tree from the flat note list. */
-export function buildTree(vault: VaultData): TreeFolder {
-  const root: TreeFolder = { type: "folder", name: vault.name, path: "", folders: [], notes: [] };
+export function buildTree(notes: Note[], vaultName: string): TreeFolder {
+  const root: TreeFolder = { type: "folder", name: vaultName, path: "", folders: [], notes: [] };
 
   const folderFor = (path: string): TreeFolder => {
     if (path === "") return root;
@@ -29,7 +49,7 @@ export function buildTree(vault: VaultData): TreeFolder {
     return cur;
   };
 
-  for (const note of vault.notes) folderFor(note.folder).notes.push(note);
+  for (const note of notes) folderFor(note.folder).notes.push(note);
 
   const sortFolder = (f: TreeFolder) => {
     f.folders.sort((a, b) => a.name.localeCompare(b.name));
@@ -45,23 +65,24 @@ export interface GraphNode {
   title: string;
   degree: number;
   kind: Note["kind"];
+  folder: string;
 }
 export interface GraphEdge {
   source: string;
   target: string;
 }
 
-export function buildGraph(vault: VaultData): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const byId = new Map(vault.notes.map((nt) => [nt.id, nt]));
+export function buildGraph(
+  notes: Note[],
+  linkMap: Map<string, string[]>,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const seen = new Set<string>();
   const edges: GraphEdge[] = [];
   const degree = new Map<string, number>();
-
   const bump = (id: string) => degree.set(id, (degree.get(id) ?? 0) + 1);
 
-  for (const note of vault.notes) {
-    for (const target of note.links) {
-      if (!byId.has(target) || target === note.id) continue;
+  for (const note of notes) {
+    for (const target of linkMap.get(note.id) ?? []) {
       const key = [note.id, target].sort().join("|");
       if (seen.has(key)) continue;
       seen.add(key);
@@ -71,23 +92,26 @@ export function buildGraph(vault: VaultData): { nodes: GraphNode[]; edges: Graph
     }
   }
 
-  const nodes: GraphNode[] = vault.notes.map((nt) => ({
+  const nodes: GraphNode[] = notes.map((nt) => ({
     id: nt.id,
     title: nt.title,
     degree: degree.get(nt.id) ?? 0,
     kind: nt.kind,
+    folder: nt.folder,
   }));
 
   return { nodes, edges };
 }
 
-/** Notes that link TO the given id. */
-export function backlinksOf(vault: VaultData, id: string): Note[] {
-  return vault.notes.filter((nt) => nt.id !== id && nt.links.includes(id));
-}
-
-/** Resolve a note's outgoing links to Note objects (skipping dangling ids). */
-export function linksOf(vault: VaultData, note: Note): Note[] {
-  const byId = new Map(vault.notes.map((nt) => [nt.id, nt]));
-  return note.links.map((l) => byId.get(l)).filter((x): x is Note => !!x);
+/** id → ids of notes that link to it. */
+export function buildBacklinks(linkMap: Map<string, string[]>): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [from, targets] of linkMap) {
+    for (const to of targets) {
+      const arr = out.get(to) ?? [];
+      arr.push(from);
+      out.set(to, arr);
+    }
+  }
+  return out;
 }

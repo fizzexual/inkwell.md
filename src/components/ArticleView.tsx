@@ -1,6 +1,5 @@
 import { useMemo, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
-import { vault } from "../data/vault";
 import { renderMarkdown } from "../markdown";
 import { Graph, Pencil, Doc } from "../icons";
 import "./ArticleView.css";
@@ -12,16 +11,17 @@ function wordCount(md: string): number {
 
 export default function ArticleView() {
   const selectedId = useVault((s) => s.selectedId);
-  const contents = useVault((s) => s.contents);
+  const notesById = useVault((s) => s.notesById);
+  const resolve = useVault((s) => s.resolve);
   const editing = useVault((s) => s.editing);
   const setEditing = useVault((s) => s.setEditing);
   const setCenterView = useVault((s) => s.setCenterView);
   const openArticle = useVault((s) => s.openArticle);
   const updateContent = useVault((s) => s.updateContent);
 
-  const note = vault.notes.find((n) => n.id === selectedId);
-  const md = contents[selectedId] ?? "";
-  const html = useMemo(() => renderMarkdown(md), [md]);
+  const note = notesById.get(selectedId);
+  const md = note?.content ?? "";
+  const html = useMemo(() => renderMarkdown(md, resolve), [md, resolve]);
 
   if (!note) return <main className="article" />;
 

@@ -1,6 +1,4 @@
 import { useVault } from "../store/useVault";
-import { vault } from "../data/vault";
-import { backlinksOf, linksOf } from "../data/derive";
 import type { Note } from "../data/vault";
 import { ArrowRight, OpenExternal } from "../icons";
 import "./Inspector.css";
@@ -24,13 +22,16 @@ function LinkRow({ note }: { note: Note }) {
 
 export default function Inspector() {
   const selectedId = useVault((s) => s.selectedId);
+  const notesById = useVault((s) => s.notesById);
+  const linksOf = useVault((s) => s.linksOf);
+  const backlinksOf = useVault((s) => s.backlinksOf);
   const openArticle = useVault((s) => s.openArticle);
-  const note = vault.notes.find((n) => n.id === selectedId);
 
+  const note = notesById.get(selectedId);
   if (!note) return <aside className="inspector" />;
 
-  const links = linksOf(vault, note);
-  const backlinks = backlinksOf(vault, note.id);
+  const links = linksOf(note.id);
+  const backlinks = backlinksOf(note.id);
 
   return (
     <aside className="inspector">
