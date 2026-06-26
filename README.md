@@ -4,50 +4,61 @@ A local-first research workspace for Windows. Read papers, manage sources, take
 markdown notes, cite evidence, and turn literature into structured writing —
 instead of juggling Zotero, Obsidian, a PDF reader and a writing app.
 
-> **Status — UI shell.** This build is the pixel-perfect three-pane *Knowledge
-> Map* workspace driven by a realistic in-memory vault. Real on-disk vaults, the
-> PDF reader, the markdown editor, citations and persistence are the next pass
-> (see [Roadmap](#roadmap)).
+Built with **Tauri 2 + React + TypeScript**, light & dark themes.
+
+## Features
+
+- **Three-pane workspace** — file tree · center (graph / article) · inspector,
+  with draggable, persisted pane widths.
+- **Knowledge graph** — a d3-force map of the whole vault. Drag, zoom, pan,
+  hover to spotlight a node's connections, click to select, double-click to
+  open. Layout is settled synchronously so it renders instantly.
+- **Markdown notes** — every note is an editable markdown document. Read mode
+  renders GFM (tables, code, quotes); edit mode has a formatting toolbar.
+- **Live `[[wikilinks]]`** — links are parsed from note content, so editing a
+  note updates the graph, backlinks and inspector in real time. Rename a note by
+  editing its first heading.
+- **Command palette** — `Ctrl/Cmd+P` fuzzy quick-switcher to any note.
+- **Full-text search** — search titles and bodies with highlighted snippets.
+- **Overview dashboard** — note / link / source / tag counts, most-linked notes,
+  per-folder breakdown and orphans.
+- **Tags** — `#tags` parsed from content, shown as pills, click to filter.
+- **Outline** — "on this page" heading list with click-to-scroll.
+- **Create notes** from the sidebar or `Ctrl/Cmd+N`.
+- **Light / dark theme** toggle, and everything (edits, new notes, layout,
+  theme, selection) persists to `localStorage`.
+
+### Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd+P` / `+K` | Command palette |
+| `Ctrl/Cmd+N` | New note |
+| `Ctrl/Cmd+E` | Toggle edit / read |
+| `Ctrl/Cmd+G` | Go to the knowledge map |
+| `Esc` | Leave edit mode, then return to the map |
 
 ## Stack
 
-- **[Tauri 2](https://tauri.app)** — frameless native Windows shell, ships as a
-  small `.exe`. Rust backend stays minimal for now.
+- **[Tauri 2](https://tauri.app)** — frameless native Windows shell.
 - **React 18 + TypeScript + Vite** — the UI.
-- **[d3-force](https://github.com/d3/d3-force)** — the knowledge graph, settled
-  *synchronously* (no `requestAnimationFrame` dependency) so it lays out
-  instantly and renders correctly even in a background window.
-- **[Zustand](https://github.com/pmndrs/zustand)** — one in-memory vault feeds
-  the file tree, the graph and the inspector; selecting a node anywhere updates
-  all three.
-- **[@fontsource/inter](https://fontsource.org/fonts/inter)** — self-hosted, no
-  CDN (a local-first app shouldn't phone home for fonts).
-
-## Layout
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ ●●●  titlebar (frameless, custom window controls)            │
-├──────────────┬────────────────────────────┬─────────────────┤
-│ SIDEBAR      │  KNOWLEDGE MAP             │ INSPECTOR        │
-│ vault header │  Links / Sources / Fit     │ ARTICLE          │
-│ view tabs    │                            │ title · Note     │
-│ tree toolbar │  d3-force graph            │ Open Article     │
-│ file tree    │  (drag · zoom · pan ·      │ Links To (n)     │
-│ (collapsible)│   select → inspector)      │ Backlinks (n)    │
-└──────────────┴────────────────────────────┴─────────────────┘
-```
+- **[d3-force](https://github.com/d3/d3-force)** — the knowledge graph.
+- **[Zustand](https://github.com/pmndrs/zustand)** — single source of truth; the
+  tree, graph, links and backlinks are all derived from one note list.
+- **[marked](https://marked.js.org)** — markdown rendering.
+- **[@fontsource/inter](https://fontsource.org/fonts/inter)** — self-hosted, no CDN.
 
 ## Project structure
 
 ```
 src/
-  components/      TitleBar, Sidebar, KnowledgeMap, KnowledgeGraph, Inspector
-  data/            vault.ts (sample vault) · derive.ts (tree / graph / backlinks)
-  store/           useVault.ts (Zustand)
-  styles/          tokens.css (design tokens) · global.css
-  icons.tsx        inline SVG icon set
-src-tauri/         Rust shell, window config, capabilities, icons
+  components/   TitleBar · Sidebar · KnowledgeMap · KnowledgeGraph · ArticleView
+                Inspector · CommandPalette · SearchPanel · StatsPanel · Resizer
+  data/         vault.ts (seed) · content.ts (seed bodies) · derive.ts
+  store/        useVault.ts (Zustand single source of truth + persistence)
+  markdown.ts   wikilinks · tags · headings · rendering
+  fuzzy.ts      subsequence matcher
+src-tauri/      Rust shell, window config, capabilities, icons
 ```
 
 ## Develop
@@ -64,10 +75,9 @@ npm run tauri build    # package the Windows installer
 
 - [ ] Open a real folder as a vault (read/write markdown on disk via Rust)
 - [ ] Embedded PDF reader with highlight-to-note
-- [ ] Markdown editor with `[[wikilink]]` autocomplete
 - [ ] Citations & source metadata (BibTeX / CSL import)
-- [ ] Full-text search across the vault
-- [ ] Dark theme
+- [ ] Local-graph mode (neighbourhood of the selected note)
+- [ ] Folder management (create / rename / move)
 
 ## License
 
