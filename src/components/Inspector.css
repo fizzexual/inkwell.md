@@ -58,6 +58,25 @@
   color: var(--tx-3);
 }
 
+.insp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+.tag-pill {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #5a37c0;
+  background: #f1ebff;
+  border-radius: 20px;
+  padding: 3px 10px;
+  transition: background 0.12s ease;
+}
+.tag-pill:hover {
+  background: #e6dcff;
+}
+
 .link-section {
   margin-top: 24px;
 }

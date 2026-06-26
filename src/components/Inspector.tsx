@@ -1,5 +1,6 @@
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
+import { parseTags } from "../markdown";
 import { ArrowRight, OpenExternal } from "../icons";
 import "./Inspector.css";
 
@@ -26,12 +27,14 @@ export default function Inspector() {
   const linksOf = useVault((s) => s.linksOf);
   const backlinksOf = useVault((s) => s.backlinksOf);
   const openArticle = useVault((s) => s.openArticle);
+  const openTag = useVault((s) => s.openTag);
 
   const note = notesById.get(selectedId);
   if (!note) return <aside className="inspector" />;
 
   const links = linksOf(note.id);
   const backlinks = backlinksOf(note.id);
+  const tags = parseTags(note.content ?? "");
 
   return (
     <aside className="inspector">
@@ -44,6 +47,16 @@ export default function Inspector() {
           <OpenExternal size={15} />
           <span>Open {note.kind === "source" ? "Source" : "Article"}</span>
         </button>
+
+        {tags.length > 0 && (
+          <div className="insp-tags">
+            {tags.map((t) => (
+              <button key={t} className="tag-pill" onClick={() => openTag(t)}>
+                #{t}
+              </button>
+            ))}
+          </div>
+        )}
 
         <section className="link-section">
           <div className="section-label">Links To ({links.length})</div>

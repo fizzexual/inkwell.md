@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useVault } from "../store/useVault";
 import { Search } from "../icons";
 import "./SearchPanel.css";
@@ -27,7 +27,8 @@ export default function SearchPanel() {
   const notes = useVault((s) => s.notes);
   const openArticle = useVault((s) => s.openArticle);
   const select = useVault((s) => s.select);
-  const [query, setQuery] = useState("");
+  const query = useVault((s) => s.searchQuery);
+  const setQuery = useVault((s) => s.setSearchQuery);
 
   const hits = useMemo<Hit[]>(() => {
     const q = query.trim();

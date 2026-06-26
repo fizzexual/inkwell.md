@@ -101,6 +101,16 @@ const lead = (title: string, area: string) =>
   `> _Stub note._ **${title}** lives in the **${area}** area of this vault.\n\n` +
   `Open it with the **Edit** button to start writing. Everything below is a starting scaffold.`;
 
+/** Derive a couple of #tags for a note from its folder area + kind. */
+function tagsFor(note: { folder: string; kind: string; title: string }): string {
+  const area = note.folder ? note.folder.split("/")[0].replace(/^\d+\s*-\s*/, "") : "vault";
+  const areaTag = area.toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9]/g, "");
+  const tags = [`#${areaTag || "vault"}`];
+  if (note.kind === "source") tags.push("#source");
+  if (/\bMOC\b/.test(note.title)) tags.push("#moc");
+  return tags.join(" ");
+}
+
 /** Build a markdown string for every note (authored, or a templated stub). */
 export function buildContents(vault: VaultData): Record<string, string> {
   const titleOf = new Map(vault.notes.map((n) => [n.id, n.title]));
@@ -108,7 +118,7 @@ export function buildContents(vault: VaultData): Record<string, string> {
 
   for (const note of vault.notes) {
     if (authored[note.id]) {
-      out[note.id] = authored[note.id];
+      out[note.id] = `${authored[note.id]}\n\n---\n\n${tagsFor(note)}`;
       continue;
     }
     const area = note.folder ? note.folder.split("/")[0].replace(/^\d+\s*-\s*/, "") : vault.name;
@@ -129,6 +139,10 @@ export function buildContents(vault: VaultData): Record<string, string> {
       "",
       "## Related notes",
       related || "_No links yet._",
+      "",
+      "---",
+      "",
+      tagsFor(note),
       "",
     ].join("\n");
   }

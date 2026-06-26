@@ -75,6 +75,9 @@ interface VaultState extends Derived {
   fitNonce: number;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  openTag: (tag: string) => void;
   select: (id: string) => void;
   openArticle: (id: string) => void;
   toggleFolder: (path: string) => void;
@@ -108,6 +111,9 @@ export const useVault = create<VaultState>((set, get) => ({
   fitNonce: 0,
   paletteOpen: false,
   setPaletteOpen: (v) => set({ paletteOpen: v }),
+  searchQuery: "",
+  setSearchQuery: (q) => set({ searchQuery: q }),
+  openTag: (tag) => set({ searchQuery: `#${tag}`, sidebarView: "search" }),
   select: (id) => set({ selectedId: id }),
   openArticle: (id) => set({ selectedId: id, centerView: "article", sidebarView: "notes" }),
   toggleFolder: (path) =>
