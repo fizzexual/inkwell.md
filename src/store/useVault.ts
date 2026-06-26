@@ -86,6 +86,7 @@ interface VaultState extends Derived {
   setCenterView: (v: CenterView) => void;
   setEditing: (v: boolean) => void;
   updateContent: (id: string, md: string) => void;
+  createNote: (folder?: string) => void;
   requestFit: () => void;
   linksOf: (id: string) => Note[];
   backlinksOf: (id: string) => Note[];
@@ -135,6 +136,25 @@ export const useVault = create<VaultState>((set, get) => ({
     set((s) => {
       const notes = s.notes.map((n) => (n.id === id ? { ...n, content: md } : n));
       return { notes, ...derive(notes) };
+    }),
+  createNote: (folder = "") =>
+    set((s) => {
+      const titles = new Set(s.notes.map((n) => n.title));
+      let title = "Untitled Note";
+      for (let i = 2; titles.has(title); i++) title = `Untitled Note ${i}`;
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const id = `${slug}-${s.notes.length}`;
+      const note: Note = { id, title, folder, kind: "note", links: [], content: `# ${title}\n\n` };
+      const notes = [...s.notes, note];
+      return {
+        notes,
+        ...derive(notes),
+        selectedId: id,
+        centerView: "article" as const,
+        sidebarView: "notes" as const,
+        editing: true,
+        expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
+      };
     }),
   requestFit: () => set((s) => ({ fitNonce: s.fitNonce + 1 })),
   linksOf: (id) => {

@@ -82,6 +82,7 @@ export default function Sidebar() {
   const tree = useVault((s) => s.tree);
   const sidebarView = useVault((s) => s.sidebarView);
   const setSidebarView = useVault((s) => s.setSidebarView);
+  const createNote = useVault((s) => s.createNote);
 
   return (
     <aside className="sidebar">
@@ -94,7 +95,7 @@ export default function Sidebar() {
           <button className="ghost-btn" aria-label="Edit vault">
             <Pencil size={15} />
           </button>
-          <button className="ghost-btn" aria-label="New note">
+          <button className="ghost-btn" aria-label="New note" onClick={() => createNote()}>
             <Plus size={16} />
           </button>
         </div>
@@ -130,7 +131,7 @@ export default function Sidebar() {
             <button className="ghost-btn sm" aria-label="New folder">
               <FolderPlus size={15} />
             </button>
-            <button className="ghost-btn sm" aria-label="New note">
+            <button className="ghost-btn sm" aria-label="New note" onClick={() => createNote()}>
               <Plus size={16} />
             </button>
           </div>
