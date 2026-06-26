@@ -1,0 +1,123 @@
+.inspector {
+  width: var(--inspector-w);
+  min-width: var(--inspector-w);
+  height: 100%;
+  background: var(--bg-inspector);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.insp-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 18px 24px;
+}
+
+.insp-eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: var(--tx-4);
+}
+.insp-title {
+  margin-top: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--tx-1);
+}
+.insp-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--tx-4);
+}
+
+.open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tx-2);
+  background: var(--bg-app);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.open-btn:hover {
+  background: var(--bg-hover);
+  border-color: #d6d6d8;
+}
+.open-btn svg {
+  color: var(--tx-3);
+}
+
+.link-section {
+  margin-top: 24px;
+}
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx-3);
+  margin-bottom: 9px;
+  letter-spacing: 0.01em;
+}
+.link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 11px;
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.link-row:hover {
+  background: var(--bg-hover);
+  border-color: #e2e2e4;
+}
+.link-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.link-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-kind {
+  font-size: 11px;
+  color: var(--tx-4);
+}
+.link-arrow {
+  color: var(--tx-muted);
+  flex-shrink: 0;
+}
+.link-row:hover .link-arrow {
+  color: var(--tx-3);
+}
+.empty {
+  font-size: 12px;
+  color: var(--tx-4);
+  padding: 4px 2px;
+}

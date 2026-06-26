@@ -1,0 +1,223 @@
+import { useEffect, useRef } from "react";
+import {
+  forceSimulation,
+  forceLink,
+  forceManyBody,
+  forceCenter,
+  forceCollide,
+  forceX,
+  forceY,
+  type Simulation,
+  type SimulationNodeDatum,
+} from "d3-force";
+import { select } from "d3-selection";
+import "d3-transition";
+import { drag } from "d3-drag";
+import { zoom, zoomIdentity, type ZoomBehavior } from "d3-zoom";
+import { useVault } from "../store/useVault";
+import type { GraphNode } from "../data/derive";
+
+interface SimNode extends GraphNode, SimulationNodeDatum {}
+interface SimLink {
+  source: SimNode | string;
+  target: SimNode | string;
+}
+
+const NODE_FILLS = [
+  "var(--node-1)",
+  "var(--node-2)",
+  "var(--node-3)",
+  "var(--node-4)",
+  "var(--node-5)",
+];
+const radius = (d: SimNode) => 4 + Math.min(d.degree, 9) * 1.15;
+const fill = (d: SimNode) => NODE_FILLS[Math.min(Math.floor(d.degree / 2), 4)];
+const labelled = (d: SimNode) => d.degree >= 3;
+
+export default function KnowledgeGraph() {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const graph = useVault((s) => s.graph);
+  const selectedId = useVault((s) => s.selectedId);
+  const fitNonce = useVault((s) => s.fitNonce);
+
+  // latest-value refs so the d3 callbacks never go stale
+  const selectRef = useRef(useVault.getState().select);
+  selectRef.current = useVault.getState().select;
+  const fitRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    const nodes: SimNode[] = graph.nodes.map((d) => ({ ...d }));
+    const links: SimLink[] = graph.edges.map((e) => ({ ...e }));
+
+    const svg = select(svgEl);
+    svg.selectAll("*").remove();
+    const root = svg.append("g").attr("class", "zoom-layer");
+    const edgeLayer = root.append("g").attr("class", "edges");
+    const nodeLayer = root.append("g").attr("class", "nodes");
+
+    const link = edgeLayer
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("class", "graph-edge");
+
+    const node = nodeLayer
+      .selectAll("g")
+      .data(nodes)
+      .join("g")
+      .attr("class", "graph-node")
+      .attr("data-id", (d) => d.id)
+      .style("cursor", "pointer")
+      .on("click", (_e, d) => selectRef.current(d.id));
+
+    node.append("circle").attr("class", "ring").attr("r", (d) => radius(d) + 4);
+    node
+      .append("circle")
+      .attr("class", "dot")
+      .attr("r", radius)
+      .attr("fill", fill);
+    node
+      .filter(labelled)
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", (d) => radius(d) + 12)
+      .text((d) => d.title);
+
+    const sim: Simulation<SimNode, undefined> = forceSimulation(nodes)
+      .force(
+        "link",
+        forceLink<SimNode, SimLink>(links)
+          .id((d) => d.id)
+          .distance(58)
+          .strength(0.55),
+      )
+      .force("charge", forceManyBody().strength(-185))
+      .force("collide", forceCollide<SimNode>((d) => radius(d) + 10))
+      .force("x", forceX(0).strength(0.045))
+      .force("y", forceY(0).strength(0.045))
+      .force("center", forceCenter(0, 0))
+      .stop();
+
+    const ticked = () => {
+      link
+        .attr("x1", (d) => (d.source as SimNode).x ?? 0)
+        .attr("y1", (d) => (d.source as SimNode).y ?? 0)
+        .attr("x2", (d) => (d.target as SimNode).x ?? 0)
+        .attr("y2", (d) => (d.target as SimNode).y ?? 0);
+      node.attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+    };
+    sim.on("tick", ticked);
+
+    // Settle the layout synchronously so the graph is laid out instantly,
+    // independent of requestAnimationFrame (which is paused in background tabs).
+    sim.tick(320);
+    ticked();
+
+    // ---- zoom / pan ----
+    const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.25, 3])
+      .on("zoom", (e) => root.attr("transform", e.transform.toString()));
+    svg.call(zoomBehavior);
+
+    // ---- drag nodes ----
+    const dragBehavior = drag<SVGGElement, SimNode>()
+      .on("start", (e, d) => {
+        if (!e.active) sim.alphaTarget(0.25).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on("drag", (e, d) => {
+        d.fx = e.x;
+        d.fy = e.y;
+      })
+      .on("end", (e, d) => {
+        if (!e.active) sim.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      });
+    node.call(dragBehavior as never);
+
+    // ---- fit-to-view (instant; rAF-free) ----
+    const fitView = (animate = false) => {
+      const xs = nodes.map((d) => d.x ?? 0);
+      const ys = nodes.map((d) => d.y ?? 0);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const w = svgEl.clientWidth || 800;
+      const h = svgEl.clientHeight || 600;
+      const pad = 96;
+      const gw = maxX - minX || 1;
+      const gh = maxY - minY || 1;
+      const scale = Math.min(1.6, (w - pad) / gw, (h - pad) / gh);
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const t = zoomIdentity
+        .translate(w / 2, h / 2)
+        .scale(scale)
+        .translate(-cx, -cy);
+      const target = animate ? svg.transition().duration(420) : svg;
+      (target as typeof svg).call(zoomBehavior.transform, t);
+    };
+    fitRef.current = () => fitView(true);
+
+    fitView(false);
+
+    // keep the graph framed when the panel resizes
+    let firstRO = true;
+    const ro = new ResizeObserver(() => {
+      if (firstRO) {
+        firstRO = false;
+        return;
+      }
+      fitView(false);
+    });
+    ro.observe(svgEl);
+
+    return () => {
+      ro.disconnect();
+      sim.stop();
+    };
+  }, [graph]);
+
+  // ---- run fit when requested from the header ----
+  useEffect(() => {
+    if (fitNonce > 0) fitRef.current();
+  }, [fitNonce]);
+
+  // ---- highlight selection + neighbours ----
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const neighbours = new Set<string>([selectedId]);
+    for (const e of graph.edges) {
+      if (e.source === selectedId) neighbours.add(e.target);
+      if (e.target === selectedId) neighbours.add(e.source);
+    }
+    const svg = select(svgEl);
+    svg
+      .selectAll<SVGGElement, SimNode>("g.graph-node")
+      .each(function (d) {
+        const g = select(this);
+        const isSel = d.id === selectedId;
+        const isNeighbour = neighbours.has(d.id);
+        g.classed("selected", isSel);
+        g.classed("dim-strong", isNeighbour && !isSel);
+        g.classed("faded", !isNeighbour);
+      });
+    svg
+      .selectAll<SVGLineElement, SimLink>("line.graph-edge")
+      .each(function (d) {
+        const s = typeof d.source === "string" ? d.source : d.source.id;
+        const t = typeof d.target === "string" ? d.target : d.target.id;
+        const touches = s === selectedId || t === selectedId;
+        select(this).classed("lit", touches).classed("faded", !touches);
+      });
+  }, [selectedId, graph]);
+
+  return <svg ref={svgRef} className="graph-svg" />;
+}

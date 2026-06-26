@@ -1,0 +1,147 @@
+import type { SVGProps } from "react";
+
+type P = SVGProps<SVGSVGElement> & { size?: number };
+
+function base(props: P) {
+  const { size = 16, strokeWidth = 1.6, ...p } = props;
+  return {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    ...p,
+  };
+}
+
+export const ChevronRight = (p: P) => (
+  <svg {...base(p)}>
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+);
+
+export const ChevronDown = (p: P) => (
+  <svg {...base(p)}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+export const ArrowRight = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </svg>
+);
+
+export const Folder = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.2H19.5A1.5 1.5 0 0 1 21 9.7v8.3A1.5 1.5 0 0 1 19.5 19.5h-15A1.5 1.5 0 0 1 3 18z" />
+  </svg>
+);
+
+export const Doc = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5z" />
+    <path d="M14 3v4.5H18.5" />
+  </svg>
+);
+
+export const BarChart = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 20V10" />
+    <path d="M10 20V4" />
+    <path d="M16 20v-7" />
+    <path d="M22 20H2" />
+  </svg>
+);
+
+export const NoteEdit = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" />
+  </svg>
+);
+
+export const Graph = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="5.5" cy="6" r="2.2" />
+    <circle cx="18" cy="6.5" r="2.2" />
+    <circle cx="12" cy="18" r="2.2" />
+    <path d="M7.4 7.1 10.4 16M16.4 8 13 16.4M7.6 6.3h8.2" />
+  </svg>
+);
+
+export const Search = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-3.6-3.6" />
+  </svg>
+);
+
+export const Tag = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12.6 3.6 21 12a1.8 1.8 0 0 1 0 2.5l-5 5a1.8 1.8 0 0 1-2.5 0L5 11V5a1.4 1.4 0 0 1 1.4-1.4h6z" />
+    <circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const Import = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3v11" />
+    <path d="m8 10 4 4 4-4" />
+    <path d="M5 19h14" />
+  </svg>
+);
+
+export const FolderPlus = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.2H19.5A1.5 1.5 0 0 1 21 9.7v8.3A1.5 1.5 0 0 1 19.5 19.5h-15A1.5 1.5 0 0 1 3 18z" />
+    <path d="M12 11v5M9.5 13.5h5" />
+  </svg>
+);
+
+export const Plus = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+export const Pencil = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L8 19l-4 1 1-4z" />
+  </svg>
+);
+
+export const Link = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M10 13a4 4 0 0 0 5.7.3l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7" />
+    <path d="M14 11a4 4 0 0 0-5.7-.3l-3 3A4 4 0 0 0 11 19.4l1.7-1.7" />
+  </svg>
+);
+
+export const Sources = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5H11l1.5 1.5H19A1.5 1.5 0 0 1 20.5 8v9.5A1.5 1.5 0 0 1 19 19H5.5A1.5 1.5 0 0 1 4 17.5z" />
+    <path d="M8 12h8M8 15h5" />
+  </svg>
+);
+
+export const Fit = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9" />
+    <path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9" />
+    <path d="M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15" />
+    <path d="M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
+  </svg>
+);
+
+export const OpenExternal = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M14 4h6v6" />
+    <path d="M20 4 11 13" />
+    <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-9A1.5 1.5 0 0 1 6 18.5v-9A1.5 1.5 0 0 1 7.5 8H12" />
+  </svg>
+);

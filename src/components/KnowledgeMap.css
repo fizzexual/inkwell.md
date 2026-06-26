@@ -1,0 +1,120 @@
+.map {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+.map-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 4px 20px 14px;
+}
+.map-title h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx-1);
+  letter-spacing: -0.01em;
+}
+.map-subtitle {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tx-4);
+  margin-top: 2px;
+}
+
+.map-tools {
+  display: flex;
+  gap: 4px;
+}
+.seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 27px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx-3);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.seg-btn:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.seg-btn.active {
+  background: var(--bg-active);
+  color: var(--tx-1);
+}
+.seg-btn svg {
+  color: var(--tx-4);
+}
+.seg-btn.active svg,
+.seg-btn:hover svg {
+  color: var(--tx-2);
+}
+
+.map-canvas {
+  flex: 1;
+  position: relative;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.graph-svg {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.graph-svg:active {
+  cursor: grabbing;
+}
+
+.graph-edge {
+  stroke: var(--edge);
+  stroke-width: 1;
+}
+.graph-edge.lit {
+  stroke: var(--edge-active);
+  stroke-width: 1.4;
+}
+
+.graph-node circle.dot {
+  cursor: pointer;
+  transition: fill 0.15s ease;
+}
+.graph-node circle.ring {
+  fill: none;
+  stroke: var(--ring);
+  stroke-width: 1.4;
+  opacity: 0;
+}
+.graph-node.selected circle.ring {
+  opacity: 1;
+}
+.graph-node text {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 450;
+  fill: var(--tx-3);
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.graph-node.selected text,
+.graph-node.dim-strong text {
+  fill: var(--tx-1);
+  font-weight: 550;
+}
+.graph-node.faded {
+  opacity: 0.35;
+}
+.graph-edge.faded {
+  opacity: 0.4;
+}

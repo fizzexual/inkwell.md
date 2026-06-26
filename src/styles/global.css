@@ -1,0 +1,55 @@
+@import "./tokens.css";
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--tx-1);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: default;
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: #e3e3e5;
+  border-radius: 8px;
+  border: 2px solid #fff;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d2d2d5;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+svg {
+  display: block;
+}
