@@ -11,6 +11,11 @@ import "./App.css";
 export default function App() {
   const centerView = useVault((s) => s.centerView);
   const setPaletteOpen = useVault((s) => s.setPaletteOpen);
+  const theme = useVault((s) => s.theme);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

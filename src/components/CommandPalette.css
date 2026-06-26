@@ -18,7 +18,7 @@
 .palette {
   width: 560px;
   max-width: calc(100vw - 40px);
-  background: #fff;
+  background: var(--bg-app);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   box-shadow: var(--shadow-pop);
@@ -100,7 +100,7 @@
 }
 .palette-title mark {
   background: none;
-  color: #6d4bd0;
+  color: var(--accent);
   font-weight: 600;
 }
 .palette-folder {

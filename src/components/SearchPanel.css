@@ -17,7 +17,7 @@
   color: var(--tx-3);
 }
 .search-box:focus-within {
-  border-color: #cdbdf0;
+  border-color: var(--focus-ring);
 }
 .search-box input {
   flex: 1;
@@ -68,8 +68,8 @@
   overflow: hidden;
 }
 .hit-snippet mark {
-  background: #efe7ff;
-  color: #5a37c0;
+  background: var(--accent-weaker);
+  color: var(--accent-text);
   border-radius: 3px;
   padding: 0 1px;
 }

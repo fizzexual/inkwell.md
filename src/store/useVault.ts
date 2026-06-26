@@ -15,6 +15,7 @@ import type { Resolver } from "../markdown";
 export type SidebarView = "stats" | "notes" | "graph" | "search";
 export type MapView = "links" | "sources";
 export type CenterView = "graph" | "article";
+export type Theme = "light" | "dark";
 
 interface Derived {
   tree: TreeFolder;
@@ -49,6 +50,7 @@ interface Persisted {
   sidebarView?: SidebarView;
   centerView?: CenterView;
   mapView?: MapView;
+  theme?: Theme;
 }
 function loadPersisted(): Persisted {
   try {
@@ -78,6 +80,8 @@ interface VaultState extends Derived {
   centerView: CenterView;
   editing: boolean;
   fitNonce: number;
+  theme: Theme;
+  toggleTheme: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
   searchQuery: string;
@@ -115,6 +119,8 @@ export const useVault = create<VaultState>((set, get) => ({
   centerView: persisted.centerView ?? "graph",
   editing: false,
   fitNonce: 0,
+  theme: persisted.theme ?? "light",
+  toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
   paletteOpen: false,
   setPaletteOpen: (v) => set({ paletteOpen: v }),
   searchQuery: "",
@@ -200,6 +206,7 @@ useVault.subscribe(() => {
       sidebarView: s.sidebarView,
       centerView: s.centerView,
       mapView: s.mapView,
+      theme: s.theme,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
