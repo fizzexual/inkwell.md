@@ -83,9 +83,10 @@ export default function Sidebar() {
   const sidebarView = useVault((s) => s.sidebarView);
   const setSidebarView = useVault((s) => s.setSidebarView);
   const createNote = useVault((s) => s.createNote);
+  const width = useVault((s) => s.sidebarWidth);
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" style={{ width, minWidth: width }}>
       <div className="vault-header">
         <button className="vault-name">
           <span>{tree.name}</span>

@@ -1,0 +1,26 @@
+.resizer {
+  flex: 0 0 5px;
+  margin: 0 -2px;
+  z-index: 10;
+  cursor: col-resize;
+  position: relative;
+}
+.resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.resizer:hover::after {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+body.col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.col-resizing * {
+  cursor: col-resize !important;
+}

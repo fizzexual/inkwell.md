@@ -29,15 +29,16 @@ export default function Inspector() {
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
 
+  const width = useVault((s) => s.inspectorWidth);
   const note = notesById.get(selectedId);
-  if (!note) return <aside className="inspector" />;
+  if (!note) return <aside className="inspector" style={{ width, minWidth: width }} />;
 
   const links = linksOf(note.id);
   const backlinks = backlinksOf(note.id);
   const tags = parseTags(note.content ?? "");
 
   return (
-    <aside className="inspector">
+    <aside className="inspector" style={{ width, minWidth: width }}>
       <div className="insp-scroll">
         <div className="insp-eyebrow">{note.kind === "source" ? "SOURCE" : "ARTICLE"}</div>
         <h2 className="insp-title">{note.title}</h2>

@@ -6,12 +6,15 @@ import KnowledgeMap from "./components/KnowledgeMap";
 import ArticleView from "./components/ArticleView";
 import Inspector from "./components/Inspector";
 import CommandPalette from "./components/CommandPalette";
+import Resizer from "./components/Resizer";
 import "./App.css";
 
 export default function App() {
   const centerView = useVault((s) => s.centerView);
   const setPaletteOpen = useVault((s) => s.setPaletteOpen);
   const theme = useVault((s) => s.theme);
+  const setSidebarWidth = useVault((s) => s.setSidebarWidth);
+  const setInspectorWidth = useVault((s) => s.setInspectorWidth);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -33,7 +36,17 @@ export default function App() {
       <TitleBar />
       <div className="app-body">
         <Sidebar />
+        <Resizer
+          dir={1}
+          getStart={() => useVault.getState().sidebarWidth}
+          onChange={setSidebarWidth}
+        />
         {centerView === "graph" ? <KnowledgeMap /> : <ArticleView />}
+        <Resizer
+          dir={-1}
+          getStart={() => useVault.getState().inspectorWidth}
+          onChange={setInspectorWidth}
+        />
         <Inspector />
       </div>
       <CommandPalette />

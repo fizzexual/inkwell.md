@@ -51,6 +51,8 @@ interface Persisted {
   centerView?: CenterView;
   mapView?: MapView;
   theme?: Theme;
+  sidebarWidth?: number;
+  inspectorWidth?: number;
 }
 function loadPersisted(): Persisted {
   try {
@@ -82,6 +84,10 @@ interface VaultState extends Derived {
   fitNonce: number;
   theme: Theme;
   toggleTheme: () => void;
+  sidebarWidth: number;
+  inspectorWidth: number;
+  setSidebarWidth: (w: number) => void;
+  setInspectorWidth: (w: number) => void;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
   searchQuery: string;
@@ -121,6 +127,10 @@ export const useVault = create<VaultState>((set, get) => ({
   fitNonce: 0,
   theme: persisted.theme ?? "light",
   toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
+  sidebarWidth: persisted.sidebarWidth ?? 256,
+  inspectorWidth: persisted.inspectorWidth ?? 296,
+  setSidebarWidth: (w) => set({ sidebarWidth: Math.max(200, Math.min(420, w)) }),
+  setInspectorWidth: (w) => set({ inspectorWidth: Math.max(240, Math.min(460, w)) }),
   paletteOpen: false,
   setPaletteOpen: (v) => set({ paletteOpen: v }),
   searchQuery: "",
@@ -207,6 +217,8 @@ useVault.subscribe(() => {
       centerView: s.centerView,
       mapView: s.mapView,
       theme: s.theme,
+      sidebarWidth: s.sidebarWidth,
+      inspectorWidth: s.inspectorWidth,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
