@@ -100,10 +100,11 @@
   font-family: var(--font);
   font-size: 10px;
   font-weight: 450;
-  fill: var(--tx-3);
+  fill: var(--graph-label);
   pointer-events: none;
   paint-order: stroke;
-  stroke: #fff;
+  /* halo matches the canvas so labels read on both themes */
+  stroke: var(--bg-canvas);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

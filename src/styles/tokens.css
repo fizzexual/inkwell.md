@@ -30,6 +30,11 @@
   --edge: #e7e7e9;
   --edge-active: #c9c9cd;
   --ring: #1c1c1e;
+  --graph-label: #76767c;
+
+  /* ---- scrollbar ---- */
+  --scrollbar-thumb: #e3e3e5;
+  --scrollbar-thumb-hover: #d2d2d5;
 
   /* ---- accents ---- */
   --accent: #6d4bd0;
@@ -86,6 +91,10 @@
   --edge: #2c2c31;
   --edge-active: #45454d;
   --ring: #ededf0;
+  --graph-label: #a6a6ae;
+
+  --scrollbar-thumb: #3a3a41;
+  --scrollbar-thumb-hover: #4a4a52;
 
   --accent: #a98bff;
   --accent-text: #c1abff;

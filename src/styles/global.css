@@ -39,12 +39,12 @@ button {
   height: 9px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #e3e3e5;
+  background: var(--scrollbar-thumb);
   border-radius: 8px;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-app);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #d2d2d5;
+  background: var(--scrollbar-thumb-hover);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
