@@ -1,16 +1,19 @@
+import { useVault } from "./store/useVault";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import KnowledgeMap from "./components/KnowledgeMap";
+import ArticleView from "./components/ArticleView";
 import Inspector from "./components/Inspector";
 import "./App.css";
 
 export default function App() {
+  const centerView = useVault((s) => s.centerView);
   return (
     <div className="app">
       <TitleBar />
       <div className="app-body">
         <Sidebar />
-        <KnowledgeMap />
+        {centerView === "graph" ? <KnowledgeMap /> : <ArticleView />}
         <Inspector />
       </div>
     </div>

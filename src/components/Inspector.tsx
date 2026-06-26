@@ -10,9 +10,9 @@ function kindLabel(n: Note) {
 }
 
 function LinkRow({ note }: { note: Note }) {
-  const select = useVault((s) => s.select);
+  const openArticle = useVault((s) => s.openArticle);
   return (
-    <button className="link-row" onClick={() => select(note.id)}>
+    <button className="link-row" onClick={() => openArticle(note.id)}>
       <span className="link-text">
         <span className="link-title">{note.title}</span>
         <span className="link-kind">{kindLabel(note)}</span>
@@ -24,6 +24,7 @@ function LinkRow({ note }: { note: Note }) {
 
 export default function Inspector() {
   const selectedId = useVault((s) => s.selectedId);
+  const openArticle = useVault((s) => s.openArticle);
   const note = vault.notes.find((n) => n.id === selectedId);
 
   if (!note) return <aside className="inspector" />;
@@ -38,7 +39,7 @@ export default function Inspector() {
         <h2 className="insp-title">{note.title}</h2>
         <div className="insp-meta">{note.kind === "source" ? "Source" : "Note"}</div>
 
-        <button className="open-btn">
+        <button className="open-btn" onClick={() => openArticle(note.id)}>
           <OpenExternal size={15} />
           <span>Open {note.kind === "source" ? "Source" : "Article"}</span>
         </button>

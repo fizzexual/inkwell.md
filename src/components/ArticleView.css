@@ -1,0 +1,198 @@
+.article {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+
+/* ---- header ---- */
+.article-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 22px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--tx-4);
+  min-width: 0;
+}
+.crumb {
+  display: inline-flex;
+  align-items: center;
+}
+.crumb-sep {
+  margin: 0 6px;
+  color: var(--tx-muted);
+}
+.crumb.current {
+  color: var(--tx-1);
+  font-weight: 600;
+}
+.article-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ---- body ---- */
+.article-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+
+/* shared reading column */
+.md-preview,
+.md-editor {
+  width: 100%;
+  max-width: 720px;
+  padding: 36px 40px 80px;
+}
+
+/* ---- editor ---- */
+.md-editor {
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--tx-1);
+  white-space: pre-wrap;
+}
+
+/* ---- rendered markdown ---- */
+.md-preview {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--tx-2);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.md-preview h1 {
+  font-size: 26px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  color: var(--tx-1);
+  margin-bottom: 18px;
+  line-height: 1.2;
+}
+.md-preview h2 {
+  font-size: 18px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  color: var(--tx-1);
+  margin: 30px 0 12px;
+}
+.md-preview h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tx-1);
+  margin: 22px 0 8px;
+}
+.md-preview p {
+  margin: 12px 0;
+}
+.md-preview ul,
+.md-preview ol {
+  margin: 12px 0;
+  padding-left: 22px;
+}
+.md-preview li {
+  margin: 5px 0;
+}
+.md-preview a {
+  color: #3b6fe0;
+  text-decoration: none;
+}
+.md-preview a:hover {
+  text-decoration: underline;
+}
+.md-preview code {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  font-size: 0.86em;
+  background: var(--bg-chip);
+  border: 1px solid var(--line-card);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+.md-preview pre {
+  background: var(--bg-chip);
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+.md-preview pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.md-preview blockquote {
+  margin: 16px 0;
+  padding: 4px 16px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--tx-3);
+}
+.md-preview table {
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13.5px;
+  width: 100%;
+}
+.md-preview th,
+.md-preview td {
+  border: 1px solid var(--line-card);
+  padding: 7px 11px;
+  text-align: left;
+}
+.md-preview th {
+  background: var(--bg-chip);
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.md-preview hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 26px 0;
+}
+
+/* wikilinks */
+.md-preview .wikilink {
+  color: #6d4bd0;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+}
+.md-preview .wikilink:hover {
+  border-bottom-color: #6d4bd0;
+}
+.md-preview .wikilink.missing {
+  color: var(--tx-4);
+  cursor: not-allowed;
+}
+
+/* ---- footer ---- */
+.article-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 22px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--tx-4);
+}
+.dot-sep {
+  color: var(--tx-muted);
+}

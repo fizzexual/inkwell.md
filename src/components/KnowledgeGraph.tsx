@@ -43,6 +43,8 @@ export default function KnowledgeGraph() {
   // latest-value refs so the d3 callbacks never go stale
   const selectRef = useRef(useVault.getState().select);
   selectRef.current = useVault.getState().select;
+  const openArticleRef = useRef(useVault.getState().openArticle);
+  openArticleRef.current = useVault.getState().openArticle;
   const fitRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -71,7 +73,11 @@ export default function KnowledgeGraph() {
       .attr("class", "graph-node")
       .attr("data-id", (d) => d.id)
       .style("cursor", "pointer")
-      .on("click", (_e, d) => selectRef.current(d.id));
+      .on("click", (_e, d) => selectRef.current(d.id))
+      .on("dblclick", (e, d) => {
+        e.stopPropagation();
+        openArticleRef.current(d.id);
+      });
 
     node.append("circle").attr("class", "ring").attr("r", (d) => radius(d) + 4);
     node
@@ -120,7 +126,7 @@ export default function KnowledgeGraph() {
     const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.25, 3])
       .on("zoom", (e) => root.attr("transform", e.transform.toString()));
-    svg.call(zoomBehavior);
+    svg.call(zoomBehavior).on("dblclick.zoom", null);
 
     // ---- drag nodes ----
     const dragBehavior = drag<SVGGElement, SimNode>()
