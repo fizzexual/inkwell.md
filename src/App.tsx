@@ -22,9 +22,24 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "p" || e.key === "k")) {
+      const mod = e.metaKey || e.ctrlKey;
+      const s = useVault.getState();
+      if (mod && (e.key === "p" || e.key === "k")) {
         e.preventDefault();
-        setPaletteOpen(!useVault.getState().paletteOpen);
+        setPaletteOpen(!s.paletteOpen);
+      } else if (mod && e.key === "n") {
+        e.preventDefault();
+        s.createNote();
+      } else if (mod && e.key === "e") {
+        e.preventDefault();
+        if (s.centerView !== "article") s.setCenterView("article");
+        s.setEditing(!s.editing);
+      } else if (mod && e.key === "g") {
+        e.preventDefault();
+        s.setCenterView("graph");
+      } else if (e.key === "Escape" && !s.paletteOpen) {
+        if (s.editing) s.setEditing(false);
+        else if (s.centerView === "article") s.setCenterView("graph");
       }
     };
     window.addEventListener("keydown", onKey);
