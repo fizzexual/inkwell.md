@@ -77,24 +77,65 @@
 .graph-edge {
   stroke: var(--edge);
   stroke-width: 1;
+  transition:
+    stroke var(--dur-2) var(--ease),
+    stroke-width var(--dur-2) var(--ease),
+    opacity var(--dur-2) var(--ease);
 }
 .graph-edge.lit {
   stroke: var(--edge-active);
   stroke-width: 1.4;
 }
 
+.graph-node {
+  transition: opacity var(--dur-2) var(--ease);
+}
 .graph-node circle.dot {
   cursor: pointer;
-  transition: fill 0.15s ease;
+  transition:
+    fill var(--dur-2) var(--ease),
+    stroke var(--dur-1) var(--ease);
 }
 .graph-node circle.ring {
   fill: none;
   stroke: var(--ring);
   stroke-width: 1.4;
   opacity: 0;
+  transform: scale(0.7);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-spring);
 }
 .graph-node.selected circle.ring {
   opacity: 1;
+  transform: scale(1);
+}
+
+/* ---- entrance bloom (plays once) ---- */
+.graph-node.intro {
+  animation: fade-in var(--dur-3) var(--ease-out) backwards;
+  animation-delay: var(--intro-delay);
+}
+.graph-node.intro circle.dot {
+  animation: dot-in var(--dur-3) var(--ease-spring) backwards;
+  animation-delay: var(--intro-delay);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.graph-node.intro text {
+  animation: fade-in var(--dur-4) var(--ease) backwards;
+  animation-delay: var(--intro-delay);
+}
+.graph-edge.intro {
+  animation: fade-in var(--dur-4) var(--ease) backwards;
+  animation-delay: var(--intro-delay);
+}
+@keyframes dot-in {
+  from {
+    transform: scale(0);
+  }
 }
 .graph-node text {
   font-family: var(--font);

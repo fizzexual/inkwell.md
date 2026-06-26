@@ -34,6 +34,9 @@ const radius = (d: SimNode) => 4 + Math.min(d.degree, 9) * 1.15;
 const fill = (d: SimNode) => NODE_FILLS[Math.min(Math.floor(d.degree / 2), 4)];
 const labelled = (d: SimNode) => d.degree >= 3;
 
+// The entrance bloom plays once per session, not on every return to the map.
+let introPlayed = false;
+
 export default function KnowledgeGraph() {
   const svgRef = useRef<SVGSVGElement>(null);
   const graph = useVault((s) => s.graph);
@@ -60,17 +63,22 @@ export default function KnowledgeGraph() {
     const edgeLayer = root.append("g").attr("class", "edges");
     const nodeLayer = root.append("g").attr("class", "nodes");
 
+    const playIntro = !introPlayed;
+    introPlayed = true;
+
     const link = edgeLayer
       .selectAll("line")
       .data(links)
       .join("line")
-      .attr("class", "graph-edge");
+      .attr("class", playIntro ? "graph-edge intro" : "graph-edge")
+      .style("--intro-delay", (_d, i) => (playIntro ? `${220 + Math.min(i * 2, 320)}ms` : null));
 
     const node = nodeLayer
       .selectAll("g")
       .data(nodes)
       .join("g")
-      .attr("class", "graph-node")
+      .attr("class", playIntro ? "graph-node intro" : "graph-node")
+      .style("--intro-delay", (_d, i) => (playIntro ? `${Math.min(i * 7, 420)}ms` : null))
       .attr("data-id", (d) => d.id)
       .style("cursor", "pointer")
       .on("click", (_e, d) => selectRef.current(d.id))
