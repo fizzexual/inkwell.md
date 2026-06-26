@@ -73,6 +73,8 @@ interface VaultState extends Derived {
   centerView: CenterView;
   editing: boolean;
   fitNonce: number;
+  paletteOpen: boolean;
+  setPaletteOpen: (v: boolean) => void;
   select: (id: string) => void;
   openArticle: (id: string) => void;
   toggleFolder: (path: string) => void;
@@ -104,6 +106,8 @@ export const useVault = create<VaultState>((set, get) => ({
   centerView: persisted.centerView ?? "graph",
   editing: false,
   fitNonce: 0,
+  paletteOpen: false,
+  setPaletteOpen: (v) => set({ paletteOpen: v }),
   select: (id) => set({ selectedId: id }),
   openArticle: (id) => set({ selectedId: id, centerView: "article", sidebarView: "notes" }),
   toggleFolder: (path) =>
