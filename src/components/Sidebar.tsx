@@ -2,6 +2,7 @@ import { useVault } from "../store/useVault";
 import type { SidebarView } from "../store/useVault";
 import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
+import SearchPanel from "./SearchPanel";
 import {
   BarChart,
   NoteEdit,
@@ -112,29 +113,35 @@ export default function Sidebar() {
         ))}
       </div>
 
-      <div className="tree-toolbar">
-        <button className="ghost-btn sm" aria-label="Tags">
-          <Tag size={15} />
-        </button>
-        <button className="ghost-btn sm" aria-label="Import source">
-          <Import size={15} />
-        </button>
-        <button className="ghost-btn sm" aria-label="New folder">
-          <FolderPlus size={15} />
-        </button>
-        <button className="ghost-btn sm" aria-label="New note">
-          <Plus size={16} />
-        </button>
-      </div>
+      {sidebarView === "search" ? (
+        <SearchPanel />
+      ) : (
+        <>
+          <div className="tree-toolbar">
+            <button className="ghost-btn sm" aria-label="Tags">
+              <Tag size={15} />
+            </button>
+            <button className="ghost-btn sm" aria-label="Import source">
+              <Import size={15} />
+            </button>
+            <button className="ghost-btn sm" aria-label="New folder">
+              <FolderPlus size={15} />
+            </button>
+            <button className="ghost-btn sm" aria-label="New note">
+              <Plus size={16} />
+            </button>
+          </div>
 
-      <div className="tree-scroll">
-        {tree.folders.map((f) => (
-          <FolderRow key={f.path} folder={f} depth={0} />
-        ))}
-        {tree.notes.map((nt) => (
-          <NoteRow key={nt.id} note={nt} />
-        ))}
-      </div>
+          <div className="tree-scroll">
+            {tree.folders.map((f) => (
+              <FolderRow key={f.path} folder={f} depth={0} />
+            ))}
+            {tree.notes.map((nt) => (
+              <NoteRow key={nt.id} note={nt} />
+            ))}
+          </div>
+        </>
+      )}
     </aside>
   );
 }
