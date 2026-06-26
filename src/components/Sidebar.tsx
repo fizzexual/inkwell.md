@@ -3,6 +3,7 @@ import type { SidebarView } from "../store/useVault";
 import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
 import SearchPanel from "./SearchPanel";
+import StatsPanel from "./StatsPanel";
 import {
   BarChart,
   NoteEdit,
@@ -115,6 +116,8 @@ export default function Sidebar() {
 
       {sidebarView === "search" ? (
         <SearchPanel />
+      ) : sidebarView === "stats" ? (
+        <StatsPanel />
       ) : (
         <>
           <div className="tree-toolbar">
