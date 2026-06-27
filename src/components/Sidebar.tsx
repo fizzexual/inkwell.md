@@ -94,7 +94,14 @@ export default function Sidebar() {
   const sidebarView = useVault((s) => s.sidebarView);
   const setSidebarView = useVault((s) => s.setSidebarView);
   const createNote = useVault((s) => s.createNote);
+  const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
+
+  const onImportPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) file.arrayBuffer().then((buf) => openPdf(file.name, buf));
+    e.target.value = "";
+  };
 
   return (
     <aside className="sidebar" style={{ width, minWidth: width }}>
@@ -137,9 +144,10 @@ export default function Sidebar() {
             <button className="ghost-btn sm" aria-label="Tags">
               <Tag size={15} />
             </button>
-            <button className="ghost-btn sm" aria-label="Import source">
+            <label className="ghost-btn sm" aria-label="Import PDF" title="Open a PDF">
               <Import size={15} />
-            </button>
+              <input type="file" accept="application/pdf" onChange={onImportPdf} hidden />
+            </label>
             <button className="ghost-btn sm" aria-label="New folder">
               <FolderPlus size={15} />
             </button>

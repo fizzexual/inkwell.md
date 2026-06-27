@@ -13,3 +13,12 @@
   min-height: 0;
   overflow: hidden;
 }
+
+.lazy-fallback {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tx-4);
+  font-size: 13px;
+}

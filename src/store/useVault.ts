@@ -16,7 +16,12 @@ import type { Resolver } from "../markdown";
 
 export type SidebarView = "stats" | "notes" | "graph" | "search" | "table" | "tasks" | "canvas";
 export type MapView = "links" | "sources";
-export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas";
+export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas" | "pdf";
+
+export interface PdfDoc {
+  name: string;
+  data: ArrayBuffer;
+}
 export type Theme = "light" | "dark";
 
 export interface MenuState {
@@ -176,6 +181,9 @@ interface VaultState extends Derived {
   setEditing: (v: boolean) => void;
   updateContent: (id: string, md: string) => void;
   createNote: (folder?: string) => void;
+  createNoteWith: (title: string, content: string, folder?: string) => void;
+  pdf: PdfDoc | null;
+  openPdf: (name: string, data: ArrayBuffer) => void;
   requestFit: () => void;
   linksOf: (id: string) => Note[];
   backlinksOf: (id: string) => Note[];
@@ -363,6 +371,25 @@ export const useVault = create<VaultState>((set, get) => ({
         expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
       };
     }),
+  createNoteWith: (title, content, folder = "") =>
+    set((s) => {
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const id = `${slug || "note"}-${s.notes.length}`;
+      const note: Note = { id, title, folder, kind: "note", links: [], content };
+      const notes = [...s.notes, note];
+      return {
+        notes,
+        ...derive(notes),
+        selectedId: id,
+        panes: withTab(s.panes, s.activePane, id),
+        centerView: "article" as const,
+        sidebarView: "notes" as const,
+        editing: false,
+        expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
+      };
+    }),
+  pdf: null,
+  openPdf: (name, data) => set({ pdf: { name, data }, centerView: "pdf" }),
   requestFit: () => set((s) => ({ fitNonce: s.fitNonce + 1 })),
   linksOf: (id) => {
     const { linkMap, notesById } = get();

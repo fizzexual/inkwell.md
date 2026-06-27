@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useVault } from "./store/useVault";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
@@ -8,6 +8,9 @@ import TableView from "./components/TableView";
 import TasksView from "./components/TasksView";
 import CanvasView from "./components/CanvasView";
 import Inspector from "./components/Inspector";
+
+// pdf.js is heavy — only load the reader when it's actually opened
+const PdfView = lazy(() => import("./components/PdfView"));
 import CommandPalette from "./components/CommandPalette";
 import ContextMenu from "./components/ContextMenu";
 import Resizer from "./components/Resizer";
@@ -68,6 +71,10 @@ export default function App() {
           <TasksView />
         ) : centerView === "canvas" ? (
           <CanvasView />
+        ) : centerView === "pdf" ? (
+          <Suspense fallback={<div className="lazy-fallback">Loading reader…</div>}>
+            <PdfView />
+          </Suspense>
         ) : (
           <NotesWorkspace />
         )}

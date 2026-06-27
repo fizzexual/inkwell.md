@@ -1,0 +1,145 @@
+.pdf-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
+}
+
+/* ---- empty state ---- */
+.pdf-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pdf-empty-card {
+  text-align: center;
+  max-width: 320px;
+}
+.pdf-empty-card h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.pdf-empty-card p {
+  font-size: 13px;
+  color: var(--tx-4);
+  margin: 8px 0 18px;
+}
+.pdf-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter var(--dur-1) var(--ease);
+}
+.pdf-open-btn:hover {
+  filter: brightness(1.06);
+}
+
+/* ---- toolbar ---- */
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.pdf-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tx-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdf-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.pdf-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+  font-size: 14px;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.pdf-controls button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.pdf-controls button:disabled {
+  opacity: 0.4;
+}
+.pdf-page,
+.pdf-zoom {
+  font-size: 12px;
+  color: var(--tx-3);
+  padding: 0 4px;
+  min-width: 44px;
+  text-align: center;
+}
+.pdf-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--line-strong);
+  margin: 0 5px;
+}
+.pdf-hl-btn {
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-text) !important;
+  background: var(--accent-weak);
+}
+.pdf-hl-btn svg {
+  color: var(--accent);
+}
+
+/* ---- page ---- */
+.pdf-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+.pdf-page-wrap {
+  position: relative;
+  align-self: flex-start;
+  box-shadow: 0 4px 24px rgba(20, 20, 24, 0.14);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pdf-canvas {
+  display: block;
+}
+.pdf-page-wrap .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1;
+}
+.pdf-error {
+  color: var(--tl-red);
+  font-size: 13px;
+  padding: 12px;
+}
