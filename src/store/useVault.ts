@@ -91,6 +91,30 @@ function openInPane(panes: Pane[], activePane: number, id: string) {
   };
 }
 
+interface Snapshot {
+  notes: Note[];
+  selectedId: string;
+  panes: Pane[];
+  activePane: number;
+}
+const UNDO_LIMIT = 150;
+let undoMeta = { kind: "", id: "", time: 0 };
+
+function snap(s: {
+  notes: Note[];
+  selectedId: string;
+  panes: Pane[];
+  activePane: number;
+}): Snapshot {
+  return { notes: s.notes, selectedId: s.selectedId, panes: s.panes, activePane: s.activePane };
+}
+
+/** History fields for a discrete (non-typing) note mutation. */
+function pushHist(s: { undoStack: Snapshot[]; notes: Note[]; selectedId: string; panes: Pane[]; activePane: number }) {
+  undoMeta = { kind: "", id: "", time: 0 };
+  return { undoStack: [...s.undoStack, snap(s)].slice(-UNDO_LIMIT), redoStack: [] as Snapshot[] };
+}
+
 interface Derived {
   tree: TreeFolder;
   graph: ReturnType<typeof buildGraph>;
@@ -224,6 +248,10 @@ interface VaultState extends Derived {
   setEditing: (v: boolean) => void;
   updateContent: (id: string, md: string) => void;
   setProperty: (id: string, key: string, value: string) => void;
+  undoStack: Snapshot[];
+  redoStack: Snapshot[];
+  undo: () => void;
+  redo: () => void;
   createNote: (folder?: string) => void;
   createNoteWith: (title: string, content: string, folder?: string) => void;
   pdf: PdfDoc | null;
@@ -320,6 +348,7 @@ export const useVault = create<VaultState>((set, get) => ({
         .filter((p, i) => i === 0 || p.tabs.length > 0);
       if (!panes.length) panes = [{ tabs: fallback ? [fallback] : [], active: fallback }];
       const activePane = Math.min(s.activePane, panes.length - 1);
+      const hist = pushHist(s);
       return {
         notes,
         ...derive(notes),
@@ -327,6 +356,7 @@ export const useVault = create<VaultState>((set, get) => ({
         activePane,
         selectedId: panes[activePane]?.active ?? fallback,
         menu: null,
+        ...hist,
         toasts: removed
           ? [
               ...s.toasts,
@@ -351,6 +381,7 @@ export const useVault = create<VaultState>((set, get) => ({
         panes: withTab(s.panes, s.activePane, note.id),
         centerView: "article" as const,
         sidebarView: "notes" as const,
+        ...pushHist(s),
       };
     }),
   paletteOpen: false,
@@ -443,11 +474,42 @@ export const useVault = create<VaultState>((set, get) => ({
   setEditing: (v) => set({ editing: v }),
   updateContent: (id, md) =>
     set((s) => {
+      // coalesce a burst of typing on one note into a single undo step
+      const now = Date.now();
+      const coalesce = undoMeta.kind === "edit" && undoMeta.id === id && now - undoMeta.time < 900;
+      undoMeta = { kind: "edit", id, time: now };
+      const undoStack = coalesce ? s.undoStack : [...s.undoStack, snap(s)].slice(-UNDO_LIMIT);
       const heading = md.match(/^#\s+(.+?)\s*$/m)?.[1]?.trim();
       const notes = s.notes.map((n) =>
         n.id === id ? { ...n, content: md, title: heading || n.title } : n,
       );
-      return { notes, ...derive(notes) };
+      return { notes, ...derive(notes), undoStack, redoStack: [] };
+    }),
+  undoStack: [],
+  redoStack: [],
+  undo: () =>
+    set((s) => {
+      if (!s.undoStack.length) return {};
+      const prev = s.undoStack[s.undoStack.length - 1];
+      undoMeta = { kind: "", id: "", time: 0 };
+      return {
+        ...prev,
+        ...derive(prev.notes),
+        undoStack: s.undoStack.slice(0, -1),
+        redoStack: [...s.redoStack, snap(s)].slice(-UNDO_LIMIT),
+      };
+    }),
+  redo: () =>
+    set((s) => {
+      if (!s.redoStack.length) return {};
+      const next = s.redoStack[s.redoStack.length - 1];
+      undoMeta = { kind: "", id: "", time: 0 };
+      return {
+        ...next,
+        ...derive(next.notes),
+        redoStack: s.redoStack.slice(0, -1),
+        undoStack: [...s.undoStack, snap(s)].slice(-UNDO_LIMIT),
+      };
     }),
   createNote: (folder = "") =>
     set((s) => {
@@ -467,6 +529,7 @@ export const useVault = create<VaultState>((set, get) => ({
         sidebarView: "notes" as const,
         editing: true,
         expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
+        ...pushHist(s),
       };
     }),
   setProperty: (id, key, value) =>
@@ -475,7 +538,7 @@ export const useVault = create<VaultState>((set, get) => ({
       if (!note) return {};
       const content = setFrontmatterField(note.content ?? "", key, value);
       const notes = s.notes.map((n) => (n.id === id ? { ...n, content } : n));
-      return { notes, ...derive(notes) };
+      return { notes, ...derive(notes), ...pushHist(s) };
     }),
   createNoteWith: (title, content, folder = "") =>
     set((s) => {
@@ -492,6 +555,7 @@ export const useVault = create<VaultState>((set, get) => ({
         sidebarView: "notes" as const,
         editing: false,
         expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
+        ...pushHist(s),
       };
     }),
   pdf: null,

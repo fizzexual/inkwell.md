@@ -65,6 +65,16 @@ export default function App() {
         e.preventDefault();
         if (e.shiftKey) s.toggleInspector();
         else s.toggleSidebar();
+      } else if (mod && (e.key === "z" || e.key === "Z")) {
+        // let native undo win inside other text fields (math sheet, search…)
+        const t = e.target as HTMLElement | null;
+        if (isTyping(t) && !t?.classList.contains("md-editor")) return;
+        e.preventDefault();
+        if (e.shiftKey) s.redo();
+        else s.undo();
+      } else if (mod && e.key === "y") {
+        e.preventDefault();
+        s.redo();
       } else if (e.key === "?" && !isTyping(e.target)) {
         e.preventDefault();
         s.setShortcutsOpen(true);
