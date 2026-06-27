@@ -51,7 +51,8 @@ export default function MathEngineView() {
   const [newParam, setNewParam] = useState("");
 
   const yAt = (p: { expr: string; point: number }) => {
-    const y = evalNumber(p.expr, { ...result.scope, x: p.point });
+    const x = Number.isFinite(p.point) ? p.point : 0;
+    const y = evalNumber(p.expr, { ...result.scope, x });
     return y == null ? "—" : Number(y.toFixed(4)).toString();
   };
 
@@ -237,7 +238,7 @@ export default function MathEngineView() {
                   <input
                     className="plot-range"
                     type="number"
-                    value={Number(p.point.toFixed(3))}
+                    value={Number.isFinite(p.point) ? Number(p.point.toFixed(3)) : 0}
                     step={Math.max(0.01, (p.max - p.min) / 100)}
                     onChange={(e) => updatePlot(p.id, { point: Number(e.target.value) })}
                   />

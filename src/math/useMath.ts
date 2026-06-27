@@ -91,10 +91,18 @@ let plotSeq = DEFAULT_PLOTS.length;
 
 let paramSeq = 0;
 
+// migrate plots persisted before the `point` field existed
+function normalizePlot(p: Plot): Plot {
+  const min = Number.isFinite(p.min) ? p.min : -10;
+  const max = Number.isFinite(p.max) ? p.max : 10;
+  return { ...p, min, max, point: Number.isFinite(p.point) ? p.point : (min + max) / 2 };
+}
+const initialPlots = (saved.plots ?? DEFAULT_PLOTS).map(normalizePlot);
+
 export const useMath = create<MathState>((set) => ({
   source: initialSource,
   result: evaluateSheet(initialSource, paramScope(initialParams), initialPrecision),
-  plots: saved.plots ?? DEFAULT_PLOTS,
+  plots: initialPlots,
   params: initialParams,
   precision: initialPrecision,
   setSource: (src) =>
