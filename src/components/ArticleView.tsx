@@ -1,8 +1,19 @@
-import { useEffect, useMemo, useRef, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
 import { renderMarkdown } from "../markdown";
+import { detectWikiTrigger } from "../autocomplete";
+import { getCaretCoordinates } from "../caret";
+import { fuzzyMatch } from "../fuzzy";
 import { Graph, Pencil, Doc, Bold, Italic, Heading, ListIcon, Quote, Code, Link } from "../icons";
 import "./ArticleView.css";
+
+interface AcState {
+  start: number; // index of the first query char (after `[[`)
+  items: { id: string; title: string }[];
+  index: number;
+  top: number;
+  left: number;
+}
 
 function wordCount(md: string): number {
   const text = md.replace(/[#>*`_\-[\]|]/g, " ");
@@ -11,6 +22,7 @@ function wordCount(md: string): number {
 
 export default function ArticleView() {
   const selectedId = useVault((s) => s.selectedId);
+  const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const resolve = useVault((s) => s.resolve);
   const editing = useVault((s) => s.editing);
@@ -60,6 +72,60 @@ export default function ArticleView() {
       ta.focus();
       ta.setSelectionRange(a + prefix.length, a + prefix.length);
     });
+  };
+
+  // ---- [[ wikilink autocomplete ----
+  const [ac, setAc] = useState<AcState | null>(null);
+
+  const refreshAc = () => {
+    const ta = taRef.current;
+    if (!ta) return setAc(null);
+    const trigger = detectWikiTrigger(ta.value, ta.selectionStart);
+    if (!trigger) return setAc(null);
+    const items = notes
+      .filter((n) => n.id !== selectedId)
+      .map((n) => ({ n, m: fuzzyMatch(trigger.query, n.title) }))
+      .filter((x) => x.m)
+      .sort((a, b) => b.m!.score - a.m!.score)
+      .slice(0, 8)
+      .map((x) => ({ id: x.n.id, title: x.n.title }));
+    if (!items.length) return setAc(null);
+    const c = getCaretCoordinates(ta, trigger.start - 2);
+    const rect = ta.getBoundingClientRect();
+    setAc({ start: trigger.start, items, index: 0, top: rect.top + c.top + c.height + 4, left: rect.left + c.left });
+  };
+
+  const acceptAc = (title: string) => {
+    const ta = taRef.current;
+    if (!ta || !ac) return;
+    const before = ta.value.slice(0, ac.start - 2);
+    const after = ta.value.slice(ta.selectionStart);
+    const insert = `[[${title}]]`;
+    updateContent(selectedId, before + insert + after);
+    const pos = before.length + insert.length;
+    setAc(null);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+    });
+  };
+
+  const onEditorKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!ac) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setAc({ ...ac, index: Math.min(ac.index + 1, ac.items.length - 1) });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setAc({ ...ac, index: Math.max(ac.index - 1, 0) });
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      acceptAc(ac.items[ac.index].title);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setAc(null);
+    }
   };
 
   if (!note) return <main className="article" />;
@@ -134,7 +200,14 @@ export default function ArticleView() {
             className="md-editor"
             value={md}
             spellCheck={false}
-            onChange={(e) => updateContent(selectedId, e.target.value)}
+            onChange={(e) => {
+              updateContent(selectedId, e.target.value);
+              requestAnimationFrame(refreshAc);
+            }}
+            onKeyUp={refreshAc}
+            onClick={refreshAc}
+            onKeyDown={onEditorKeyDown}
+            onBlur={() => window.setTimeout(() => setAc(null), 150)}
             placeholder="Write in markdown… use [[Note Title]] to link."
           />
         ) : (
@@ -146,6 +219,26 @@ export default function ArticleView() {
           />
         )}
       </div>
+
+      {ac && (
+        <div
+          className="ac-popup"
+          style={{ top: ac.top, left: ac.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {ac.items.map((it, i) => (
+            <button
+              key={it.id}
+              className={"ac-item" + (i === ac.index ? " active" : "")}
+              onMouseEnter={() => setAc({ ...ac, index: i })}
+              onClick={() => acceptAc(it.title)}
+            >
+              <Link size={13} />
+              <span>{it.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <footer className="article-footer">
         <span>{note.kind === "source" ? "Source" : "Note"}</span>
