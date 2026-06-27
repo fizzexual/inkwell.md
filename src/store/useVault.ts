@@ -199,6 +199,8 @@ interface VaultState extends Derived {
   setCanvasTransform: (tx: number, ty: number, scale: number) => void;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   openTag: (tag: string) => void;
@@ -344,6 +346,8 @@ export const useVault = create<VaultState>((set, get) => ({
     }),
   paletteOpen: false,
   setPaletteOpen: (v) => set({ paletteOpen: v }),
+  shortcutsOpen: false,
+  setShortcutsOpen: (v) => set({ shortcutsOpen: v }),
   searchQuery: "",
   setSearchQuery: (q) => set({ searchQuery: q }),
   openTag: (tag) => set({ searchQuery: `#${tag}`, sidebarView: "search" }),

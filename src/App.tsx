@@ -14,8 +14,15 @@ const PdfView = lazy(() => import("./components/PdfView"));
 import CommandPalette from "./components/CommandPalette";
 import ContextMenu from "./components/ContextMenu";
 import Toaster from "./components/Toaster";
+import ShortcutsModal from "./components/ShortcutsModal";
 import Resizer from "./components/Resizer";
 import "./App.css";
+
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  const tag = el?.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el?.isContentEditable === true;
+}
 
 export default function App() {
   const centerView = useVault((s) => s.centerView);
@@ -57,6 +64,9 @@ export default function App() {
         e.preventDefault();
         if (e.shiftKey) s.toggleInspector();
         else s.toggleSidebar();
+      } else if (e.key === "?" && !isTyping(e.target)) {
+        e.preventDefault();
+        s.setShortcutsOpen(true);
       } else if (e.key === "Escape" && !s.paletteOpen) {
         if (s.editing) s.setEditing(false);
         else if (s.centerView === "article") s.setCenterView("graph");
@@ -108,6 +118,7 @@ export default function App() {
       </div>
       <CommandPalette />
       <ContextMenu />
+      <ShortcutsModal />
       <Toaster />
     </div>
   );
