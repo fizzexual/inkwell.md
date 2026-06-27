@@ -39,7 +39,14 @@ export default function ArticleView() {
   const note = notesById.get(selectedId);
   const md = note?.content ?? "";
   const words = wordCount(md);
-  const html = useMemo(() => renderMarkdown(md, resolve), [md, resolve]);
+  const html = useMemo(
+    () =>
+      renderMarkdown(md, resolve, (id) => {
+        const n = notesById.get(id);
+        return n ? { title: n.title, content: n.content ?? "" } : undefined;
+      }),
+    [md, resolve, notesById],
+  );
 
   useEffect(() => {
     if (!scrollTarget || editing) return;

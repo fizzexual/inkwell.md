@@ -70,11 +70,75 @@ export function parseHeadings(md: string): Heading[] {
 
 marked.setOptions({ gfm: true, breaks: false });
 
-export function renderMarkdown(md: string, resolve: Resolver): string {
-  const html = marked.parse(expandWikilinks(md, resolve), { async: false }) as string;
+export interface EmbedSource {
+  title: string;
+  content: string;
+}
+export type NoteGetter = (id: string) => EmbedSource | undefined;
+
+const EMBED_LINE = /^!\[\[([^\]]+)\]\]\s*$/gm;
+
+/** The slice of `content` under the heading matching `slug`, up to the next
+ * heading of the same or higher level. Whole content if not found. */
+function sectionBySlug(content: string, slug: string): string {
+  const lines = content.split("\n");
+  let start = -1;
+  let level = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(#{1,6})\s+(.+?)\s*$/);
+    if (m && slugify(m[2]) === slug) {
+      start = i;
+      level = m[1].length;
+      break;
+    }
+  }
+  if (start < 0) return content;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    const m = lines[i].match(/^(#{1,6})\s+/);
+    if (m && m[1].length <= level) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n");
+}
+
+export function renderMarkdown(
+  md: string,
+  resolve: Resolver,
+  getNote?: NoteGetter,
+  stack: Set<string> = new Set(),
+): string {
+  // turn `![[Note#Section]]` lines into placeholders before markdown parsing
+  const withEmbeds = md.replace(EMBED_LINE, (_m, inner: string) => {
+    const [rawTitle, heading] = inner.split("#");
+    const id = resolve(rawTitle);
+    if (!id || !getNote) return `<span class="wikilink missing">${inner}</span>`;
+    return `\n\n<!--EMBED:${id}:${heading ? slugify(heading) : ""}-->\n\n`;
+  });
+
+  let html = marked.parse(expandWikilinks(withEmbeds, resolve), { async: false }) as string;
+
   // give headings stable ids so the outline can scroll to them
-  return html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_m, lvl, inner) => {
+  html = html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_m, lvl, inner) => {
     const text = inner.replace(/<[^>]+>/g, "");
     return `<h${lvl} id="${slugify(text)}">${inner}</h${lvl}>`;
   });
+
+  // expand embed placeholders (marked may wrap them in a <p>)
+  html = html.replace(
+    /(?:<p>)?<!--EMBED:([^:]+):([^>]*)-->(?:<\/p>)?/g,
+    (_m, id: string, headingSlug: string) => {
+      const note = getNote?.(id);
+      if (!note) return "";
+      if (stack.has(id)) return `<div class="embed embed-cycle">↻ ${note.title}</div>`;
+      const next = new Set(stack).add(id);
+      const body = headingSlug ? sectionBySlug(note.content, headingSlug) : note.content;
+      const inner = renderMarkdown(body, resolve, getNote, next);
+      return `<div class="embed"><a class="embed-head" data-note="${id}" href="#/note/${id}">${note.title}</a><div class="embed-body">${inner}</div></div>`;
+    },
+  );
+
+  return html;
 }

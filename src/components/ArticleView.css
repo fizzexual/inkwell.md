@@ -208,6 +208,42 @@
   margin: 26px 0;
 }
 
+/* ---- embedded notes ![[note]] ---- */
+.md-preview .embed {
+  border: 1px solid var(--line-card);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  margin: 18px 0;
+  background: color-mix(in srgb, var(--accent-weak) 35%, transparent);
+  overflow: hidden;
+}
+.md-preview .embed-head {
+  display: block;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  border-bottom: 1px solid var(--line-card);
+  cursor: pointer;
+}
+.md-preview .embed-head:hover {
+  text-decoration: underline;
+}
+.md-preview .embed-body {
+  padding: 4px 14px 12px;
+}
+.md-preview .embed-body > :first-child {
+  margin-top: 8px;
+}
+.md-preview .embed .embed {
+  background: none;
+}
+.md-preview .embed-cycle {
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--tx-4);
+}
+
 /* wikilinks */
 .md-preview .wikilink {
   color: var(--accent);
