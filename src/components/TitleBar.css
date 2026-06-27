@@ -49,6 +49,10 @@
   opacity: 0.32;
   pointer-events: none;
 }
+.titlebar-btn.on {
+  background: var(--bg-active);
+  color: var(--tx-1);
+}
 .titlebar-spacer {
   flex: 1;
 }

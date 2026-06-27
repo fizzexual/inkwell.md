@@ -124,6 +124,8 @@ interface Persisted {
   inspectorWidth?: number;
   canvas?: CanvasState;
   pinned?: string[];
+  sidebarCollapsed?: boolean;
+  inspectorCollapsed?: boolean;
 }
 function loadPersisted(): Persisted {
   try {
@@ -176,6 +178,10 @@ interface VaultState extends Derived {
   inspectorWidth: number;
   setSidebarWidth: (w: number) => void;
   setInspectorWidth: (w: number) => void;
+  sidebarCollapsed: boolean;
+  inspectorCollapsed: boolean;
+  toggleSidebar: () => void;
+  toggleInspector: () => void;
   menu: MenuState | null;
   openMenu: (x: number, y: number, noteId: string) => void;
   closeMenu: () => void;
@@ -251,6 +257,10 @@ export const useVault = create<VaultState>((set, get) => ({
   inspectorWidth: persisted.inspectorWidth ?? 296,
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(200, Math.min(420, w)) }),
   setInspectorWidth: (w) => set({ inspectorWidth: Math.max(240, Math.min(460, w)) }),
+  sidebarCollapsed: persisted.sidebarCollapsed ?? false,
+  inspectorCollapsed: persisted.inspectorCollapsed ?? false,
+  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  toggleInspector: () => set((s) => ({ inspectorCollapsed: !s.inspectorCollapsed })),
   menu: null,
   openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
   closeMenu: () => set({ menu: null }),
@@ -506,6 +516,8 @@ useVault.subscribe(() => {
       inspectorWidth: s.inspectorWidth,
       canvas: s.canvas,
       pinned: s.pinned,
+      sidebarCollapsed: s.sidebarCollapsed,
+      inspectorCollapsed: s.inspectorCollapsed,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

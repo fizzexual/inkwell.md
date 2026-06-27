@@ -23,6 +23,8 @@ export default function App() {
   const theme = useVault((s) => s.theme);
   const setSidebarWidth = useVault((s) => s.setSidebarWidth);
   const setInspectorWidth = useVault((s) => s.setInspectorWidth);
+  const sidebarCollapsed = useVault((s) => s.sidebarCollapsed);
+  const inspectorCollapsed = useVault((s) => s.inspectorCollapsed);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -51,6 +53,10 @@ export default function App() {
       } else if (e.altKey && e.key === "ArrowRight") {
         e.preventDefault();
         s.goForward();
+      } else if (mod && e.key === "\\") {
+        e.preventDefault();
+        if (e.shiftKey) s.toggleInspector();
+        else s.toggleSidebar();
       } else if (e.key === "Escape" && !s.paletteOpen) {
         if (s.editing) s.setEditing(false);
         else if (s.centerView === "article") s.setCenterView("graph");
@@ -64,12 +70,16 @@ export default function App() {
     <div className="app">
       <TitleBar />
       <div className="app-body">
-        <Sidebar />
-        <Resizer
-          dir={1}
-          getStart={() => useVault.getState().sidebarWidth}
-          onChange={setSidebarWidth}
-        />
+        {!sidebarCollapsed && (
+          <>
+            <Sidebar />
+            <Resizer
+              dir={1}
+              getStart={() => useVault.getState().sidebarWidth}
+              onChange={setSidebarWidth}
+            />
+          </>
+        )}
         {centerView === "graph" ? (
           <KnowledgeMap />
         ) : centerView === "table" ? (
@@ -85,12 +95,16 @@ export default function App() {
         ) : (
           <NotesWorkspace />
         )}
-        <Resizer
-          dir={-1}
-          getStart={() => useVault.getState().inspectorWidth}
-          onChange={setInspectorWidth}
-        />
-        <Inspector />
+        {!inspectorCollapsed && (
+          <>
+            <Resizer
+              dir={-1}
+              getStart={() => useVault.getState().inspectorWidth}
+              onChange={setInspectorWidth}
+            />
+            <Inspector />
+          </>
+        )}
       </div>
       <CommandPalette />
       <ContextMenu />

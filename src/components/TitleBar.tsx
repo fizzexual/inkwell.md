@@ -1,6 +1,6 @@
 import { useVault } from "../store/useVault";
 import { windowControl } from "../tauri";
-import { Sun, Moon, ChevronRight } from "../icons";
+import { Sun, Moon, ChevronRight, PanelLeft, PanelRight } from "../icons";
 import "./TitleBar.css";
 
 export default function TitleBar() {
@@ -10,6 +10,10 @@ export default function TitleBar() {
   const histLen = useVault((s) => s.history.length);
   const goBack = useVault((s) => s.goBack);
   const goForward = useVault((s) => s.goForward);
+  const sidebarCollapsed = useVault((s) => s.sidebarCollapsed);
+  const inspectorCollapsed = useVault((s) => s.inspectorCollapsed);
+  const toggleSidebar = useVault((s) => s.toggleSidebar);
+  const toggleInspector = useVault((s) => s.toggleInspector);
   return (
     <div className="titlebar" data-tauri-drag-region>
       <div className="traffic">
@@ -30,6 +34,14 @@ export default function TitleBar() {
         />
       </div>
       <div className="titlebar-nav">
+        <button
+          className={"titlebar-btn" + (sidebarCollapsed ? " on" : "")}
+          aria-label="Toggle sidebar"
+          title="Toggle sidebar (Ctrl/Cmd+\\)"
+          onClick={toggleSidebar}
+        >
+          <PanelLeft size={15} />
+        </button>
         <button
           className="titlebar-btn"
           aria-label="Back"
@@ -57,6 +69,14 @@ export default function TitleBar() {
         onClick={toggleTheme}
       >
         {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
+      </button>
+      <button
+        className={"titlebar-btn" + (inspectorCollapsed ? " on" : "")}
+        aria-label="Toggle inspector"
+        title="Toggle inspector (Ctrl/Cmd+Shift+\\)"
+        onClick={toggleInspector}
+      >
+        <PanelRight size={15} />
       </button>
     </div>
   );

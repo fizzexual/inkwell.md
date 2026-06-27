@@ -236,6 +236,27 @@ export const SplitView = (p: P) => (
   </svg>
 );
 
+export const PanelLeft = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M9.5 4.5v15" />
+  </svg>
+);
+
+export const PanelRight = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M14.5 4.5v15" />
+  </svg>
+);
+
+export const Keyboard = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="2.5" y="6.5" width="19" height="11" rx="2" />
+    <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 13.5h9" />
+  </svg>
+);
+
 export const Focus = (p: P) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="3" />
