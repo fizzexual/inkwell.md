@@ -122,6 +122,13 @@ export const Link = (p: P) => (
   </svg>
 );
 
+export const CheckSquare = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 11.5 11.5 14 16 8.5" />
+    <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+  </svg>
+);
+
 export const Table = (p: P) => (
   <svg {...base(p)}>
     <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />

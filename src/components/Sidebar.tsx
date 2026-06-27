@@ -9,6 +9,7 @@ import {
   NoteEdit,
   Graph,
   Table,
+  CheckSquare,
   Search,
   Tag,
   Import,
@@ -27,6 +28,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "notes", Icon: NoteEdit, label: "Notes" },
   { id: "graph", Icon: Graph, label: "Knowledge map" },
   { id: "table", Icon: Table, label: "Table" },
+  { id: "tasks", Icon: CheckSquare, label: "Tasks" },
   { id: "search", Icon: Search, label: "Search" },
 ];
 

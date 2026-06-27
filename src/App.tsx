@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar";
 import KnowledgeMap from "./components/KnowledgeMap";
 import ArticleView from "./components/ArticleView";
 import TableView from "./components/TableView";
+import TasksView from "./components/TasksView";
 import Inspector from "./components/Inspector";
 import CommandPalette from "./components/CommandPalette";
 import Resizer from "./components/Resizer";
@@ -61,6 +62,8 @@ export default function App() {
           <KnowledgeMap />
         ) : centerView === "table" ? (
           <TableView />
+        ) : centerView === "tasks" ? (
+          <TasksView />
         ) : (
           <ArticleView />
         )}

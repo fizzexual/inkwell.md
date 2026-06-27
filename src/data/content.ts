@@ -94,7 +94,30 @@ This is the home note for the vault. Start here.
 ## Highlights
 
 - [[Convolutional Neural Networks]]
-- [[Transformer]]`,
+- [[Transformer]]
+
+## Next steps
+
+- [ ] Review the [[Foundations MOC]]
+- [ ] Write up [[Vision Transformer]]
+- [x] Link [[AlexNet (2012)]] as a source`,
+
+  "how-to-use": `# How to Use This Vault
+
+A few conventions that keep this workspace tidy.
+
+## Conventions
+
+- Link liberally with [[wikilinks]] — the knowledge graph is built from them.
+- Embed another note inline with \`![[Note Title]]\`.
+- Use #tags and the properties block at the top of a note to stay organised.
+
+## Setup tasks
+
+- [x] Read the [[Glossary]]
+- [ ] Skim the [[Foundations MOC]]
+- [ ] Pick a [[Convolutional Neural Networks|topic]] to study in depth
+- [ ] Write your first note`,
 };
 
 const lead = (title: string, area: string) =>

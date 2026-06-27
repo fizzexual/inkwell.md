@@ -34,6 +34,22 @@ export function parseTags(md: string): string[] {
   return tags;
 }
 
+export interface Task {
+  done: boolean;
+  text: string;
+  line: number;
+}
+
+/** Markdown checklist items (`- [ ]` / `- [x]`) with their line index. */
+export function parseTasks(md: string): Task[] {
+  const out: Task[] = [];
+  md.split("\n").forEach((l, i) => {
+    const m = l.match(/^\s*[-*]\s+\[([ xX])\]\s+(.*)$/);
+    if (m) out.push({ done: m[1].toLowerCase() === "x", text: m[2].trim(), line: i });
+  });
+  return out;
+}
+
 function expandWikilinks(md: string, resolve: Resolver): string {
   return md.replace(WIKILINK, (_m, inner: string) => {
     const [rawTitle, rawAlias] = inner.split("|");
