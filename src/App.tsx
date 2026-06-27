@@ -22,7 +22,12 @@ import "./App.css";
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   const tag = el?.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || el?.isContentEditable === true;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    el?.isContentEditable === true ||
+    !!el?.closest?.(".bld-input")
+  );
 }
 
 export default function App() {
