@@ -24,12 +24,10 @@ export interface MathResult {
   scope: Record<string, unknown>;
 }
 
-const PRECISION = 6;
-
-export function formatValue(v: unknown): string {
+export function formatValue(v: unknown, precision = 6): string {
   try {
     if (typeof v === "function") return "ƒ";
-    return format(v, { precision: PRECISION });
+    return format(v, { precision });
   } catch {
     return String(v);
   }
@@ -45,7 +43,11 @@ function safeTex(node: { toTex: () => string }): string {
 
 /** Evaluate a math sheet line-by-line in a shared scope (mathjs powers it all:
  * numbers, units, matrices, symbolic algebra via derivative()/simplify()/etc.). */
-export function evaluateSheet(source: string, baseScope: Record<string, unknown> = {}): MathResult {
+export function evaluateSheet(
+  source: string,
+  baseScope: Record<string, unknown> = {},
+  precision = 6,
+): MathResult {
   const scope: Record<string, unknown> = { ...baseScope };
   const lines: MathLine[] = [];
   const texByName = new Map<string, string>();
@@ -69,7 +71,7 @@ export function evaluateSheet(source: string, baseScope: Record<string, unknown>
       else if (n.type === "FunctionAssignmentNode") name = n.name;
       const tex = safeTex(node);
       if (name) texByName.set(name, tex);
-      lines.push({ source: raw, name, result: formatValue(value), tex });
+      lines.push({ source: raw, name, result: formatValue(value, precision), tex });
     } catch (e) {
       lines.push({ source: raw, error: (e as Error).message });
     }
@@ -80,7 +82,7 @@ export function evaluateSheet(source: string, baseScope: Record<string, unknown>
     symbols.set(k, {
       name: k,
       raw: v,
-      value: formatValue(v),
+      value: formatValue(v, precision),
       tex: texByName.get(k) ?? k,
       isFunction: typeof v === "function",
     });

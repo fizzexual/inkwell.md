@@ -1,0 +1,60 @@
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-4);
+  flex-shrink: 0;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.copy-btn.sm {
+  width: 20px;
+  height: 20px;
+}
+.copy-btn:hover,
+.copy-btn.active {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.copy-pop {
+  position: fixed;
+  z-index: 130;
+  min-width: 200px;
+  max-width: 280px;
+  padding: 5px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  animation: pop-in var(--dur-1) var(--ease-out);
+}
+.copy-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-1) var(--ease);
+}
+.copy-opt:hover {
+  background: var(--bg-hover);
+}
+.copy-label {
+  font-size: 12.5px;
+  color: var(--tx-1);
+}
+.copy-preview {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--tx-4);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

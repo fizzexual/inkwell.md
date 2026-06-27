@@ -32,6 +32,7 @@ const STORAGE = "inkwell.math.v1";
 interface Persisted {
   source?: string;
   plots?: Plot[];
+  precision?: number;
 }
 function load(): Persisted {
   try {
@@ -42,12 +43,15 @@ function load(): Persisted {
 }
 const saved = load();
 const initialSource = saved.source ?? DEFAULT_SOURCE;
+const initialPrecision = saved.precision ?? 6;
 
 interface MathState {
   source: string;
   result: MathResult;
   plots: Plot[];
+  precision: number;
   setSource: (src: string) => void;
+  setPrecision: (p: number) => void;
   addPlot: (expr: string) => void;
   updatePlot: (id: string, patch: Partial<Plot>) => void;
   removePlot: (id: string) => void;
@@ -57,11 +61,16 @@ interface MathState {
 const PLOT_COLORS = ["#6d4bd0", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 let plotSeq = DEFAULT_PLOTS.length;
 
-export const useMath = create<MathState>((set) => ({
+export const useMath = create<MathState>((set, get) => ({
   source: initialSource,
-  result: evaluateSheet(initialSource),
+  result: evaluateSheet(initialSource, {}, initialPrecision),
   plots: saved.plots ?? DEFAULT_PLOTS,
-  setSource: (src) => set({ source: src, result: evaluateSheet(src) }),
+  precision: initialPrecision,
+  setSource: (src) => set({ source: src, result: evaluateSheet(src, {}, get().precision) }),
+  setPrecision: (p) => {
+    const precision = Math.max(2, Math.min(12, p));
+    set({ precision, result: evaluateSheet(get().source, {}, precision) });
+  },
   addPlot: (expr) =>
     set((s) => ({
       plots: [
@@ -90,7 +99,10 @@ useMath.subscribe(() => {
     queued = false;
     const s = useMath.getState();
     try {
-      localStorage.setItem(STORAGE, JSON.stringify({ source: s.source, plots: s.plots }));
+      localStorage.setItem(
+        STORAGE,
+        JSON.stringify({ source: s.source, plots: s.plots, precision: s.precision }),
+      );
     } catch {
       /* ignore */
     }

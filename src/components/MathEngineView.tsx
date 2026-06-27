@@ -1,10 +1,35 @@
 import { useState } from "react";
 import { useMath } from "../math/useMath";
-import { useVault } from "../store/useVault";
 import Tex from "../math/Tex";
 import MathPlot from "../math/MathPlot";
-import { Copy, Plus, Trash } from "../icons";
+import CopyMenu, { type CopyOption } from "./CopyMenu";
+import type { MathLine, MathSymbol } from "../math/engine";
+import { Plus, Trash } from "../icons";
 import "./MathEngineView.css";
+
+function lineOptions(line: MathLine): CopyOption[] {
+  const opts: CopyOption[] = [{ label: "Value", text: line.result ?? "" }];
+  if (line.tex) opts.push({ label: "LaTeX", text: line.tex });
+  if (line.name) {
+    opts.push(
+      { label: "Reference {{ }}", text: `{{${line.name}}}` },
+      { label: "Formula {{ :tex}}", text: `{{${line.name}:tex}}` },
+      { label: "Both {{ :both}}", text: `{{${line.name}:both}}` },
+      { label: "Assignment", text: `${line.name} = ${line.result}` },
+    );
+  }
+  return opts;
+}
+
+function symbolOptions(s: MathSymbol): CopyOption[] {
+  return [
+    { label: "Value", text: s.value },
+    { label: "Reference {{ }}", text: `{{${s.name}}}` },
+    { label: "Formula {{ :tex}}", text: `{{${s.name}:tex}}` },
+    { label: "LaTeX", text: s.tex },
+    { label: "Assignment", text: `${s.name} = ${s.value}` },
+  ];
+}
 
 export default function MathEngineView() {
   const source = useMath((s) => s.source);
@@ -15,15 +40,23 @@ export default function MathEngineView() {
   const updatePlot = useMath((s) => s.updatePlot);
   const removePlot = useMath((s) => s.removePlot);
   const reset = useMath((s) => s.reset);
-  const toast = useVault((s) => s.toast);
+  const precision = useMath((s) => s.precision);
+  const setPrecision = useMath((s) => s.setPrecision);
 
   const [newPlot, setNewPlot] = useState("");
 
   const symbols = [...result.symbols.values()];
-  const copyRef = (name: string) => {
-    navigator.clipboard?.writeText(`{{${name}}}`);
-    toast(`Copied {{${name}}} — paste into any note`);
-  };
+
+  const allResults = result.lines
+    .filter((l) => l.result != null || l.error)
+    .map((l) => (l.name ? `${l.name} = ${l.result}` : `${l.source.trim()} = ${l.result ?? l.error}`))
+    .join("\n");
+  const plotBlock = `\`\`\`plot\n${plots.map((p) => `${p.expr} @ ${p.min}..${p.max}`).join("\n")}\n\`\`\``;
+  const headerCopyOptions: CopyOption[] = [
+    { label: "All results", text: allResults },
+    { label: "As ```math block", text: "```math\n" + source + "\n```" },
+    { label: "Sheet source", text: source },
+  ];
 
   return (
     <main className="math-view">
@@ -32,9 +65,19 @@ export default function MathEngineView() {
           <h1>Math Engine</h1>
           <span className="math-subtitle">{symbols.length} symbols · live</span>
         </div>
-        <button className="seg-btn" onClick={reset}>
-          Reset
-        </button>
+        <div className="math-header-tools">
+          <div className="precision-ctl" title="Significant digits">
+            <button onClick={() => setPrecision(precision - 1)}>−</button>
+            <span>{precision} digits</span>
+            <button onClick={() => setPrecision(precision + 1)}>+</button>
+          </div>
+          <div className="copy-all">
+            <CopyMenu options={headerCopyOptions} />
+          </div>
+          <button className="seg-btn" onClick={reset}>
+            Reset
+          </button>
+        </div>
       </header>
 
       <div className="math-body">
@@ -69,6 +112,9 @@ export default function MathEngineView() {
                   {line.tex ? <Tex tex={line.tex} /> : <span className="math-src">{line.source.trim()}</span>}
                   <span className="math-eq">=</span>
                   <span className="math-val">{line.result}</span>
+                  <span className="math-line-copy">
+                    <CopyMenu options={lineOptions(line)} small />
+                  </span>
                 </div>
               ),
             )}
@@ -76,20 +122,23 @@ export default function MathEngineView() {
 
           {symbols.length > 0 && (
             <>
-              <div className="math-pane-label">Symbols · click to copy a reference</div>
+              <div className="math-pane-label">Symbols · copy in any format</div>
               <div className="math-symbols">
                 {symbols.map((s) => (
-                  <button key={s.name} className="math-chip" onClick={() => copyRef(s.name)}>
+                  <div key={s.name} className="math-chip">
                     <span className="chip-name">{s.name}</span>
                     <span className="chip-val">{s.isFunction ? "ƒ" : s.value}</span>
-                    <Copy size={12} />
-                  </button>
+                    <CopyMenu options={symbolOptions(s)} small />
+                  </div>
                 ))}
               </div>
             </>
           )}
 
-          <div className="math-pane-label">Plots</div>
+          <div className="math-pane-label spread">
+            <span>Plots</span>
+            <CopyMenu options={[{ label: "Embed as ```plot", text: plotBlock }]} small />
+          </div>
           <div className="math-plot-wrap">
             <MathPlot plots={plots} scope={result.scope} />
           </div>
