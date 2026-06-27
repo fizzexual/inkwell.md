@@ -6,8 +6,9 @@
   overflow-y: auto;
 }
 
+/* ---- stage (input + feedback) ---- */
 .builder-stage {
-  padding: 22px 24px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--line);
 }
 .builder-label {
@@ -18,92 +19,146 @@
   color: var(--tx-4);
   margin-bottom: 12px;
 }
-.builder-field {
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  background: var(--bg-app);
-  transition: border-color var(--dur-1) var(--ease);
-}
-.builder-field:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-weak);
-}
-.builder-field math-field {
-  background: transparent;
-  color: var(--tx-1);
-  cursor: text;
-}
-math-field::part(virtual-keyboard-toggle),
-math-field::part(menu-toggle) {
-  color: var(--tx-3);
-}
-math-field::part(content) {
-  cursor: text;
-}
 
-.builder-templates {
+.bld-input {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 14px;
-}
-.tmpl-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border: 1px solid var(--line-card);
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: var(--bg-app);
-  font-size: 12px;
-  color: var(--tx-2);
-  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  font-size: 19px;
+  color: var(--tx-1);
+  cursor: text;
+  user-select: none;
 }
-.tmpl-btn:hover {
-  background: var(--bg-hover);
+.bld-input:focus-within,
+.bld-input:hover {
   border-color: var(--accent);
 }
-.tmpl-btn .tex {
-  color: var(--tx-1);
-  font-size: 1.05em;
+.bld-ph {
+  color: var(--tx-muted);
+  font-size: 15px;
+}
+.bld-slot {
+  display: inline-flex;
+  align-items: center;
+}
+.bld-char {
+  padding: 1px 0.5px;
+  border-radius: 2px;
+}
+.bld-char:hover {
+  background: var(--bg-hover);
+}
+.bld-caret {
+  width: 2px;
+  height: 24px;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: bld-blink 1s steps(2, start) infinite;
+}
+@keyframes bld-blink {
+  50% {
+    opacity: 0;
+  }
 }
 
-.builder-result {
-  flex: 1;
-  padding: 24px;
+.bld-feedback {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-height: 40px;
+  margin-top: 14px;
+  padding: 0 2px;
 }
-.builder-empty {
-  color: var(--tx-4);
-  font-size: 13px;
-}
-.result-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--tx-4);
-  margin-bottom: 10px;
-}
-.result-main {
-  font-size: 1.4rem;
+.bld-feedback .tex {
   color: var(--tx-1);
+  font-size: 1.15rem;
 }
-.result-numeric {
-  margin-top: 10px;
+.bld-result {
   font-family: ui-monospace, Menlo, monospace;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
   color: var(--accent-text);
 }
-.result-actions {
+.bld-result strong {
+  font-weight: 700;
+}
+.bld-hint {
+  color: var(--tx-muted);
+  font-size: 13px;
+}
+
+/* ---- keypad ---- */
+.builder-keys {
+  padding: 16px 24px 28px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+.key-grid {
+  display: grid;
+  gap: 7px;
+}
+.key-grid.functions {
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 7px;
+}
+.key-grid.numpad {
+  grid-template-columns: repeat(4, 1fr);
+}
+.mkey {
+  height: 46px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-card);
+  background: var(--bg-app);
+  font-size: 16px;
+  font-family: var(--font);
+  color: var(--tx-1);
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.mkey:hover {
+  background: var(--bg-hover);
+  border-color: var(--line-strong);
+}
+.mkey:active {
+  transform: scale(0.94);
+  background: var(--bg-active);
+}
+.key-grid.functions .mkey {
+  font-size: 13.5px;
+  color: var(--tx-2);
+}
+.key-op {
+  color: var(--accent-text) !important;
+  font-weight: 600;
+}
+.key-var {
+  color: var(--accent-text) !important;
+  font-style: italic;
+}
+
+.builder-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 22px;
+  gap: 10px;
+  margin-top: 14px;
+}
+.key-clear {
+  width: auto;
+  height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.builder-actions .seg-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }

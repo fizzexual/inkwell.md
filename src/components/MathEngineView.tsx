@@ -1,14 +1,12 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { useMath } from "../math/useMath";
 import Tex from "../math/Tex";
 import MathPlot from "../math/MathPlot";
+import MathBuilder from "../math/MathBuilder";
 import CopyMenu, { type CopyOption } from "./CopyMenu";
 import { evalNumber, type MathLine, type MathSymbol } from "../math/engine";
 import { Plus, Trash } from "../icons";
 import "./MathEngineView.css";
-
-// MathLive + compute-engine are heavy — load only when the Builder is opened
-const MathBuilder = lazy(() => import("../math/MathBuilder"));
 
 function lineOptions(line: MathLine): CopyOption[] {
   const opts: CopyOption[] = [{ label: "Value", text: line.result ?? "" }];
@@ -114,9 +112,7 @@ export default function MathEngineView() {
       </header>
 
       {mode === "builder" ? (
-        <Suspense fallback={<div className="lazy-fallback">Loading builder…</div>}>
-          <MathBuilder />
-        </Suspense>
+        <MathBuilder />
       ) : (
         <div className="math-body">
         <div className="math-editor-pane">
