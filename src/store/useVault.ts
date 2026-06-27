@@ -114,6 +114,7 @@ interface Persisted {
   sidebarWidth?: number;
   inspectorWidth?: number;
   canvas?: CanvasState;
+  pinned?: string[];
 }
 function loadPersisted(): Persisted {
   try {
@@ -170,6 +171,8 @@ interface VaultState extends Derived {
   toasts: Toast[];
   toast: (message: string, action?: Toast["action"]) => void;
   dismissToast: (id: number) => void;
+  pinned: string[];
+  togglePin: (id: string) => void;
   canvas: CanvasState;
   addToCanvas: (id: string) => void;
   removeFromCanvas: (id: string) => void;
@@ -242,6 +245,11 @@ export const useVault = create<VaultState>((set, get) => ({
   toast: (message, action) =>
     set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, message, action }] })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  pinned: persisted.pinned ?? [],
+  togglePin: (id) =>
+    set((s) => ({
+      pinned: s.pinned.includes(id) ? s.pinned.filter((p) => p !== id) : [...s.pinned, id],
+    })),
   canvas: persisted.canvas ?? defaultCanvas,
   addToCanvas: (id) =>
     set((s) => {
@@ -471,6 +479,7 @@ useVault.subscribe(() => {
       sidebarWidth: s.sidebarWidth,
       inspectorWidth: s.inspectorWidth,
       canvas: s.canvas,
+      pinned: s.pinned,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

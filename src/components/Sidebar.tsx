@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Folder,
   Doc,
+  Pin,
 } from "../icons";
 import "./Sidebar.css";
 
@@ -85,6 +86,38 @@ function FolderRow({ folder, depth }: { folder: TreeFolder; depth: number }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PinnedSection() {
+  const pinned = useVault((s) => s.pinned);
+  const notesById = useVault((s) => s.notesById);
+  const selectedId = useVault((s) => s.selectedId);
+  const openArticle = useVault((s) => s.openArticle);
+  const openMenu = useVault((s) => s.openMenu);
+  const items = pinned.map((id) => notesById.get(id)).filter((n): n is Note => !!n);
+  if (!items.length) return null;
+  return (
+    <div className="pinned-section">
+      <div className="pinned-label">
+        <Pin size={11} /> Pinned
+      </div>
+      {items.map((note) => (
+        <button
+          key={note.id}
+          className={"tree-item note pinned" + (note.id === selectedId ? " active" : "")}
+          onClick={() => openArticle(note.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            openMenu(e.clientX, e.clientY, note.id);
+          }}
+          title={note.title}
+        >
+          <Pin className="tree-icon" size={13} />
+          <span className="tree-label">{note.title}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -157,6 +190,7 @@ export default function Sidebar() {
           </div>
 
           <div className="tree-scroll">
+            <PinnedSection />
             {tree.folders.map((f) => (
               <FolderRow key={f.path} folder={f} depth={0} />
             ))}

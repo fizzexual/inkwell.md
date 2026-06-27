@@ -210,6 +210,12 @@ export const Moon = (p: P) => (
   </svg>
 );
 
+export const Pin = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 16v4" />
+  </svg>
+);
+
 export const Trash = (p: P) => (
   <svg {...base(p)}>
     <path d="M4 7h16M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M10 11v6M14 11v6" />
