@@ -14,9 +14,17 @@ import {
 import { buildContents } from "../data/content";
 import { setFrontmatterField, type Resolver } from "../markdown";
 
-export type SidebarView = "stats" | "notes" | "graph" | "search" | "table" | "tasks" | "canvas";
+export type SidebarView =
+  | "stats"
+  | "notes"
+  | "graph"
+  | "search"
+  | "table"
+  | "tasks"
+  | "canvas"
+  | "math";
 export type MapView = "links" | "sources";
-export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas" | "pdf";
+export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas" | "pdf" | "math";
 
 export interface PdfDoc {
   name: string;
@@ -427,6 +435,7 @@ export const useVault = create<VaultState>((set, get) => ({
       if (v === "table") return { sidebarView: v, centerView: "table" as const };
       if (v === "tasks") return { sidebarView: v, centerView: "tasks" as const };
       if (v === "canvas") return { sidebarView: v, centerView: "canvas" as const };
+      if (v === "math") return { sidebarView: v, centerView: "math" as const };
       return { sidebarView: v };
     }),
   setMapView: (v) => set({ mapView: v }),

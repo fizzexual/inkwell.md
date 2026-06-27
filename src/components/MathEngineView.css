@@ -1,0 +1,259 @@
+.math-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
+}
+.math-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 22px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.math-title h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.math-subtitle {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tx-4);
+  margin-top: 2px;
+}
+
+.math-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.math-editor-pane {
+  width: 42%;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+.math-results-pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-bottom: 30px;
+}
+.math-pane-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tx-4);
+  padding: 12px 18px 7px;
+}
+
+.math-editor {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  padding: 4px 18px 18px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--tx-1);
+  tab-size: 2;
+}
+
+.math-results {
+  padding: 0 18px;
+}
+.math-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 2px 0;
+  font-size: 13.5px;
+  line-height: 1.9;
+  flex-wrap: wrap;
+}
+.math-line .tex {
+  color: var(--tx-1);
+}
+.math-eq {
+  color: var(--tx-muted);
+}
+.math-val {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-weak);
+  padding: 1px 8px;
+  border-radius: 5px;
+}
+.math-line.error .math-src {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--tx-3);
+}
+.math-err {
+  font-size: 12px;
+  color: var(--tl-red);
+}
+.math-comment {
+  font-size: 12.5px;
+  color: var(--tx-4);
+  font-style: italic;
+  padding: 4px 0;
+  min-height: 28px;
+  line-height: 1.9;
+}
+.math-spacer {
+  height: 14px;
+}
+.math-src {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--tx-2);
+}
+
+.math-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 18px 8px;
+}
+.math-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--line-card);
+  border-radius: 20px;
+  font-size: 12px;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+.math-chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.chip-name {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.chip-val {
+  color: var(--tx-4);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.math-chip svg {
+  color: var(--tx-muted);
+}
+
+.math-plot-wrap {
+  padding: 0 18px;
+}
+.math-plot {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
+}
+.plot-frame {
+  fill: none;
+  stroke: var(--line);
+}
+.plot-axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.plot-label {
+  font-size: 10px;
+  fill: var(--tx-4);
+  font-family: var(--font);
+}
+
+.plot-list {
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plot-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+}
+.plot-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.plot-eq {
+  color: var(--tx-muted);
+}
+.plot-expr {
+  flex: 1;
+  min-width: 80px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--tx-1);
+  background: var(--bg-app);
+  border: 1px solid var(--line-card);
+  border-radius: 5px;
+  padding: 4px 8px;
+  outline: none;
+}
+.plot-expr:focus,
+.plot-add input:focus {
+  border-color: var(--accent);
+}
+.plot-range {
+  width: 52px;
+  font-size: 12px;
+  text-align: center;
+  background: var(--bg-app);
+  border: 1px solid var(--line-card);
+  border-radius: 5px;
+  padding: 4px 4px;
+  color: var(--tx-2);
+  outline: none;
+}
+.plot-dash {
+  color: var(--tx-muted);
+}
+.plot-remove {
+  color: var(--tx-4);
+  padding: 3px;
+  border-radius: 4px;
+}
+.plot-remove:hover {
+  color: var(--tl-red);
+}
+.plot-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  color: var(--tx-4);
+}
+.plot-add input {
+  flex: 1;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  background: var(--bg-app);
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--tx-1);
+  outline: none;
+}

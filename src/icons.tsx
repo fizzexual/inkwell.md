@@ -122,6 +122,13 @@ export const Link = (p: P) => (
   </svg>
 );
 
+export const FunctionIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M16 5h-2.2a2 2 0 0 0-2 1.8L10 18a2 2 0 0 1-2 1.8H6M7.5 11h6" />
+    <path d="M15 13.5l4 5M19 13.5l-4 5" />
+  </svg>
+);
+
 export const Board = (p: P) => (
   <svg {...base(p)}>
     <rect x="3.5" y="4.5" width="7" height="6" rx="1.2" />

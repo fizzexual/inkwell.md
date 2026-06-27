@@ -7,6 +7,7 @@ import NotesWorkspace from "./components/NotesWorkspace";
 import TableView from "./components/TableView";
 import TasksView from "./components/TasksView";
 import CanvasView from "./components/CanvasView";
+import MathEngineView from "./components/MathEngineView";
 import Inspector from "./components/Inspector";
 
 // pdf.js is heavy — only load the reader when it's actually opened
@@ -98,6 +99,8 @@ export default function App() {
           <TasksView />
         ) : centerView === "canvas" ? (
           <CanvasView />
+        ) : centerView === "math" ? (
+          <MathEngineView />
         ) : centerView === "pdf" ? (
           <Suspense fallback={<div className="lazy-fallback">Loading reader…</div>}>
             <PdfView />
