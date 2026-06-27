@@ -64,7 +64,22 @@ export default function MathBuilder() {
       el.style.width = "100%";
       el.style.minHeight = "64px";
       el.style.fontSize = "1.7rem";
+      el.style.cursor = "text";
       (el as unknown as { mathVirtualKeyboardPolicy: string }).mathVirtualKeyboardPolicy = "auto";
+      // theme the field to match Inkwell (these custom props pierce the shadow DOM)
+      const set = (k: string, v: string) => el.style.setProperty(k, v);
+      el.style.background = "transparent";
+      el.style.color = "var(--tx-1)";
+      set("--caret-color", "var(--accent)");
+      set("--primary-color", "var(--accent)");
+      set("--text-font-family", "var(--font)");
+      set("--selection-background-color", "var(--accent-weak)");
+      set("--selection-color", "var(--accent-text)");
+      set("--contains-highlight-background-color", "var(--accent-weak)");
+      set("--placeholder-color", "var(--tx-3)");
+      set("--placeholder-opacity", "0.7");
+      set("--smart-fence-color", "var(--tx-3)");
+      set("--correct-color", "var(--tl-green)");
       el.addEventListener("input", () => setLatex((el as unknown as { value: string }).value));
       hostRef.current.appendChild(el);
       mfRef.current = el as unknown as typeof mfRef.current;

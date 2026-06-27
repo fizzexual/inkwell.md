@@ -21,12 +21,25 @@
 .builder-field {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: var(--bg-app);
   transition: border-color var(--dur-1) var(--ease);
 }
 .builder-field:focus-within {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-weak);
+}
+.builder-field math-field {
+  background: transparent;
+  color: var(--tx-1);
+  cursor: text;
+}
+math-field::part(virtual-keyboard-toggle),
+math-field::part(menu-toggle) {
+  color: var(--tx-3);
+}
+math-field::part(content) {
+  cursor: text;
 }
 
 .builder-templates {
