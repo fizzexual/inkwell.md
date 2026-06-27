@@ -30,6 +30,25 @@
   align-items: center;
   gap: 8px;
 }
+.math-mode {
+  display: flex;
+  background: var(--bg-chip);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.math-mode button {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx-3);
+  padding: 4px 12px;
+  border-radius: 5px;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.math-mode button.active {
+  background: var(--bg-app);
+  color: var(--tx-1);
+  box-shadow: 0 1px 2px rgba(20, 20, 24, 0.06);
+}
 .precision-ctl {
   display: flex;
   align-items: center;

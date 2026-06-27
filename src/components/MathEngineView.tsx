@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useMath } from "../math/useMath";
 import Tex from "../math/Tex";
 import MathPlot from "../math/MathPlot";
@@ -6,6 +6,9 @@ import CopyMenu, { type CopyOption } from "./CopyMenu";
 import { evalNumber, type MathLine, type MathSymbol } from "../math/engine";
 import { Plus, Trash } from "../icons";
 import "./MathEngineView.css";
+
+// MathLive + compute-engine are heavy — load only when the Builder is opened
+const MathBuilder = lazy(() => import("../math/MathBuilder"));
 
 function lineOptions(line: MathLine): CopyOption[] {
   const opts: CopyOption[] = [{ label: "Value", text: line.result ?? "" }];
@@ -49,6 +52,7 @@ export default function MathEngineView() {
 
   const [newPlot, setNewPlot] = useState("");
   const [newParam, setNewParam] = useState("");
+  const [mode, setMode] = useState<"sheet" | "builder">("sheet");
 
   const yAt = (p: { expr: string; point: number }) => {
     const x = Number.isFinite(p.point) ? p.point : 0;
@@ -77,21 +81,44 @@ export default function MathEngineView() {
           <span className="math-subtitle">{symbols.length} symbols · live</span>
         </div>
         <div className="math-header-tools">
-          <div className="precision-ctl" title="Significant digits">
-            <button onClick={() => setPrecision(precision - 1)}>−</button>
-            <span>{precision} digits</span>
-            <button onClick={() => setPrecision(precision + 1)}>+</button>
+          <div className="math-mode">
+            <button
+              className={mode === "sheet" ? "active" : ""}
+              onClick={() => setMode("sheet")}
+            >
+              Sheet
+            </button>
+            <button
+              className={mode === "builder" ? "active" : ""}
+              onClick={() => setMode("builder")}
+            >
+              Builder
+            </button>
           </div>
-          <div className="copy-all">
-            <CopyMenu options={headerCopyOptions} />
-          </div>
-          <button className="seg-btn" onClick={reset}>
-            Reset
-          </button>
+          {mode === "sheet" && (
+            <>
+              <div className="precision-ctl" title="Significant digits">
+                <button onClick={() => setPrecision(precision - 1)}>−</button>
+                <span>{precision} digits</span>
+                <button onClick={() => setPrecision(precision + 1)}>+</button>
+              </div>
+              <div className="copy-all">
+                <CopyMenu options={headerCopyOptions} />
+              </div>
+              <button className="seg-btn" onClick={reset}>
+                Reset
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      <div className="math-body">
+      {mode === "builder" ? (
+        <Suspense fallback={<div className="lazy-fallback">Loading builder…</div>}>
+          <MathBuilder />
+        </Suspense>
+      ) : (
+        <div className="math-body">
         <div className="math-editor-pane">
           <div className="math-pane-label">Definitions</div>
           <textarea
@@ -270,7 +297,8 @@ export default function MathEngineView() {
             </form>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </main>
   );
 }
