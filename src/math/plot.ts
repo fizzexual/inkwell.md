@@ -12,6 +12,8 @@ export interface PlotGeom {
   yDomain: [number, number];
   x0: number | null;
   y0: number | null;
+  sx: (x: number) => number;
+  sy: (y: number) => number;
 }
 
 export function buildPlotGeometry(plots: Plot[], scope: Record<string, unknown>): PlotGeom {
@@ -66,6 +68,8 @@ export function buildPlotGeometry(plots: Plot[], scope: Record<string, unknown>)
     yDomain: [yMin, yMax],
     x0: xMin <= 0 && xMax >= 0 ? sx(0) : null,
     y0: yMin <= 0 && yMax >= 0 ? sy(0) : null,
+    sx,
+    sy,
   };
 }
 

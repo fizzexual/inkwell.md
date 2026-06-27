@@ -39,11 +39,16 @@ export default function MathEngineView() {
   const addPlot = useMath((s) => s.addPlot);
   const updatePlot = useMath((s) => s.updatePlot);
   const removePlot = useMath((s) => s.removePlot);
+  const params = useMath((s) => s.params);
+  const addParam = useMath((s) => s.addParam);
+  const updateParam = useMath((s) => s.updateParam);
+  const removeParam = useMath((s) => s.removeParam);
   const reset = useMath((s) => s.reset);
   const precision = useMath((s) => s.precision);
   const setPrecision = useMath((s) => s.setPrecision);
 
   const [newPlot, setNewPlot] = useState("");
+  const [newParam, setNewParam] = useState("");
 
   const symbols = [...result.symbols.values()];
 
@@ -135,8 +140,61 @@ export default function MathEngineView() {
             </>
           )}
 
+          <div className="math-pane-label">Parameters · drag to change every result &amp; curve</div>
+          <div className="math-params">
+            {params.map((p) => (
+              <div className="param-row" key={p.id}>
+                <span className="param-name">{p.name}</span>
+                <input
+                  className="param-slider"
+                  type="range"
+                  min={p.min}
+                  max={p.max}
+                  step={p.step}
+                  value={p.value}
+                  onChange={(e) => updateParam(p.id, { value: Number(e.target.value) })}
+                />
+                <span className="param-value">{p.value}</span>
+                <input
+                  className="param-bound"
+                  type="number"
+                  title="min"
+                  value={p.min}
+                  onChange={(e) => updateParam(p.id, { min: Number(e.target.value) })}
+                />
+                <input
+                  className="param-bound"
+                  type="number"
+                  title="max"
+                  value={p.max}
+                  onChange={(e) => updateParam(p.id, { max: Number(e.target.value) })}
+                />
+                <button className="param-remove" onClick={() => removeParam(p.id)}>
+                  <Trash size={14} />
+                </button>
+              </div>
+            ))}
+            <form
+              className="param-add"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newParam.trim()) {
+                  addParam(newParam.trim());
+                  setNewParam("");
+                }
+              }}
+            >
+              <Plus size={14} />
+              <input
+                value={newParam}
+                placeholder="add a variable, e.g. a — then use it in a plot like a*x^2"
+                onChange={(e) => setNewParam(e.target.value)}
+              />
+            </form>
+          </div>
+
           <div className="math-pane-label spread">
-            <span>Plots</span>
+            <span>Plots · drag on the chart to read values</span>
             <CopyMenu options={[{ label: "Embed as ```plot", text: plotBlock }]} small />
           </div>
           <div className="math-plot-wrap">
