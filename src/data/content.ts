@@ -70,14 +70,19 @@ saturating activations can stall gradients in deep stacks.`,
   backpropagation: `# Backpropagation
 
 **Backpropagation** is the algorithm that computes the gradient of the
-[[Loss Functions|loss]] with respect to every weight by applying the chain rule
+[[Loss Functions|loss]] $L$ with respect to every weight by applying the chain rule
 of [[Calculus]] backwards through the network. Those gradients then feed
 [[Gradient Descent]].
+
+For a single weight $w$ feeding a pre-activation $z$ and activation $a$, the
+chain rule gives:
+
+$$\\frac{\\partial L}{\\partial w} = \\frac{\\partial L}{\\partial a} \\cdot \\frac{\\partial a}{\\partial z} \\cdot \\frac{\\partial z}{\\partial w}$$
 
 ## The two passes
 
 1. **Forward pass** — compute activations layer by layer.
-2. **Backward pass** — propagate the error signal from output to input.
+2. **Backward pass** — propagate the error signal $\\delta = \\frac{\\partial L}{\\partial z}$ from output to input.
 
 It is the computational engine behind almost all deep-learning training.`,
 

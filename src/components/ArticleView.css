@@ -199,6 +199,21 @@
   color: var(--tx-4);
 }
 
+/* math (KaTeX) */
+.md-preview .katex-display {
+  margin: 18px 0;
+  padding: 4px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.md-preview .katex {
+  font-size: 1.04em;
+}
+.md-preview .math-error {
+  color: var(--tl-red);
+  background: color-mix(in srgb, var(--tl-red) 10%, transparent);
+}
+
 /* citations */
 .md-preview .cite {
   color: var(--accent-text);

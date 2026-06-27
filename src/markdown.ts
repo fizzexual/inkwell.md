@@ -1,6 +1,32 @@
 import { marked } from "marked";
+import katex from "katex";
 
 export type Resolver = (title: string) => string | undefined;
+
+function renderKatex(tex: string, display: boolean): string {
+  try {
+    return katex.renderToString(tex.trim(), {
+      displayMode: display,
+      throwOnError: false,
+      output: "html",
+    });
+  } catch {
+    return `<code class="math-error">${tex}</code>`;
+  }
+}
+
+/** Replace $$block$$ and $inline$ math with placeholders, collecting rendered HTML. */
+function protectMath(md: string, store: string[]): string {
+  let out = md.replace(/\$\$([\s\S]+?)\$\$/g, (_m, tex: string) => {
+    const i = store.push(renderKatex(tex, true)) - 1;
+    return `\n\n<!--MATH:${i}-->\n\n`;
+  });
+  out = out.replace(/(?<![\\$])\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g, (_m, tex: string) => {
+    const i = store.push(renderKatex(tex, false)) - 1;
+    return `<!--MATH:${i}-->`;
+  });
+  return out;
+}
 
 const WIKILINK = /\[\[([^\]]+)\]\]/g;
 
@@ -184,8 +210,11 @@ export function renderMarkdown(
   stack: Set<string> = new Set(),
 ): string {
   const { body } = parseFrontmatter(md);
+  // pull math out first so $ and \ aren't mangled by markdown
+  const math: string[] = [];
+  const withMath = protectMath(body, math);
   // turn `![[Note#Section]]` lines into placeholders before markdown parsing
-  const withEmbeds = body.replace(EMBED_LINE, (_m, inner: string) => {
+  const withEmbeds = withMath.replace(EMBED_LINE, (_m, inner: string) => {
     const [rawTitle, heading] = inner.split("#");
     const id = resolve(rawTitle);
     if (!id || !getNote) return `<span class="wikilink missing">${inner}</span>`;
@@ -215,6 +244,9 @@ export function renderMarkdown(
       return `<div class="embed"><a class="embed-head" data-note="${id}" href="#/note/${id}">${note.title}</a><div class="embed-body">${inner}</div></div>`;
     },
   );
+
+  // restore rendered math (block placeholders may be wrapped in a <p>)
+  html = html.replace(/(?:<p>)?<!--MATH:(\d+)-->(?:<\/p>)?/g, (_m, i: string) => math[+i] ?? "");
 
   return html;
 }
