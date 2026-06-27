@@ -14,29 +14,36 @@ interface Solved {
 }
 
 function solve(latex: string): Solved | null {
-  if (!latex.trim()) return null;
+  const tex = latex.trim();
+  if (!tex) return null;
+  // unfilled placeholders → the problem isn't complete yet
+  if (/\\placeholder|\\square/.test(tex)) return null;
   try {
-    const expr = ce.parse(latex);
+    const expr = ce.parse(tex);
+    if (expr.isValid === false) return null;
     const simplified = expr.simplify();
+    const sLatex = simplified.latex;
+    if (!sLatex || sLatex.includes("\\error")) return null;
     const numeric = expr.N();
-    const v = numeric.valueOf();
+    const v = numeric?.valueOf?.();
     let value = "";
     if (typeof v === "number") value = Number.isFinite(v) ? String(+v.toPrecision(8)) : "";
-    else if (typeof v === "string" || typeof v === "boolean") value = String(v);
-    else value = numeric.isValid ? numeric.latex : "";
-    return { simplified: simplified.latex, value, ok: true };
+    else if (typeof v === "string" && !v.includes("Error")) value = v;
+    return { simplified: sLatex, value, ok: true };
   } catch {
     return null;
   }
 }
 
-const TEMPLATES: { label: string; latex: string }[] = [
-  { label: "Fraction", latex: "\\frac{\\square}{\\square}" },
-  { label: "Power", latex: "\\square^{\\square}" },
-  { label: "Square root", latex: "\\sqrt{\\square}" },
-  { label: "Integral", latex: "\\int_{\\square}^{\\square}\\square\\,dx" },
-  { label: "Sum", latex: "\\sum_{\\square}^{\\square}\\square" },
-  { label: "Derivative", latex: "\\frac{d}{dx}\\square" },
+// `preview` renders in the button via KaTeX (\square); `insert` goes into the
+// math-field as real MathLive placeholders the user tabs through.
+const TEMPLATES: { label: string; preview: string; insert: string }[] = [
+  { label: "Fraction", preview: "\\frac{\\square}{\\square}", insert: "\\frac{\\placeholder{}}{\\placeholder{}}" },
+  { label: "Power", preview: "\\square^{\\square}", insert: "{\\placeholder{}}^{\\placeholder{}}" },
+  { label: "Square root", preview: "\\sqrt{\\square}", insert: "\\sqrt{\\placeholder{}}" },
+  { label: "Integral", preview: "\\int_{\\square}^{\\square}\\square\\,dx", insert: "\\int_{\\placeholder{}}^{\\placeholder{}}\\placeholder{}\\,dx" },
+  { label: "Sum", preview: "\\sum_{\\square}^{\\square}\\square", insert: "\\sum_{\\placeholder{}}^{\\placeholder{}}\\placeholder{}" },
+  { label: "Derivative", preview: "\\frac{d}{dx}\\square", insert: "\\frac{d}{dx}\\placeholder{}" },
 ];
 
 export default function MathBuilder() {
@@ -91,8 +98,8 @@ export default function MathBuilder() {
         <div className="builder-field" ref={hostRef} />
         <div className="builder-templates">
           {TEMPLATES.map((t) => (
-            <button key={t.label} className="tmpl-btn" onClick={() => insert(t.latex)}>
-              <Tex tex={t.latex.replace(/\\square/g, "\\square")} />
+            <button key={t.label} className="tmpl-btn" onClick={() => insert(t.insert)}>
+              <Tex tex={t.preview} />
               <span>{t.label}</span>
             </button>
           ))}
