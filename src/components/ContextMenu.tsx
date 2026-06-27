@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useVault } from "../store/useVault";
-import { Doc, Pencil, Copy, Graph, SplitView, Trash } from "../icons";
+import { Doc, Pencil, Copy, Graph, SplitView, Board, Trash } from "../icons";
 import "./ContextMenu.css";
 
 interface Item {
@@ -20,6 +20,7 @@ export default function ContextMenu() {
   const setCenterView = useVault((s) => s.setCenterView);
   const openInTab = useVault((s) => s.openInTab);
   const splitWith = useVault((s) => s.splitWith);
+  const addToCanvas = useVault((s) => s.addToCanvas);
   const deleteNote = useVault((s) => s.deleteNote);
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export default function ContextMenu() {
         setCenterView("graph");
       }),
     },
+    { icon: <Board size={15} />, label: "Add to canvas", onClick: run(() => addToCanvas(note.id)) },
     "sep",
     {
       icon: <Trash size={15} />,

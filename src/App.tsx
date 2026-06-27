@@ -6,6 +6,7 @@ import KnowledgeMap from "./components/KnowledgeMap";
 import NotesWorkspace from "./components/NotesWorkspace";
 import TableView from "./components/TableView";
 import TasksView from "./components/TasksView";
+import CanvasView from "./components/CanvasView";
 import Inspector from "./components/Inspector";
 import CommandPalette from "./components/CommandPalette";
 import ContextMenu from "./components/ContextMenu";
@@ -65,6 +66,8 @@ export default function App() {
           <TableView />
         ) : centerView === "tasks" ? (
           <TasksView />
+        ) : centerView === "canvas" ? (
+          <CanvasView />
         ) : (
           <NotesWorkspace />
         )}

@@ -1,0 +1,136 @@
+.canvas-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
+}
+
+.canvas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 22px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.canvas-title h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.canvas-subtitle {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tx-4);
+  margin-top: 2px;
+}
+.canvas-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.canvas-board {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background:
+    radial-gradient(circle, var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.canvas-board:active {
+  cursor: grabbing;
+}
+.canvas-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.canvas-edges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.canvas-edges line {
+  stroke: var(--edge-active);
+  stroke-width: 1.5;
+}
+
+.canvas-card {
+  position: absolute;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(20, 20, 24, 0.06);
+  cursor: grab;
+  overflow: hidden;
+  transition: box-shadow var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+  animation: pop-in var(--dur-2) var(--ease-out);
+}
+.canvas-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-pop);
+}
+.canvas-card:active {
+  cursor: grabbing;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px 10px 7px;
+  border-bottom: 1px solid var(--line);
+}
+.card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--tx-4);
+  flex-shrink: 0;
+}
+.card-remove:hover {
+  background: var(--bg-active);
+  color: var(--tx-1);
+}
+.card-body {
+  padding: 8px 10px 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--tx-3);
+}
+
+.canvas-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--tx-muted);
+  background: color-mix(in srgb, var(--bg-app) 80%, transparent);
+  padding: 4px 12px;
+  border-radius: 20px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}

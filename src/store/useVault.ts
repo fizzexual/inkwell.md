@@ -14,7 +14,7 @@ import {
 import { buildContents } from "../data/content";
 import type { Resolver } from "../markdown";
 
-export type SidebarView = "stats" | "notes" | "graph" | "search" | "table" | "tasks";
+export type SidebarView = "stats" | "notes" | "graph" | "search" | "table" | "tasks" | "canvas";
 export type MapView = "links" | "sources";
 export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas";
 export type Theme = "light" | "dark";
@@ -29,6 +29,32 @@ export interface Pane {
   tabs: string[];
   active: string;
 }
+
+export interface CanvasCard {
+  id: string;
+  x: number;
+  y: number;
+}
+export interface CanvasState {
+  cards: CanvasCard[];
+  tx: number;
+  ty: number;
+  scale: number;
+}
+
+const defaultCanvas: CanvasState = {
+  tx: 40,
+  ty: 30,
+  scale: 1,
+  cards: [
+    { id: "deep-learning-moc", x: 360, y: 40 },
+    { id: "foundations-moc", x: 70, y: 230 },
+    { id: "nn-fundamentals-moc", x: 360, y: 250 },
+    { id: "architectures-moc", x: 660, y: 230 },
+    { id: "convolutional-neural-networks", x: 560, y: 440 },
+    { id: "transformer", x: 800, y: 430 },
+  ],
+};
 
 function withTab(panes: Pane[], paneIdx: number, id: string): Pane[] {
   return panes.map((p, i) =>
@@ -75,6 +101,7 @@ interface Persisted {
   theme?: Theme;
   sidebarWidth?: number;
   inspectorWidth?: number;
+  canvas?: CanvasState;
 }
 function loadPersisted(): Persisted {
   try {
@@ -127,6 +154,11 @@ interface VaultState extends Derived {
   openMenu: (x: number, y: number, noteId: string) => void;
   closeMenu: () => void;
   deleteNote: (id: string) => void;
+  canvas: CanvasState;
+  addToCanvas: (id: string) => void;
+  removeFromCanvas: (id: string) => void;
+  moveCanvasCard: (id: string, x: number, y: number) => void;
+  setCanvasTransform: (tx: number, ty: number, scale: number) => void;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
   searchQuery: string;
@@ -187,6 +219,25 @@ export const useVault = create<VaultState>((set, get) => ({
   menu: null,
   openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
   closeMenu: () => set({ menu: null }),
+  canvas: persisted.canvas ?? defaultCanvas,
+  addToCanvas: (id) =>
+    set((s) => {
+      if (s.canvas.cards.some((c) => c.id === id)) return { centerView: "canvas" as const };
+      const x = (260 - s.canvas.tx) / s.canvas.scale + Math.random() * 60;
+      const y = (180 - s.canvas.ty) / s.canvas.scale + Math.random() * 60;
+      return {
+        canvas: { ...s.canvas, cards: [...s.canvas.cards, { id, x, y }] },
+        centerView: "canvas" as const,
+      };
+    }),
+  removeFromCanvas: (id) =>
+    set((s) => ({ canvas: { ...s.canvas, cards: s.canvas.cards.filter((c) => c.id !== id) } })),
+  moveCanvasCard: (id, x, y) =>
+    set((s) => ({
+      canvas: { ...s.canvas, cards: s.canvas.cards.map((c) => (c.id === id ? { ...c, x, y } : c)) },
+    })),
+  setCanvasTransform: (tx, ty, scale) =>
+    set((s) => ({ canvas: { ...s.canvas, tx, ty, scale } })),
   deleteNote: (id) =>
     set((s) => {
       deletedSet.add(id);
@@ -278,6 +329,7 @@ export const useVault = create<VaultState>((set, get) => ({
       if (v === "notes") return { sidebarView: v, centerView: "article" as const };
       if (v === "table") return { sidebarView: v, centerView: "table" as const };
       if (v === "tasks") return { sidebarView: v, centerView: "tasks" as const };
+      if (v === "canvas") return { sidebarView: v, centerView: "canvas" as const };
       return { sidebarView: v };
     }),
   setMapView: (v) => set({ mapView: v }),
@@ -351,6 +403,7 @@ useVault.subscribe(() => {
       theme: s.theme,
       sidebarWidth: s.sidebarWidth,
       inspectorWidth: s.inspectorWidth,
+      canvas: s.canvas,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

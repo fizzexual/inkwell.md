@@ -10,6 +10,7 @@ import {
   Graph,
   Table,
   CheckSquare,
+  Board,
   Search,
   Tag,
   Import,
@@ -29,6 +30,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "graph", Icon: Graph, label: "Knowledge map" },
   { id: "table", Icon: Table, label: "Table" },
   { id: "tasks", Icon: CheckSquare, label: "Tasks" },
+  { id: "canvas", Icon: Board, label: "Canvas" },
   { id: "search", Icon: Search, label: "Search" },
 ];
 

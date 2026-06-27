@@ -122,6 +122,15 @@ export const Link = (p: P) => (
   </svg>
 );
 
+export const Board = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="4.5" width="7" height="6" rx="1.2" />
+    <rect x="13.5" y="4.5" width="7" height="10" rx="1.2" />
+    <rect x="3.5" y="13.5" width="7" height="6" rx="1.2" />
+    <rect x="13.5" y="17.5" width="7" height="0.01" rx="1.2" />
+  </svg>
+);
+
 export const CheckSquare = (p: P) => (
   <svg {...base(p)}>
     <path d="M9 11.5 11.5 14 16 8.5" />
