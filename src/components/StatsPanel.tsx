@@ -1,12 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useVault } from "../store/useVault";
+import { useSmoothScroll } from "../useSmoothScroll";
 import { parseTags } from "../markdown";
+import CountUp from "./CountUp";
 import "./StatsPanel.css";
 
 export default function StatsPanel() {
   const notes = useVault((s) => s.notes);
   const graph = useVault((s) => s.graph);
   const openArticle = useVault((s) => s.openArticle);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useSmoothScroll(scrollRef);
 
   const stats = useMemo(() => {
     const degree = new Map(graph.nodes.map((n) => [n.id, n.degree]));
@@ -35,22 +39,30 @@ export default function StatsPanel() {
   }, [notes, graph]);
 
   return (
-    <div className="stats-panel">
+    <div className="stats-panel" ref={scrollRef}>
       <div className="stat-grid">
         <div className="stat-card">
-          <div className="stat-num">{stats.notes}</div>
+          <div className="stat-num">
+            <CountUp value={stats.notes} />
+          </div>
           <div className="stat-label">Notes</div>
         </div>
         <div className="stat-card">
-          <div className="stat-num">{stats.links}</div>
+          <div className="stat-num">
+            <CountUp value={stats.links} />
+          </div>
           <div className="stat-label">Links</div>
         </div>
         <div className="stat-card">
-          <div className="stat-num">{stats.sources}</div>
+          <div className="stat-num">
+            <CountUp value={stats.sources} />
+          </div>
           <div className="stat-label">Sources</div>
         </div>
         <div className="stat-card">
-          <div className="stat-num">{stats.tags}</div>
+          <div className="stat-num">
+            <CountUp value={stats.tags} />
+          </div>
           <div className="stat-label">Tags</div>
         </div>
       </div>

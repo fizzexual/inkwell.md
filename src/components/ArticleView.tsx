@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
 import { useMath } from "../math/useMath";
 import { buildMathCtx } from "../math/render";
+import { useSmoothScroll } from "../useSmoothScroll";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
 import MarkdownEditor from "./MarkdownEditor";
 import PropertiesPanel from "./PropertiesPanel";
@@ -29,6 +30,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
 
   const showEditor = isActive && editing;
   const bodyRef = useRef<HTMLDivElement>(null);
+  useSmoothScroll(bodyRef);
 
   const note = notesById.get(noteId);
   const md = note?.content ?? "";

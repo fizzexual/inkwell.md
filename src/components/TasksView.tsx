@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
+import { useSmoothScroll } from "../useSmoothScroll";
 import { parseTasks } from "../markdown";
 import "./TasksView.css";
 
@@ -20,6 +21,8 @@ export default function TasksView() {
   const openArticle = useVault((s) => s.openArticle);
   const updateContent = useVault((s) => s.updateContent);
   const [showDone, setShowDone] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useSmoothScroll(scrollRef);
 
   const groups = useMemo(() => {
     const all: TaskItem[] = notes.flatMap((n) =>
@@ -78,7 +81,7 @@ export default function TasksView() {
         </button>
       </header>
 
-      <div className="tasks-scroll">
+      <div className="tasks-scroll" ref={scrollRef}>
         {groups.length === 0 && <div className="tasks-empty">No open tasks. 🎉</div>}
         {groups.map((g) => (
           <section className="task-group" key={g.id}>

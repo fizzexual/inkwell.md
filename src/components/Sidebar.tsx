@@ -1,7 +1,9 @@
+import { useRef } from "react";
 import { useVault } from "../store/useVault";
 import type { SidebarView } from "../store/useVault";
 import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
+import { useSmoothScroll } from "../useSmoothScroll";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
 import {
@@ -131,6 +133,8 @@ export default function Sidebar() {
   const createNote = useVault((s) => s.createNote);
   const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
+  const treeRef = useRef<HTMLDivElement>(null);
+  useSmoothScroll(treeRef);
 
   const onImportPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -191,7 +195,7 @@ export default function Sidebar() {
             </button>
           </div>
 
-          <div className="tree-scroll">
+          <div className="tree-scroll" ref={treeRef}>
             <PinnedSection />
             {tree.folders.map((f) => (
               <FolderRow key={f.path} folder={f} depth={0} />

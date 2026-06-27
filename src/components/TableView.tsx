@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
+import { useSmoothScroll } from "../useSmoothScroll";
 import { parseFrontmatter, parseTags } from "../markdown";
 import { Search, ChevronDown } from "../icons";
 import "./TableView.css";
@@ -36,6 +37,8 @@ export default function TableView() {
   const [sortKey, setSortKey] = useState<keyof Row>("title");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [query, setQuery] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useSmoothScroll(scrollRef);
 
   const rows = useMemo<Row[]>(() => {
     const degree = new Map(graph.nodes.map((n) => [n.id, n.degree]));
@@ -100,7 +103,7 @@ export default function TableView() {
         </div>
       </header>
 
-      <div className="table-scroll">
+      <div className="table-scroll" ref={scrollRef}>
         <table className="data-table">
           <thead>
             <tr>
