@@ -104,7 +104,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
       ) : (
         <div className="article-body" ref={bodyRef}>
           <div key={noteId} className="article-doc">
-            <PropertiesPanel data={frontmatter} />
+            <PropertiesPanel data={frontmatter} noteId={noteId} />
             <div
               className="md-preview"
               onClick={onPreviewClick}

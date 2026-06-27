@@ -12,7 +12,7 @@ import {
   type Citation,
 } from "../data/derive";
 import { buildContents } from "../data/content";
-import type { Resolver } from "../markdown";
+import { setFrontmatterField, type Resolver } from "../markdown";
 
 export type SidebarView = "stats" | "notes" | "graph" | "search" | "table" | "tasks" | "canvas";
 export type MapView = "links" | "sources";
@@ -215,6 +215,7 @@ interface VaultState extends Derived {
   setCenterView: (v: CenterView) => void;
   setEditing: (v: boolean) => void;
   updateContent: (id: string, md: string) => void;
+  setProperty: (id: string, key: string, value: string) => void;
   createNote: (folder?: string) => void;
   createNoteWith: (title: string, content: string, folder?: string) => void;
   pdf: PdfDoc | null;
@@ -458,6 +459,14 @@ export const useVault = create<VaultState>((set, get) => ({
         editing: true,
         expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
       };
+    }),
+  setProperty: (id, key, value) =>
+    set((s) => {
+      const note = s.notes.find((n) => n.id === id);
+      if (!note) return {};
+      const content = setFrontmatterField(note.content ?? "", key, value);
+      const notes = s.notes.map((n) => (n.id === id ? { ...n, content } : n));
+      return { notes, ...derive(notes) };
     }),
   createNoteWith: (title, content, folder = "") =>
     set((s) => {

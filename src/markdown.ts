@@ -111,6 +111,26 @@ export function parseFrontmatter(md: string): { data: FrontmatterData; body: str
   return { data, body: md.slice(m[0].length) };
 }
 
+export function serializeFrontmatter(data: FrontmatterData): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(data)) {
+    if (Array.isArray(v)) {
+      lines.push(`${k}:`);
+      for (const item of v) lines.push(`  - ${item}`);
+    } else {
+      lines.push(`${k}: ${v}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/** Set/replace one frontmatter scalar, preserving the body. */
+export function setFrontmatterField(md: string, key: string, value: string): string {
+  const { data, body } = parseFrontmatter(md);
+  const next: FrontmatterData = { ...data, [key]: value };
+  return `---\n${serializeFrontmatter(next)}\n---\n\n${body.replace(/^\n+/, "")}`;
+}
+
 export function slugify(s: string): string {
   return s
     .toLowerCase()
