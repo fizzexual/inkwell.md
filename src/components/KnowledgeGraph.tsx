@@ -16,6 +16,7 @@ import { drag } from "d3-drag";
 import { zoom, zoomIdentity, type ZoomBehavior } from "d3-zoom";
 import { useVault } from "../store/useVault";
 import type { GraphNode } from "../data/derive";
+import { buildFolderColors, topFolder } from "../folders";
 
 interface SimNode extends GraphNode, SimulationNodeDatum {}
 interface SimLink {
@@ -42,6 +43,8 @@ export default function KnowledgeGraph() {
   const graph = useVault((s) => s.graph);
   const selectedId = useVault((s) => s.selectedId);
   const fitNonce = useVault((s) => s.fitNonce);
+  const graphLocal = useVault((s) => s.graphLocal);
+  const graphColorFolder = useVault((s) => s.graphColorFolder);
 
   // latest-value refs so the d3 callbacks never go stale
   const selectRef = useRef(useVault.getState().select);
@@ -54,8 +57,27 @@ export default function KnowledgeGraph() {
     const svgEl = svgRef.current;
     if (!svgEl) return;
 
-    const nodes: SimNode[] = graph.nodes.map((d) => ({ ...d }));
-    const links: SimLink[] = graph.edges.map((e) => ({ ...e }));
+    // local mode: keep only the selected note + its neighbours (depth 2)
+    let visibleIds: Set<string> | null = null;
+    if (graphLocal) {
+      visibleIds = new Set([selectedId]);
+      for (let depth = 0; depth < 2; depth++) {
+        for (const e of graph.edges) {
+          if (visibleIds.has(e.source)) visibleIds.add(e.target);
+          if (visibleIds.has(e.target)) visibleIds.add(e.source);
+        }
+      }
+    }
+    const show = (id: string) => !visibleIds || visibleIds.has(id);
+
+    const folderColors = buildFolderColors(graph.nodes.map((n) => n.folder));
+    const colorFor = (d: SimNode) =>
+      graphColorFolder ? folderColors.get(topFolder(d.folder)) ?? fill(d) : fill(d);
+
+    const nodes: SimNode[] = graph.nodes.filter((d) => show(d.id)).map((d) => ({ ...d }));
+    const links: SimLink[] = graph.edges
+      .filter((e) => show(e.source) && show(e.target))
+      .map((e) => ({ ...e }));
 
     const svg = select(svgEl);
     svg.selectAll("*").remove();
@@ -116,7 +138,7 @@ export default function KnowledgeGraph() {
       .append("circle")
       .attr("class", "dot")
       .attr("r", radius)
-      .attr("fill", fill);
+      .attr("fill", colorFor);
     node
       .filter(labelled)
       .append("text")
@@ -220,7 +242,7 @@ export default function KnowledgeGraph() {
       ro.disconnect();
       sim.stop();
     };
-  }, [graph]);
+  }, [graph, graphColorFolder, graphLocal, graphLocal ? selectedId : ""]);
 
   // ---- run fit when requested from the header ----
   useEffect(() => {

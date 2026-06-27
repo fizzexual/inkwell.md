@@ -201,6 +201,22 @@ export const Moon = (p: P) => (
   </svg>
 );
 
+export const Focus = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+  </svg>
+);
+
+export const Palette = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="8.5" cy="10.5" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="8" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="15.5" cy="10.5" r="1.1" fill="currentColor" stroke="none" />
+    <path d="M12 3a9 9 0 0 0 0 18c1.5 0 2-1 2-2 0-1.3-1-1.5-1-2.5 0-.8.7-1.5 1.7-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z" />
+  </svg>
+);
+
 export const OpenExternal = (p: P) => (
   <svg {...base(p)}>
     <path d="M14 4h6v6" />

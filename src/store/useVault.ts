@@ -82,6 +82,10 @@ interface VaultState extends Derived {
   centerView: CenterView;
   editing: boolean;
   fitNonce: number;
+  graphLocal: boolean;
+  graphColorFolder: boolean;
+  toggleGraphLocal: () => void;
+  toggleGraphColorFolder: () => void;
   theme: Theme;
   toggleTheme: () => void;
   sidebarWidth: number;
@@ -128,6 +132,10 @@ export const useVault = create<VaultState>((set, get) => ({
   centerView: persisted.centerView ?? "graph",
   editing: false,
   fitNonce: 0,
+  graphLocal: false,
+  graphColorFolder: false,
+  toggleGraphLocal: () => set((s) => ({ graphLocal: !s.graphLocal })),
+  toggleGraphColorFolder: () => set((s) => ({ graphColorFolder: !s.graphColorFolder })),
   theme: persisted.theme ?? "light",
   toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
   sidebarWidth: persisted.sidebarWidth ?? 256,
