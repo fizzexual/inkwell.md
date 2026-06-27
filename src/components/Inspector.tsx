@@ -35,6 +35,7 @@ export default function Inspector() {
   const openTag = useVault((s) => s.openTag);
   const scrollToHeading = useVault((s) => s.scrollToHeading);
   const citeMap = useVault((s) => s.citeMap);
+  const toast = useVault((s) => s.toast);
 
   const width = useVault((s) => s.inspectorWidth);
   const note = notesById.get(selectedId);
@@ -48,8 +49,10 @@ export default function Inspector() {
     .map((k) => citeMap.get(k))
     .filter((c): c is NonNullable<typeof c> => !!c);
 
-  const copyBibtex = () =>
+  const copyBibtex = () => {
     navigator.clipboard?.writeText(citations.map(toBibtex).join("\n\n"));
+    toast(`Copied ${citations.length} BibTeX ${citations.length === 1 ? "entry" : "entries"}`);
+  };
 
   return (
     <aside className="inspector" style={{ width, minWidth: width }}>

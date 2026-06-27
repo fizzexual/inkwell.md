@@ -30,6 +30,13 @@ export interface MenuState {
   noteId: string;
 }
 
+export interface Toast {
+  id: number;
+  message: string;
+  action?: { label: string; run: () => void };
+}
+let toastSeq = 0;
+
 export interface Pane {
   tabs: string[];
   active: string;
@@ -159,6 +166,10 @@ interface VaultState extends Derived {
   openMenu: (x: number, y: number, noteId: string) => void;
   closeMenu: () => void;
   deleteNote: (id: string) => void;
+  restoreNote: (note: Note) => void;
+  toasts: Toast[];
+  toast: (message: string, action?: Toast["action"]) => void;
+  dismissToast: (id: number) => void;
   canvas: CanvasState;
   addToCanvas: (id: string) => void;
   removeFromCanvas: (id: string) => void;
@@ -227,6 +238,10 @@ export const useVault = create<VaultState>((set, get) => ({
   menu: null,
   openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
   closeMenu: () => set({ menu: null }),
+  toasts: [],
+  toast: (message, action) =>
+    set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, message, action }] })),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   canvas: persisted.canvas ?? defaultCanvas,
   addToCanvas: (id) =>
     set((s) => {
@@ -246,7 +261,8 @@ export const useVault = create<VaultState>((set, get) => ({
     })),
   setCanvasTransform: (tx, ty, scale) =>
     set((s) => ({ canvas: { ...s.canvas, tx, ty, scale } })),
-  deleteNote: (id) =>
+  deleteNote: (id) => {
+    const removed = get().notes.find((n) => n.id === id);
     set((s) => {
       deletedSet.add(id);
       const notes = s.notes.filter((n) => n.id !== id);
@@ -269,6 +285,30 @@ export const useVault = create<VaultState>((set, get) => ({
         activePane,
         selectedId: panes[activePane]?.active ?? fallback,
         menu: null,
+        toasts: removed
+          ? [
+              ...s.toasts,
+              {
+                id: ++toastSeq,
+                message: `Deleted “${removed.title}”`,
+                action: { label: "Undo", run: () => get().restoreNote(removed) },
+              },
+            ]
+          : s.toasts,
+      };
+    });
+  },
+  restoreNote: (note) =>
+    set((s) => {
+      deletedSet.delete(note.id);
+      const notes = [...s.notes, note];
+      return {
+        notes,
+        ...derive(notes),
+        selectedId: note.id,
+        panes: withTab(s.panes, s.activePane, note.id),
+        centerView: "article" as const,
+        sidebarView: "notes" as const,
       };
     }),
   paletteOpen: false,

@@ -9,6 +9,7 @@ export default function PdfView() {
   const pdf = useVault((s) => s.pdf);
   const openPdf = useVault((s) => s.openPdf);
   const createNoteWith = useVault((s) => s.createNoteWith);
+  const toast = useVault((s) => s.toast);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -85,10 +86,14 @@ export default function PdfView() {
 
   const saveHighlight = () => {
     const quote = window.getSelection()?.toString().trim();
-    if (!quote || !pdf) return;
+    if (!quote || !pdf) {
+      toast("Select some text in the PDF first");
+      return;
+    }
     const title = `Highlight — ${pdf.name.replace(/\.pdf$/i, "")} p.${page}`;
     const body = `# ${title}\n\n> ${quote.replace(/\n+/g, " ")}\n\n— *${pdf.name}*, page ${page}\n`;
     createNoteWith(title, body, "Highlights");
+    toast("Highlight saved to Highlights/");
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1600);
   };

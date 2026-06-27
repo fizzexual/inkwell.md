@@ -22,6 +22,7 @@ export default function ContextMenu() {
   const splitWith = useVault((s) => s.splitWith);
   const addToCanvas = useVault((s) => s.addToCanvas);
   const deleteNote = useVault((s) => s.deleteNote);
+  const toast = useVault((s) => s.toast);
 
   useEffect(() => {
     if (!menu) return;
@@ -62,7 +63,10 @@ export default function ContextMenu() {
     {
       icon: <Copy size={15} />,
       label: "Copy as link",
-      onClick: run(() => navigator.clipboard?.writeText(`[[${note.title}]]`)),
+      onClick: run(() => {
+        navigator.clipboard?.writeText(`[[${note.title}]]`);
+        toast("Copied link to clipboard");
+      }),
     },
     {
       icon: <Graph size={15} />,
@@ -72,7 +76,14 @@ export default function ContextMenu() {
         setCenterView("graph");
       }),
     },
-    { icon: <Board size={15} />, label: "Add to canvas", onClick: run(() => addToCanvas(note.id)) },
+    {
+      icon: <Board size={15} />,
+      label: "Add to canvas",
+      onClick: run(() => {
+        addToCanvas(note.id);
+        toast(`Added “${note.title}” to canvas`);
+      }),
+    },
     "sep",
     {
       icon: <Trash size={15} />,
