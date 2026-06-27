@@ -3,7 +3,7 @@ import { useMath } from "../math/useMath";
 import Tex from "../math/Tex";
 import MathPlot from "../math/MathPlot";
 import CopyMenu, { type CopyOption } from "./CopyMenu";
-import type { MathLine, MathSymbol } from "../math/engine";
+import { evalNumber, type MathLine, type MathSymbol } from "../math/engine";
 import { Plus, Trash } from "../icons";
 import "./MathEngineView.css";
 
@@ -49,6 +49,11 @@ export default function MathEngineView() {
 
   const [newPlot, setNewPlot] = useState("");
   const [newParam, setNewParam] = useState("");
+
+  const yAt = (p: { expr: string; point: number }) => {
+    const y = evalNumber(p.expr, { ...result.scope, x: p.point });
+    return y == null ? "—" : Number(y.toFixed(4)).toString();
+  };
 
   const symbols = [...result.symbols.values()];
 
@@ -198,7 +203,11 @@ export default function MathEngineView() {
             <CopyMenu options={[{ label: "Embed as ```plot", text: plotBlock }]} small />
           </div>
           <div className="math-plot-wrap">
-            <MathPlot plots={plots} scope={result.scope} />
+            <MathPlot
+              plots={plots}
+              scope={result.scope}
+              onPointDrag={(id, x) => updatePlot(id, { point: x })}
+            />
           </div>
           <div className="plot-list">
             {plots.map((p) => (
@@ -223,6 +232,19 @@ export default function MathEngineView() {
                   value={p.max}
                   onChange={(e) => updatePlot(p.id, { max: Number(e.target.value) })}
                 />
+                <span className="plot-point-ctl">
+                  <span className="plot-at">x</span>
+                  <input
+                    className="plot-range"
+                    type="number"
+                    value={Number(p.point.toFixed(3))}
+                    step={Math.max(0.01, (p.max - p.min) / 100)}
+                    onChange={(e) => updatePlot(p.id, { point: Number(e.target.value) })}
+                  />
+                  <span className="plot-yout" style={{ color: p.color }}>
+                    → {yAt(p)}
+                  </span>
+                </span>
                 <button className="plot-remove" onClick={() => removePlot(p.id)}>
                   <Trash size={14} />
                 </button>

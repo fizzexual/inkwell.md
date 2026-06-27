@@ -7,50 +7,42 @@ interface Props {
   plots: Plot[];
   scope: Record<string, unknown>;
   height?: number;
+  onPointDrag?: (id: string, x: number) => void;
 }
 
-export default function MathPlot({ plots, scope, height }: Props) {
+export default function MathPlot({ plots, scope, height, onPointDrag }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [cursorX, setCursorX] = useState<number | null>(null);
-  const draggingRef = useRef(false);
+  const [dragId, setDragId] = useState<string | null>(null);
 
   const g = useMemo(() => buildPlotGeometry(plots, scope), [plots, scope]);
 
-  const updateCursor = (clientX: number) => {
-    const rect = svgRef.current!.getBoundingClientRect();
-    const vx = ((clientX - rect.left) / rect.width) * PLOT_W; // → viewBox x
-    const [xMin, xMax] = g.xDomain;
-    const dataX = xMin + ((vx - PLOT_PAD) / (PLOT_W - 2 * PLOT_PAD)) * (xMax - xMin);
-    setCursorX(Math.max(xMin, Math.min(xMax, dataX)));
-  };
+  // each curve's draggable evaluation point: (x, y=f(x))
+  const points = plots.map((p) => {
+    const px = Number.isFinite(p.point) ? p.point : (p.min + p.max) / 2;
+    return { plot: p, px, py: evalNumber(p.expr, { ...scope, x: px }) };
+  });
 
-  const readouts =
-    cursorX == null
-      ? []
-      : plots.map((p) => ({
-          color: p.color,
-          expr: p.expr,
-          y: evalNumber(p.expr, { ...scope, x: cursorX }),
-        }));
+  const dataXFromClient = (clientX: number, plot: Plot) => {
+    const rect = svgRef.current!.getBoundingClientRect();
+    const vx = ((clientX - rect.left) / rect.width) * PLOT_W;
+    const [xMin, xMax] = g.xDomain;
+    const dx = xMin + ((vx - PLOT_PAD) / (PLOT_W - 2 * PLOT_PAD)) * (xMax - xMin);
+    return Math.max(plot.min, Math.min(plot.max, dx));
+  };
 
   return (
     <svg
       ref={svgRef}
-      className="math-plot interactive"
+      className="math-plot"
       viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
       style={{ height: height ?? 300, touchAction: "none" }}
-      onPointerDown={(e) => {
-        draggingRef.current = true;
-        (e.target as SVGElement).setPointerCapture?.(e.pointerId);
-        updateCursor(e.clientX);
-      }}
       onPointerMove={(e) => {
-        if (draggingRef.current || e.buttons === 0) updateCursor(e.clientX);
+        if (!dragId || !onPointDrag) return;
+        const plot = plots.find((p) => p.id === dragId);
+        if (plot) onPointDrag(dragId, dataXFromClient(e.clientX, plot));
       }}
-      onPointerUp={() => (draggingRef.current = false)}
-      onPointerLeave={() => {
-        if (!draggingRef.current) setCursorX(null);
-      }}
+      onPointerUp={() => setDragId(null)}
+      onPointerLeave={() => setDragId(null)}
     >
       <rect
         x={PLOT_PAD}
@@ -69,39 +61,41 @@ export default function MathPlot({ plots, scope, height }: Props) {
         <path key={i} d={p.d} fill="none" stroke={p.color} strokeWidth={1.8} />
       ))}
 
-      {cursorX != null && (
-        <>
-          <line
-            x1={g.sx(cursorX)}
-            y1={PLOT_PAD}
-            x2={g.sx(cursorX)}
-            y2={PLOT_H - PLOT_PAD}
-            className="plot-cursor"
-          />
-          {readouts.map((r, i) =>
-            r.y == null ? null : (
-              <circle key={i} cx={g.sx(cursorX)} cy={g.sy(r.y)} r={4.5} fill={r.color} className="plot-dot" />
-            ),
-          )}
-          <g transform={`translate(${Math.min(g.sx(cursorX) + 10, PLOT_W - 150)}, ${PLOT_PAD + 8})`}>
-            <rect className="plot-readout-bg" width={140} height={18 + readouts.length * 15} rx={5} />
-            <text className="plot-readout x" x={8} y={14}>
-              x = {cursorX.toFixed(2)}
-            </text>
-            {readouts.map((r, i) => (
-              <text key={i} className="plot-readout" x={8} y={30 + i * 15} fill={r.color}>
-                {r.y == null ? "—" : r.y.toFixed(3)}
+      {points.map(({ plot, px, py }) =>
+        py == null ? null : (
+          <g key={plot.id} className={"plot-point" + (dragId === plot.id ? " dragging" : "")}>
+            {/* vertical guide from the point down to the x-axis */}
+            <line x1={g.sx(px)} y1={g.sy(py)} x2={g.sx(px)} y2={PLOT_H - PLOT_PAD} className="point-guide" />
+            <line x1={PLOT_PAD} y1={g.sy(py)} x2={g.sx(px)} y2={g.sy(py)} className="point-guide" />
+            {/* readout label */}
+            <g transform={`translate(${Math.min(g.sx(px) + 9, PLOT_W - 132)}, ${g.sy(py) - 26})`}>
+              <rect className="point-readout-bg" width={124} height={20} rx={5} />
+              <text className="point-readout" x={7} y={14} fill={plot.color}>
+                ({px.toFixed(2)}, {py.toFixed(3)})
               </text>
-            ))}
+            </g>
+            {/* the draggable handle */}
+            <circle
+              cx={g.sx(px)}
+              cy={g.sy(py)}
+              r={13}
+              className="point-hit"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                (e.target as SVGElement).setPointerCapture?.(e.pointerId);
+                setDragId(plot.id);
+              }}
+            />
+            <circle cx={g.sx(px)} cy={g.sy(py)} r={6} fill={plot.color} className="point-dot" />
           </g>
-        </>
+        ),
       )}
 
       <text x={PLOT_PAD} y={PLOT_H - 10} className="plot-label">
         x ∈ [{g.xDomain[0]}, {g.xDomain[1]}]
       </text>
       <text x={PLOT_W - PLOT_PAD} y={PLOT_H - 10} className="plot-label" textAnchor="end">
-        drag to inspect
+        drag a point along its curve
       </text>
     </svg>
   );

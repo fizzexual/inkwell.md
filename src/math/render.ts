@@ -48,6 +48,7 @@ function renderPlotBlock(source: string, scope: Record<string, unknown>): string
         color: PLOT_COLORS[i % PLOT_COLORS.length],
         min: m ? Number(m[1]) : -10,
         max: m ? Number(m[2]) : 10,
+        point: 0,
       };
     });
   if (!plots.length) return "";

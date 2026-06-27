@@ -7,6 +7,7 @@ export interface Plot {
   color: string;
   min: number;
   max: number;
+  point: number; // x of the draggable evaluation point on this curve
 }
 
 export interface Param {
@@ -40,8 +41,8 @@ detM = det(M)
 f(x) = sin(x) / x`;
 
 const DEFAULT_PLOTS: Plot[] = [
-  { id: "p0", expr: "f(x)", color: "#6d4bd0", min: -12, max: 12 },
-  { id: "p1", expr: "amp * sin(k * x)", color: "#3b82f6", min: -12, max: 12 },
+  { id: "p0", expr: "f(x)", color: "#6d4bd0", min: -12, max: 12, point: 2 },
+  { id: "p1", expr: "amp * sin(k * x)", color: "#3b82f6", min: -12, max: 12, point: -3 },
 ];
 
 const DEFAULT_PARAMS: Param[] = [
@@ -128,6 +129,7 @@ export const useMath = create<MathState>((set) => ({
           color: PLOT_COLORS[s.plots.length % PLOT_COLORS.length],
           min: -10,
           max: 10,
+          point: 0,
         },
       ],
     })),
