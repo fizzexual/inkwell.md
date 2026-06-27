@@ -21,10 +21,14 @@
   border-radius: 50%;
   padding: 0;
   position: relative;
-  transition: filter 0.12s ease;
+  transition: filter var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.tl:hover {
+  filter: brightness(1.05);
 }
 .tl:active {
   filter: brightness(0.85);
+  transform: scale(0.88);
 }
 .tl-red {
   background: var(--tl-red);
@@ -47,9 +51,23 @@
   height: 28px;
   border-radius: var(--radius-sm);
   color: var(--tx-3);
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-2) var(--ease-spring);
 }
 .titlebar-btn:hover {
   background: var(--bg-hover);
   color: var(--tx-1);
+}
+.titlebar-btn:hover svg {
+  animation: spin-quarter var(--dur-3) var(--ease-out);
+}
+.titlebar-btn:active {
+  transform: scale(0.9);
+}
+@keyframes spin-quarter {
+  from {
+    transform: rotate(-25deg);
+  }
 }

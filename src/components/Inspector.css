@@ -49,11 +49,17 @@
   font-weight: 500;
   color: var(--tx-2);
   background: var(--bg-app);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
 }
 .open-btn:hover {
   background: var(--bg-hover);
-  border-color: #d6d6d8;
+  border-color: var(--line-strong);
+}
+.open-btn:active {
+  transform: scale(0.97);
 }
 .open-btn svg {
   color: var(--tx-3);
@@ -72,10 +78,13 @@
   background: var(--accent-weak);
   border-radius: 20px;
   padding: 3px 10px;
-  transition: filter 0.12s ease;
+  transition: filter var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 .tag-pill:hover {
   filter: brightness(0.96);
+}
+.tag-pill:active {
+  transform: scale(0.93);
 }
 
 .outline {

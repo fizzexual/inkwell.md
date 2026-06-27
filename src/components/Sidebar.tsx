@@ -56,8 +56,8 @@ function FolderRow({ folder, depth }: { folder: TreeFolder; depth: number }) {
         onClick={() => toggle(folder.path)}
         title={folder.name}
       >
-        <span className="chev">
-          {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        <span className={"chev" + (open ? " open" : "")}>
+          <ChevronRight size={13} />
         </span>
         <Folder className="tree-icon" size={15} />
         <span className="tree-label">{folder.name}</span>
