@@ -199,6 +199,21 @@
   color: var(--tx-4);
 }
 
+/* citations */
+.md-preview .cite {
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.md-preview .cite:hover {
+  text-decoration: underline;
+}
+.md-preview .cite-missing {
+  color: var(--tl-red);
+}
+
 /* wikilinks */
 .md-preview .wikilink {
   color: var(--accent);

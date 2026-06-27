@@ -1,5 +1,47 @@
 import type { Note } from "./vault";
-import { parseWikilinkIds, type Resolver } from "../markdown";
+import { parseWikilinkIds, parseFrontmatter, type Resolver } from "../markdown";
+
+export interface Citation {
+  id: string;
+  key: string;
+  label: string;
+  authors: string;
+  year: string;
+  title: string;
+  venue: string;
+}
+
+/** citekey → citation metadata, gathered from source-note frontmatter. */
+export function buildCiteMap(notes: Note[]): Map<string, Citation> {
+  const map = new Map<string, Citation>();
+  for (const n of notes) {
+    const fm = parseFrontmatter(n.content ?? "").data;
+    const key = typeof fm.citekey === "string" ? fm.citekey : "";
+    if (!key) continue;
+    const authors = Array.isArray(fm.authors) ? fm.authors.join(", ") : String(fm.authors ?? "");
+    const year = String(fm.year ?? "");
+    map.set(key, {
+      id: n.id,
+      key,
+      label: [authors || n.title, year].filter(Boolean).join(", "),
+      authors,
+      year,
+      title: n.title,
+      venue: Array.isArray(fm.venue) ? fm.venue.join(", ") : String(fm.venue ?? ""),
+    });
+  }
+  return map;
+}
+
+export function toBibtex(c: Citation): string {
+  const fields = [
+    `  title = {${c.title}}`,
+    c.authors && `  author = {${c.authors}}`,
+    c.year && `  year = {${c.year}}`,
+    c.venue && `  booktitle = {${c.venue}}`,
+  ].filter(Boolean);
+  return `@inproceedings{${c.key},\n${fields.join(",\n")}\n}`;
+}
 
 export interface TreeFolder {
   type: "folder";

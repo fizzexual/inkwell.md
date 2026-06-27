@@ -15,6 +15,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const resolve = useVault((s) => s.resolve);
+  const citeMap = useVault((s) => s.citeMap);
   const editing = useVault((s) => s.editing);
   const setEditing = useVault((s) => s.setEditing);
   const setCenterView = useVault((s) => s.setCenterView);
@@ -32,11 +33,19 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const words = wordCount(body);
   const html = useMemo(
     () =>
-      renderMarkdown(md, resolve, (id) => {
-        const n = notesById.get(id);
-        return n ? { title: n.title, content: n.content ?? "" } : undefined;
-      }),
-    [md, resolve, notesById],
+      renderMarkdown(
+        md,
+        resolve,
+        (id) => {
+          const n = notesById.get(id);
+          return n ? { title: n.title, content: n.content ?? "" } : undefined;
+        },
+        (key) => {
+          const c = citeMap.get(key);
+          return c ? { id: c.id, label: c.label } : undefined;
+        },
+      ),
+    [md, resolve, notesById, citeMap],
   );
 
   useEffect(() => {
@@ -51,7 +60,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const crumbs = note.folder ? note.folder.split("/") : [];
 
   const onPreviewClick = (e: MouseEvent<HTMLDivElement>) => {
-    const target = (e.target as HTMLElement).closest("a.wikilink, a.embed-head") as HTMLElement | null;
+    const target = (e.target as HTMLElement).closest("a.wikilink, a.embed-head, a.cite") as HTMLElement | null;
     if (target?.dataset.note) {
       e.preventDefault();
       openArticle(target.dataset.note);

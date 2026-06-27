@@ -6,8 +6,10 @@ import {
   buildGraph,
   buildLinkMap,
   buildBacklinks,
+  buildCiteMap,
   titleResolver,
   type TreeFolder,
+  type Citation,
 } from "../data/derive";
 import { buildContents } from "../data/content";
 import type { Resolver } from "../markdown";
@@ -40,6 +42,7 @@ interface Derived {
   linkMap: Map<string, string[]>;
   backlinkMap: Map<string, string[]>;
   notesById: Map<string, Note>;
+  citeMap: Map<string, Citation>;
   resolve: Resolver;
 }
 
@@ -52,6 +55,7 @@ function derive(notes: Note[]): Derived {
     linkMap,
     backlinkMap: buildBacklinks(linkMap),
     notesById: new Map(notes.map((n) => [n.id, n])),
+    citeMap: buildCiteMap(notes),
     resolve,
   };
 }

@@ -117,6 +117,37 @@ export interface EmbedSource {
 }
 export type NoteGetter = (id: string) => EmbedSource | undefined;
 
+export interface CiteEntry {
+  id: string;
+  label: string;
+}
+export type CiteResolver = (key: string) => CiteEntry | undefined;
+
+const CITATION = /\[@([\w:-]+)\]/g;
+
+/** Unique citekeys referenced via [@key] in document order. */
+export function parseCitations(md: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const m of md.matchAll(CITATION)) {
+    if (!seen.has(m[1])) {
+      seen.add(m[1]);
+      out.push(m[1]);
+    }
+  }
+  return out;
+}
+
+function expandCitations(md: string, cite?: CiteResolver): string {
+  if (!cite) return md;
+  return md.replace(CITATION, (_m, key: string) => {
+    const c = cite(key);
+    return c
+      ? `<a class="cite" data-note="${c.id}" href="#/note/${c.id}">(${c.label})</a>`
+      : `(<span class="cite-missing">@${key}</span>)`;
+  });
+}
+
 const EMBED_LINE = /^!\[\[([^\]]+)\]\]\s*$/gm;
 
 /** The slice of `content` under the heading matching `slug`, up to the next
@@ -149,6 +180,7 @@ export function renderMarkdown(
   md: string,
   resolve: Resolver,
   getNote?: NoteGetter,
+  cite?: CiteResolver,
   stack: Set<string> = new Set(),
 ): string {
   const { body } = parseFrontmatter(md);
@@ -160,7 +192,9 @@ export function renderMarkdown(
     return `\n\n<!--EMBED:${id}:${heading ? slugify(heading) : ""}-->\n\n`;
   });
 
-  let html = marked.parse(expandWikilinks(withEmbeds, resolve), { async: false }) as string;
+  let html = marked.parse(expandWikilinks(expandCitations(withEmbeds, cite), resolve), {
+    async: false,
+  }) as string;
 
   // give headings stable ids so the outline can scroll to them
   html = html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_m, lvl, inner) => {
@@ -177,7 +211,7 @@ export function renderMarkdown(
       if (stack.has(id)) return `<div class="embed embed-cycle">↻ ${note.title}</div>`;
       const next = new Set(stack).add(id);
       const body = headingSlug ? sectionBySlug(note.content, headingSlug) : note.content;
-      const inner = renderMarkdown(body, resolve, getNote, next);
+      const inner = renderMarkdown(body, resolve, getNote, cite, next);
       return `<div class="embed"><a class="embed-head" data-note="${id}" href="#/note/${id}">${note.title}</a><div class="embed-body">${inner}</div></div>`;
     },
   );

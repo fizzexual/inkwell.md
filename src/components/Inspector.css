@@ -119,6 +119,30 @@
   margin-bottom: 9px;
   letter-spacing: 0.01em;
 }
+.section-label.spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tx-3);
+  padding: 2px 7px;
+  border: 1px solid var(--line-card);
+  border-radius: 5px;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.mini-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent-text);
+}
+.mini-btn svg {
+  color: var(--tx-4);
+}
 .link-list {
   display: flex;
   flex-direction: column;

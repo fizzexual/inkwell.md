@@ -25,8 +25,8 @@ small learnable filters across the input, sharing weights across positions.
 ## Where it shows up
 
 CNNs are the backbone of classical [[Computer Vision]]. See [[Famous CNN Architectures]]
-for the lineage from LeNet to ResNet, and [[Vision Transformer]] for the attention-based
-alternative that is now competitive on the same tasks.
+for the lineage from AlexNet [@alexnet2012] to ResNet [@resnet2015], and [[Vision Transformer]]
+[@vit2020] for the attention-based alternative that is now competitive on the same tasks.
 
 > Tip: add a layer of [[Dropout]] before the classifier to curb over-fitting.`,
 
@@ -34,7 +34,7 @@ alternative that is now competitive on the same tasks.
 
 The **Transformer** is a sequence model built entirely on the
 [[Attention Mechanism]] — no recurrence, no convolution. Introduced in
-*Attention Is All You Need*, it has become the default architecture for
+*Attention Is All You Need* [@attention2017], it has become the default architecture for
 [[Natural Language Processing]] and, via the [[Vision Transformer]], for images too.
 
 ## Core ideas
@@ -134,12 +134,20 @@ function tagsFor(note: { folder: string; kind: string; title: string }): string 
   return tags.join(" ");
 }
 
-const sourceMeta: Record<string, { authors: string; year: string }> = {
-  "src-alexnet": { authors: "Krizhevsky, Sutskever & Hinton", year: "2012" },
-  "src-resnet": { authors: "He, Zhang, Ren & Sun", year: "2015" },
-  "src-attention": { authors: "Vaswani et al.", year: "2017" },
-  "src-vit": { authors: "Dosovitskiy et al.", year: "2020" },
+interface SourceMeta {
+  authors: string;
+  year: string;
+  citekey: string;
+  venue: string;
+}
+const sourceMeta: Record<string, SourceMeta> = {
+  "src-alexnet": { authors: "Krizhevsky, Sutskever & Hinton", year: "2012", citekey: "alexnet2012", venue: "NeurIPS" },
+  "src-resnet": { authors: "He, Zhang, Ren & Sun", year: "2015", citekey: "resnet2015", venue: "CVPR" },
+  "src-attention": { authors: "Vaswani et al.", year: "2017", citekey: "attention2017", venue: "NeurIPS" },
+  "src-vit": { authors: "Dosovitskiy et al.", year: "2020", citekey: "vit2020", venue: "ICLR" },
 };
+export { sourceMeta };
+export type { SourceMeta };
 
 /** A leading YAML frontmatter block of structured properties. */
 function frontmatterFor(
@@ -150,7 +158,7 @@ function frontmatterFor(
   const type = note.kind === "source" ? "source" : /\bMOC\b/.test(note.title) ? "moc" : "note";
   const lines = [`type: ${type}`, `area: ${area}`, `status: ${written ? "written" : "stub"}`];
   const sm = sourceMeta[note.id];
-  if (sm) lines.push(`authors: ${sm.authors}`, `year: ${sm.year}`);
+  if (sm) lines.push(`authors: ${sm.authors}`, `year: ${sm.year}`, `venue: ${sm.venue}`, `citekey: ${sm.citekey}`);
   return `---\n${lines.join("\n")}\n---\n\n`;
 }
 

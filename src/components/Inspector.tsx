@@ -1,7 +1,8 @@
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
-import { parseTags, parseHeadings } from "../markdown";
-import { ArrowRight, OpenExternal } from "../icons";
+import { parseTags, parseHeadings, parseCitations } from "../markdown";
+import { toBibtex } from "../data/derive";
+import { ArrowRight, OpenExternal, Copy } from "../icons";
 import "./Inspector.css";
 
 function kindLabel(n: Note) {
@@ -33,6 +34,7 @@ export default function Inspector() {
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
   const scrollToHeading = useVault((s) => s.scrollToHeading);
+  const citeMap = useVault((s) => s.citeMap);
 
   const width = useVault((s) => s.inspectorWidth);
   const note = notesById.get(selectedId);
@@ -42,6 +44,12 @@ export default function Inspector() {
   const backlinks = backlinksOf(note.id);
   const tags = parseTags(note.content ?? "");
   const headings = parseHeadings(note.content ?? "").filter((h) => h.level > 1);
+  const citations = parseCitations(note.content ?? "")
+    .map((k) => citeMap.get(k))
+    .filter((c): c is NonNullable<typeof c> => !!c);
+
+  const copyBibtex = () =>
+    navigator.clipboard?.writeText(citations.map(toBibtex).join("\n\n"));
 
   return (
     <aside className="inspector" style={{ width, minWidth: width }}>
@@ -77,6 +85,37 @@ export default function Inspector() {
                   onClick={() => scrollToHeading(h.slug)}
                 >
                   {h.text}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {citations.length > 0 && (
+          <section className="link-section">
+            <div className="section-label spread">
+              <span>References ({citations.length})</span>
+              <button className="mini-btn" onClick={copyBibtex} title="Copy BibTeX">
+                <Copy size={13} />
+                BibTeX
+              </button>
+            </div>
+            <div className="link-list">
+              {citations.map((c, i) => (
+                <button
+                  key={c.key}
+                  className="link-row"
+                  style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }}
+                  onClick={() => openArticle(c.id)}
+                >
+                  <span className="link-text">
+                    <span className="link-title">{c.title}</span>
+                    <span className="link-kind">
+                      {c.label}
+                      {c.venue ? ` · ${c.venue}` : ""}
+                    </span>
+                  </span>
+                  <ArrowRight size={15} className="link-arrow" />
                 </button>
               ))}
             </div>
