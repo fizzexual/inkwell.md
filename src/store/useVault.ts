@@ -12,9 +12,9 @@ import {
 import { buildContents } from "../data/content";
 import type { Resolver } from "../markdown";
 
-export type SidebarView = "stats" | "notes" | "graph" | "search";
+export type SidebarView = "stats" | "notes" | "graph" | "search" | "table";
 export type MapView = "links" | "sources";
-export type CenterView = "graph" | "article";
+export type CenterView = "graph" | "article" | "table";
 export type Theme = "light" | "dark";
 
 interface Derived {
@@ -154,6 +154,7 @@ export const useVault = create<VaultState>((set, get) => ({
     set(() => {
       if (v === "graph") return { sidebarView: v, centerView: "graph" as const };
       if (v === "notes") return { sidebarView: v, centerView: "article" as const };
+      if (v === "table") return { sidebarView: v, centerView: "table" as const };
       return { sidebarView: v };
     }),
   setMapView: (v) => set({ mapView: v }),

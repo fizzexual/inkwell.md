@@ -122,6 +122,13 @@ export const Link = (p: P) => (
   </svg>
 );
 
+export const Table = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+    <path d="M3.5 9.5h17M3.5 14.5h17M9 4.5v15" />
+  </svg>
+);
+
 export const Sources = (p: P) => (
   <svg {...base(p)}>
     <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5H11l1.5 1.5H19A1.5 1.5 0 0 1 20.5 8v9.5A1.5 1.5 0 0 1 19 19H5.5A1.5 1.5 0 0 1 4 17.5z" />

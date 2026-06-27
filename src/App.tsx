@@ -4,6 +4,7 @@ import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import KnowledgeMap from "./components/KnowledgeMap";
 import ArticleView from "./components/ArticleView";
+import TableView from "./components/TableView";
 import Inspector from "./components/Inspector";
 import CommandPalette from "./components/CommandPalette";
 import Resizer from "./components/Resizer";
@@ -56,7 +57,13 @@ export default function App() {
           getStart={() => useVault.getState().sidebarWidth}
           onChange={setSidebarWidth}
         />
-        {centerView === "graph" ? <KnowledgeMap /> : <ArticleView />}
+        {centerView === "graph" ? (
+          <KnowledgeMap />
+        ) : centerView === "table" ? (
+          <TableView />
+        ) : (
+          <ArticleView />
+        )}
         <Resizer
           dir={-1}
           getStart={() => useVault.getState().inspectorWidth}
