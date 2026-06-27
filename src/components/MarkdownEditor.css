@@ -1,0 +1,114 @@
+.md-edit-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.md-editor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- toolbar ---- */
+.md-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 22px;
+  border-bottom: 1px solid var(--line);
+  animation: fade-in var(--dur-2) var(--ease);
+}
+.md-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.md-toolbar button:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.md-toolbar button:active {
+  transform: scale(0.9);
+}
+.tb-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line-strong);
+  margin: 0 6px;
+}
+.tb-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--tx-muted);
+}
+
+/* ---- editor surface ---- */
+.md-editor {
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--tx-1);
+  white-space: pre-wrap;
+}
+
+/* ---- [[ / autocomplete popup ---- */
+.ac-popup {
+  position: fixed;
+  z-index: 80;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 5px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  animation: pop-in var(--dur-1) var(--ease-out);
+}
+.ac-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--tx-2);
+}
+.ac-item svg {
+  color: var(--tx-4);
+  flex-shrink: 0;
+}
+.ac-item > span:first-child {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ac-item.active {
+  background: var(--accent-weak);
+  color: var(--accent-text);
+}
+.ac-item.active svg {
+  color: var(--accent);
+}
+.ac-hint {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--tx-muted);
+  flex-shrink: 0;
+}
