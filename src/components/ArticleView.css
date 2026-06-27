@@ -50,6 +50,13 @@
   display: flex;
   justify-content: center;
 }
+.article-doc {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: rise-in var(--dur-3) var(--ease-out);
+}
 
 /* shared reading column */
 .md-preview,
@@ -66,7 +73,6 @@
   color: var(--tx-2);
   -webkit-user-select: text;
   user-select: text;
-  animation: rise-in var(--dur-3) var(--ease-out);
 }
 .md-preview h1 {
   font-size: 26px;

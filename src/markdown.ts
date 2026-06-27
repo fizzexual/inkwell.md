@@ -44,6 +44,31 @@ function expandWikilinks(md: string, resolve: Resolver): string {
   });
 }
 
+export type FrontmatterData = Record<string, string | string[]>;
+
+const FRONTMATTER = /^---\n([\s\S]*?)\n---\n?/;
+
+/** Parse a leading YAML-ish frontmatter block (scalars and `- ` lists only). */
+export function parseFrontmatter(md: string): { data: FrontmatterData; body: string } {
+  const m = md.match(FRONTMATTER);
+  if (!m) return { data: {}, body: md };
+  const data: FrontmatterData = {};
+  let key: string | null = null;
+  for (const line of m[1].split("\n")) {
+    const kv = line.match(/^([\w-]+):\s*(.*)$/);
+    const item = line.match(/^\s*-\s+(.*)$/);
+    if (kv) {
+      key = kv[1];
+      const val = kv[2].trim();
+      data[key] = val === "" ? [] : val;
+    } else if (item && key) {
+      const cur = data[key];
+      data[key] = Array.isArray(cur) ? [...cur, item[1].trim()] : [item[1].trim()];
+    }
+  }
+  return { data, body: md.slice(m[0].length) };
+}
+
 export function slugify(s: string): string {
   return s
     .toLowerCase()
@@ -110,8 +135,9 @@ export function renderMarkdown(
   getNote?: NoteGetter,
   stack: Set<string> = new Set(),
 ): string {
+  const { body } = parseFrontmatter(md);
   // turn `![[Note#Section]]` lines into placeholders before markdown parsing
-  const withEmbeds = md.replace(EMBED_LINE, (_m, inner: string) => {
+  const withEmbeds = body.replace(EMBED_LINE, (_m, inner: string) => {
     const [rawTitle, heading] = inner.split("#");
     const id = resolve(rawTitle);
     if (!id || !getNote) return `<span class="wikilink missing">${inner}</span>`;

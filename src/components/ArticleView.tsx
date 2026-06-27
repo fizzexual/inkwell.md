@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
-import { renderMarkdown } from "../markdown";
+import { renderMarkdown, parseFrontmatter } from "../markdown";
 import MarkdownEditor from "./MarkdownEditor";
+import PropertiesPanel from "./PropertiesPanel";
 import { Graph, Pencil, Doc } from "../icons";
 import "./ArticleView.css";
 
@@ -27,7 +28,8 @@ export default function ArticleView() {
 
   const note = notesById.get(selectedId);
   const md = note?.content ?? "";
-  const words = wordCount(md);
+  const { data: frontmatter, body } = useMemo(() => parseFrontmatter(md), [md]);
+  const words = wordCount(body);
   const html = useMemo(
     () =>
       renderMarkdown(md, resolve, (id) => {
@@ -92,12 +94,14 @@ export default function ArticleView() {
         />
       ) : (
         <div className="article-body" ref={bodyRef}>
-          <div
-            key={selectedId}
-            className="md-preview"
-            onClick={onPreviewClick}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div key={selectedId} className="article-doc">
+            <PropertiesPanel data={frontmatter} />
+            <div
+              className="md-preview"
+              onClick={onPreviewClick}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
         </div>
       )}
 

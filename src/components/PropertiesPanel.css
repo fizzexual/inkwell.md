@@ -1,0 +1,52 @@
+.properties {
+  max-width: 720px;
+  width: 100%;
+  padding: 30px 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.prop-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  transition: background var(--dur-1) var(--ease);
+}
+.prop-row:hover {
+  background: var(--bg-hover);
+}
+.prop-key {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 110px;
+  flex-shrink: 0;
+  color: var(--tx-3);
+  text-transform: capitalize;
+}
+.prop-icon {
+  color: var(--tx-muted);
+  font-size: 11px;
+  width: 12px;
+  text-align: center;
+}
+.prop-val {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: var(--tx-1);
+  padding-top: 1px;
+}
+.prop-pill {
+  font-size: 11.5px;
+  color: var(--accent-text);
+  background: var(--accent-weak);
+  border-radius: 5px;
+  padding: 1px 8px;
+}
+.prop-empty {
+  color: var(--tx-muted);
+}

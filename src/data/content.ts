@@ -111,6 +111,26 @@ function tagsFor(note: { folder: string; kind: string; title: string }): string 
   return tags.join(" ");
 }
 
+const sourceMeta: Record<string, { authors: string; year: string }> = {
+  "src-alexnet": { authors: "Krizhevsky, Sutskever & Hinton", year: "2012" },
+  "src-resnet": { authors: "He, Zhang, Ren & Sun", year: "2015" },
+  "src-attention": { authors: "Vaswani et al.", year: "2017" },
+  "src-vit": { authors: "Dosovitskiy et al.", year: "2020" },
+};
+
+/** A leading YAML frontmatter block of structured properties. */
+function frontmatterFor(
+  note: { id: string; folder: string; kind: string; title: string },
+  written: boolean,
+): string {
+  const area = note.folder ? note.folder.split("/")[0].replace(/^\d+\s*-\s*/, "") : "Vault";
+  const type = note.kind === "source" ? "source" : /\bMOC\b/.test(note.title) ? "moc" : "note";
+  const lines = [`type: ${type}`, `area: ${area}`, `status: ${written ? "written" : "stub"}`];
+  const sm = sourceMeta[note.id];
+  if (sm) lines.push(`authors: ${sm.authors}`, `year: ${sm.year}`);
+  return `---\n${lines.join("\n")}\n---\n\n`;
+}
+
 /** Build a markdown string for every note (authored, or a templated stub). */
 export function buildContents(vault: VaultData): Record<string, string> {
   const titleOf = new Map(vault.notes.map((n) => [n.id, n.title]));
@@ -118,7 +138,7 @@ export function buildContents(vault: VaultData): Record<string, string> {
 
   for (const note of vault.notes) {
     if (authored[note.id]) {
-      out[note.id] = `${authored[note.id]}\n\n---\n\n${tagsFor(note)}`;
+      out[note.id] = `${frontmatterFor(note, true)}${authored[note.id]}\n\n---\n\n${tagsFor(note)}`;
       continue;
     }
     const area = note.folder ? note.folder.split("/")[0].replace(/^\d+\s*-\s*/, "") : vault.name;
@@ -129,7 +149,7 @@ export function buildContents(vault: VaultData): Record<string, string> {
       .join("\n");
 
     out[note.id] = [
-      `# ${note.title}`,
+      frontmatterFor(note, false) + `# ${note.title}`,
       "",
       lead(note.title, area),
       "",
