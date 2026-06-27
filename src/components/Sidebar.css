@@ -67,13 +67,9 @@
 /* ---- view tabs ---- */
 .view-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 0 10px 6px 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.view-tabs::-webkit-scrollbar {
-  display: none;
 }
 .view-tab {
   flex-shrink: 0;
@@ -82,7 +78,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
+  width: 34px;
   height: 30px;
   border-radius: var(--radius-sm);
   color: var(--tx-4);
