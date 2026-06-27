@@ -3,11 +3,12 @@ import { useVault } from "./store/useVault";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import KnowledgeMap from "./components/KnowledgeMap";
-import ArticleView from "./components/ArticleView";
+import NotesWorkspace from "./components/NotesWorkspace";
 import TableView from "./components/TableView";
 import TasksView from "./components/TasksView";
 import Inspector from "./components/Inspector";
 import CommandPalette from "./components/CommandPalette";
+import ContextMenu from "./components/ContextMenu";
 import Resizer from "./components/Resizer";
 import "./App.css";
 
@@ -65,7 +66,7 @@ export default function App() {
         ) : centerView === "tasks" ? (
           <TasksView />
         ) : (
-          <ArticleView />
+          <NotesWorkspace />
         )}
         <Resizer
           dir={-1}
@@ -75,6 +76,7 @@ export default function App() {
         <Inspector />
       </div>
       <CommandPalette />
+      <ContextMenu />
     </div>
   );
 }

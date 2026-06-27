@@ -14,8 +14,25 @@ import type { Resolver } from "../markdown";
 
 export type SidebarView = "stats" | "notes" | "graph" | "search" | "table" | "tasks";
 export type MapView = "links" | "sources";
-export type CenterView = "graph" | "article" | "table" | "tasks";
+export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas";
 export type Theme = "light" | "dark";
+
+export interface MenuState {
+  x: number;
+  y: number;
+  noteId: string;
+}
+
+export interface Pane {
+  tabs: string[];
+  active: string;
+}
+
+function withTab(panes: Pane[], paneIdx: number, id: string): Pane[] {
+  return panes.map((p, i) =>
+    i === paneIdx ? { tabs: p.tabs.includes(id) ? p.tabs : [...p.tabs, id], active: id } : p,
+  );
+}
 
 interface Derived {
   tree: TreeFolder;
@@ -45,6 +62,7 @@ const STORAGE_KEY = "inkwell.vault.v1";
 interface Persisted {
   contents?: Record<string, string>;
   newNotes?: Note[];
+  deleted?: string[];
   selectedId?: string;
   expanded?: string[];
   sidebarView?: SidebarView;
@@ -64,18 +82,27 @@ function loadPersisted(): Persisted {
 const persisted = loadPersisted();
 
 const seedIds = new Set(vault.notes.map((n) => n.id));
+const deletedSet = new Set(persisted.deleted ?? []);
+const deletedIds = deletedSet;
 const seedNotes: Note[] = [
   ...vault.notes.map((n) => ({
     ...n,
     content: persisted.contents?.[n.id] ?? seedContents[n.id],
   })),
   ...(persisted.newNotes ?? []).filter((n) => !seedIds.has(n.id)),
-];
+].filter((n) => !deletedIds.has(n.id));
 
 interface VaultState extends Derived {
   vaultName: string;
   notes: Note[];
   selectedId: string;
+  panes: Pane[];
+  activePane: number;
+  openInTab: (id: string) => void;
+  splitWith: (id: string) => void;
+  closeTab: (paneIdx: number, id: string) => void;
+  setActivePane: (idx: number) => void;
+  activateTab: (paneIdx: number, id: string) => void;
   expanded: Set<string>;
   sidebarView: SidebarView;
   mapView: MapView;
@@ -92,6 +119,10 @@ interface VaultState extends Derived {
   inspectorWidth: number;
   setSidebarWidth: (w: number) => void;
   setInspectorWidth: (w: number) => void;
+  menu: MenuState | null;
+  openMenu: (x: number, y: number, noteId: string) => void;
+  closeMenu: () => void;
+  deleteNote: (id: string) => void;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
   searchQuery: string;
@@ -119,6 +150,13 @@ export const useVault = create<VaultState>((set, get) => ({
   notes: seedNotes,
   ...derive(seedNotes),
   selectedId: persisted.selectedId ?? "convolutional-neural-networks",
+  panes: [
+    {
+      tabs: [persisted.selectedId ?? "convolutional-neural-networks"],
+      active: persisted.selectedId ?? "convolutional-neural-networks",
+    },
+  ],
+  activePane: 0,
   expanded: new Set(
     persisted.expanded ?? [
       "00 - Meta",
@@ -142,6 +180,34 @@ export const useVault = create<VaultState>((set, get) => ({
   inspectorWidth: persisted.inspectorWidth ?? 296,
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(200, Math.min(420, w)) }),
   setInspectorWidth: (w) => set({ inspectorWidth: Math.max(240, Math.min(460, w)) }),
+  menu: null,
+  openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
+  closeMenu: () => set({ menu: null }),
+  deleteNote: (id) =>
+    set((s) => {
+      deletedSet.add(id);
+      const notes = s.notes.filter((n) => n.id !== id);
+      const fallback = notes[0]?.id ?? "";
+      let panes = s.panes
+        .map((p) => {
+          const tabs = p.tabs.filter((t) => t !== id);
+          return {
+            tabs,
+            active: tabs.includes(p.active) ? p.active : tabs[tabs.length - 1] ?? fallback,
+          };
+        })
+        .filter((p, i) => i === 0 || p.tabs.length > 0);
+      if (!panes.length) panes = [{ tabs: fallback ? [fallback] : [], active: fallback }];
+      const activePane = Math.min(s.activePane, panes.length - 1);
+      return {
+        notes,
+        ...derive(notes),
+        panes,
+        activePane,
+        selectedId: panes[activePane]?.active ?? fallback,
+        menu: null,
+      };
+    }),
   paletteOpen: false,
   setPaletteOpen: (v) => set({ paletteOpen: v }),
   searchQuery: "",
@@ -151,7 +217,51 @@ export const useVault = create<VaultState>((set, get) => ({
   scrollToHeading: (slug) => set({ centerView: "article", editing: false, scrollTarget: slug }),
   clearScrollTarget: () => set({ scrollTarget: null }),
   select: (id) => set({ selectedId: id }),
-  openArticle: (id) => set({ selectedId: id, centerView: "article", sidebarView: "notes" }),
+  openArticle: (id) =>
+    set((s) => ({
+      panes: withTab(s.panes, s.activePane, id),
+      selectedId: id,
+      centerView: "article",
+      sidebarView: "notes",
+    })),
+  openInTab: (id) =>
+    set((s) => ({
+      panes: withTab(s.panes, s.activePane, id),
+      selectedId: id,
+      centerView: "article",
+      sidebarView: "notes",
+    })),
+  splitWith: (id) =>
+    set((s) => {
+      const panes: Pane[] = [s.panes[0], { tabs: [id], active: id }];
+      return { panes, activePane: 1, selectedId: id, centerView: "article", sidebarView: "notes" };
+    }),
+  closeTab: (paneIdx, id) =>
+    set((s) => {
+      let panes = s.panes.map((p, i) =>
+        i !== paneIdx ? p : { ...p, tabs: p.tabs.filter((t) => t !== id) },
+      );
+      panes = panes.map((p, i) =>
+        i !== paneIdx
+          ? p
+          : { ...p, active: p.tabs.includes(p.active) ? p.active : p.tabs[p.tabs.length - 1] ?? "" },
+      );
+      let activePane = s.activePane;
+      if (panes.length > 1 && panes[paneIdx].tabs.length === 0) {
+        panes = panes.filter((_, i) => i !== paneIdx);
+        activePane = 0;
+      }
+      activePane = Math.min(activePane, panes.length - 1);
+      return { panes, activePane, selectedId: panes[activePane]?.active ?? "" };
+    }),
+  setActivePane: (idx) =>
+    set((s) => ({ activePane: idx, selectedId: s.panes[idx]?.active ?? s.selectedId })),
+  activateTab: (paneIdx, id) =>
+    set((s) => ({
+      panes: s.panes.map((p, i) => (i === paneIdx ? { ...p, active: id } : p)),
+      activePane: paneIdx,
+      selectedId: id,
+    })),
   toggleFolder: (path) =>
     set((s) => {
       const next = new Set(s.expanded);
@@ -190,6 +300,7 @@ export const useVault = create<VaultState>((set, get) => ({
         notes,
         ...derive(notes),
         selectedId: id,
+        panes: withTab(s.panes, s.activePane, id),
         centerView: "article" as const,
         sidebarView: "notes" as const,
         editing: true,
@@ -227,6 +338,7 @@ useVault.subscribe(() => {
     const data: Persisted = {
       contents,
       newNotes,
+      deleted: [...deletedSet],
       selectedId: s.selectedId,
       expanded: [...s.expanded],
       sidebarView: s.sidebarView,

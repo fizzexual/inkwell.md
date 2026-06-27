@@ -51,6 +51,8 @@ export default function KnowledgeGraph() {
   selectRef.current = useVault.getState().select;
   const openArticleRef = useRef(useVault.getState().openArticle);
   openArticleRef.current = useVault.getState().openArticle;
+  const openMenuRef = useRef(useVault.getState().openMenu);
+  openMenuRef.current = useVault.getState().openMenu;
   const fitRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -107,6 +109,10 @@ export default function KnowledgeGraph() {
       .on("dblclick", (e, d) => {
         e.stopPropagation();
         openArticleRef.current(d.id);
+      })
+      .on("contextmenu", (e, d) => {
+        e.preventDefault();
+        openMenuRef.current(e.clientX, e.clientY, d.id);
       });
 
     // neighbour lookup for hover highlighting

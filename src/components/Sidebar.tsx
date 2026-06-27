@@ -35,11 +35,16 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
 function NoteRow({ note }: { note: Note }) {
   const selectedId = useVault((s) => s.selectedId);
   const openArticle = useVault((s) => s.openArticle);
+  const openMenu = useVault((s) => s.openMenu);
   const active = note.id === selectedId;
   return (
     <button
       className={"tree-item note" + (active ? " active" : "")}
       onClick={() => openArticle(note.id)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        openMenu(e.clientX, e.clientY, note.id);
+      }}
       title={note.title}
     >
       <Doc className="tree-icon doc" size={15} />

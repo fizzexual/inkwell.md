@@ -1,0 +1,64 @@
+.ctx-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 210px;
+  padding: 5px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  animation: ctx-in var(--dur-1) var(--ease-out);
+  transform-origin: top left;
+}
+@keyframes ctx-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+.ctx-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx-4);
+  padding: 5px 9px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--tx-2);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.ctx-item svg {
+  color: var(--tx-4);
+  flex-shrink: 0;
+}
+.ctx-item:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.ctx-item:hover svg {
+  color: var(--tx-2);
+}
+.ctx-item.danger:hover {
+  background: color-mix(in srgb, var(--tl-red) 14%, transparent);
+  color: var(--tl-red);
+}
+.ctx-item.danger:hover svg {
+  color: var(--tl-red);
+}
+.ctx-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}

@@ -11,8 +11,7 @@ function wordCount(md: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
-export default function ArticleView() {
-  const selectedId = useVault((s) => s.selectedId);
+export default function ArticleView({ noteId, isActive }: { noteId: string; isActive: boolean }) {
   const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const resolve = useVault((s) => s.resolve);
@@ -24,9 +23,10 @@ export default function ArticleView() {
   const scrollTarget = useVault((s) => s.scrollTarget);
   const clearScrollTarget = useVault((s) => s.clearScrollTarget);
 
+  const showEditor = isActive && editing;
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  const note = notesById.get(selectedId);
+  const note = notesById.get(noteId);
   const md = note?.content ?? "";
   const { data: frontmatter, body } = useMemo(() => parseFrontmatter(md), [md]);
   const words = wordCount(body);
@@ -40,11 +40,11 @@ export default function ArticleView() {
   );
 
   useEffect(() => {
-    if (!scrollTarget || editing) return;
+    if (!scrollTarget || showEditor || !isActive) return;
     const el = bodyRef.current?.querySelector(`#${CSS.escape(scrollTarget)}`);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
     clearScrollTarget();
-  }, [scrollTarget, editing, html, clearScrollTarget]);
+  }, [scrollTarget, showEditor, isActive, html, clearScrollTarget]);
 
   if (!note) return <main className="article" />;
 
@@ -72,11 +72,11 @@ export default function ArticleView() {
         </div>
         <div className="article-actions">
           <button
-            className={"seg-btn" + (editing ? " active" : "")}
-            onClick={() => setEditing(!editing)}
+            className={"seg-btn" + (showEditor ? " active" : "")}
+            onClick={() => setEditing(!showEditor)}
           >
-            {editing ? <Doc size={14} /> : <Pencil size={14} />}
-            <span>{editing ? "Read" : "Edit"}</span>
+            {showEditor ? <Doc size={14} /> : <Pencil size={14} />}
+            <span>{showEditor ? "Read" : "Edit"}</span>
           </button>
           <button className="seg-btn" onClick={() => setCenterView("graph")}>
             <Graph size={14} />
@@ -85,16 +85,16 @@ export default function ArticleView() {
         </div>
       </header>
 
-      {editing ? (
+      {showEditor ? (
         <MarkdownEditor
           value={md}
-          onChange={(v) => updateContent(selectedId, v)}
+          onChange={(v) => updateContent(noteId, v)}
           notes={notes}
-          selfId={selectedId}
+          selfId={noteId}
         />
       ) : (
         <div className="article-body" ref={bodyRef}>
-          <div key={selectedId} className="article-doc">
+          <div key={noteId} className="article-doc">
             <PropertiesPanel data={frontmatter} />
             <div
               className="md-preview"
@@ -112,7 +112,7 @@ export default function ArticleView() {
         <span className="dot-sep">·</span>
         <span>{Math.max(1, Math.round(words / 200))} min read</span>
         <span className="dot-sep">·</span>
-        <span>{editing ? "Editing" : "Reading"}</span>
+        <span>{showEditor ? "Editing" : "Reading"}</span>
       </footer>
     </main>
   );

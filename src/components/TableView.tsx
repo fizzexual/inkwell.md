@@ -31,6 +31,7 @@ export default function TableView() {
   const notes = useVault((s) => s.notes);
   const graph = useVault((s) => s.graph);
   const openArticle = useVault((s) => s.openArticle);
+  const openMenu = useVault((s) => s.openMenu);
 
   const [sortKey, setSortKey] = useState<keyof Row>("title");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
@@ -122,7 +123,14 @@ export default function TableView() {
           </thead>
           <tbody>
             {view.map((r) => (
-              <tr key={r.id} onClick={() => openArticle(r.id)}>
+              <tr
+                key={r.id}
+                onClick={() => openArticle(r.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  openMenu(e.clientX, e.clientY, r.id);
+                }}
+              >
                 <td className="cell-name">{r.title}</td>
                 <td>{r.type && <span className={"type-chip type-" + r.type}>{r.type}</span>}</td>
                 <td>{r.status && <span className={"status-dot status-" + r.status} />}{r.status}</td>
