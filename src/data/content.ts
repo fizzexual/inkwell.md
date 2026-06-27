@@ -107,6 +107,35 @@ This is the home note for the vault. Start here.
 - [ ] Write up [[Vision Transformer]]
 - [x] Link [[AlexNet (2012)]] as a source`,
 
+  "math-demo": `# Math Engine Demo
+
+The **Math Engine** computes math once and lets you import it anywhere.
+
+## Inline references
+
+The circle area defined in the engine is {{area}}, the unit-converted speed is
+{{speed}}, and the symbolic derivative is {{slope:tex}}.
+
+## A live calculation
+
+Fenced \`\`\`math blocks evaluate in place, inheriting the engine's scope:
+
+\`\`\`math
+mass = 70 kg
+height = 1.75 m
+bmi = mass / height^2
+energy = area * 3
+\`\`\`
+
+## An embedded plot
+
+\`\`\`plot
+sin(x)/x @ -12..12
+cos(x) @ -12..12
+\`\`\`
+
+See [[Backpropagation]] for math rendered with KaTeX (\\$\\$ … \\$\\$).`,
+
   "how-to-use": `# How to Use This Vault
 
 A few conventions that keep this workspace tidy.

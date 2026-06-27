@@ -41,6 +41,7 @@ export const vault: VaultData = {
     n("glossary", "Glossary", META, ["deep-learning-moc"]),
     n("how-to-use", "How to Use This Vault", META, ["deep-learning-moc", "tags"]),
     n("tags", "Tags", META, []),
+    n("math-demo", "Math Engine Demo", META, ["backpropagation"]),
 
     // 01 - Foundations
     n("foundations-moc", "Foundations MOC", FOUND, [

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
+import { useMath } from "../math/useMath";
+import { buildMathCtx } from "../math/render";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
 import MarkdownEditor from "./MarkdownEditor";
 import PropertiesPanel from "./PropertiesPanel";
@@ -23,6 +25,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const updateContent = useVault((s) => s.updateContent);
   const scrollTarget = useVault((s) => s.scrollTarget);
   const clearScrollTarget = useVault((s) => s.clearScrollTarget);
+  const mathResult = useMath((s) => s.result);
 
   const showEditor = isActive && editing;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -33,19 +36,19 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const words = wordCount(body);
   const html = useMemo(
     () =>
-      renderMarkdown(
-        md,
+      renderMarkdown(md, {
         resolve,
-        (id) => {
+        getNote: (id) => {
           const n = notesById.get(id);
           return n ? { title: n.title, content: n.content ?? "" } : undefined;
         },
-        (key) => {
+        cite: (key) => {
           const c = citeMap.get(key);
           return c ? { id: c.id, label: c.label } : undefined;
         },
-      ),
-    [md, resolve, notesById, citeMap],
+        math: buildMathCtx(mathResult),
+      }),
+    [md, resolve, notesById, citeMap, mathResult],
   );
 
   useEffect(() => {

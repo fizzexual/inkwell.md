@@ -169,6 +169,51 @@ export interface CiteEntry {
 }
 export type CiteResolver = (key: string) => CiteEntry | undefined;
 
+export interface MathRef {
+  value: string;
+  tex: string;
+}
+export interface MathCtx {
+  symbol: (name: string) => MathRef | undefined;
+  scope: Record<string, unknown>;
+  /** render a fenced ```math / ```plot block to HTML */
+  block: (lang: "math" | "plot", source: string) => string;
+}
+
+export interface RenderCtx {
+  resolve: Resolver;
+  getNote?: NoteGetter;
+  cite?: CiteResolver;
+  math?: MathCtx;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+}
+
+function katexInline(tex: string): string {
+  try {
+    return katex.renderToString(tex, { throwOnError: false, output: "html" });
+  } catch {
+    return tex;
+  }
+}
+
+const MATH_REF = /\{\{\s*([a-zA-Z_]\w*)\s*(?::(tex|both))?\s*\}\}/g;
+
+/** Inline {{name}} → value, {{name:tex}} → formula, {{name:both}} → formula = value. */
+function expandMathRefs(md: string, math?: MathCtx): string {
+  if (!math) return md;
+  return md.replace(MATH_REF, (_m, name: string, mode?: string) => {
+    const sym = math.symbol(name);
+    if (!sym) return `<span class="mathref missing">{{${name}}}</span>`;
+    if (mode === "tex") return `<span class="mathref">${katexInline(sym.tex)}</span>`;
+    if (mode === "both")
+      return `<span class="mathref">${katexInline(sym.tex)} = <b>${escapeHtml(sym.value)}</b></span>`;
+    return `<span class="mathref" title="${name}">${escapeHtml(sym.value)}</span>`;
+  });
+}
+
 const CITATION = /\[@([\w:-]+)\]/g;
 
 /** Unique citekeys referenced via [@key] in document order. */
@@ -222,19 +267,16 @@ function sectionBySlug(content: string, slug: string): string {
   return lines.slice(start, end).join("\n");
 }
 
-export function renderMarkdown(
-  md: string,
-  resolve: Resolver,
-  getNote?: NoteGetter,
-  cite?: CiteResolver,
-  stack: Set<string> = new Set(),
-): string {
+export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = new Set()): string {
+  const { resolve, getNote, cite, math } = ctx;
   const { body } = parseFrontmatter(md);
-  // pull math out first so $ and \ aren't mangled by markdown
-  const math: string[] = [];
-  const withMath = protectMath(body, math);
+  // pull KaTeX math out first so $ and \ aren't mangled by markdown
+  const katexStore: string[] = [];
+  let src = protectMath(body, katexStore);
+  // {{name}} engine references
+  src = expandMathRefs(src, math);
   // turn `![[Note#Section]]` lines into placeholders before markdown parsing
-  const withEmbeds = withMath.replace(EMBED_LINE, (_m, inner: string) => {
+  const withEmbeds = src.replace(EMBED_LINE, (_m, inner: string) => {
     const [rawTitle, heading] = inner.split("#");
     const id = resolve(rawTitle);
     if (!id || !getNote) return `<span class="wikilink missing">${inner}</span>`;
@@ -251,6 +293,14 @@ export function renderMarkdown(
     return `<h${lvl} id="${slugify(text)}">${inner}</h${lvl}>`;
   });
 
+  // live ```math / ```plot fenced blocks
+  if (math) {
+    html = html.replace(
+      /<pre><code class="language-(math|plot)">([\s\S]*?)<\/code><\/pre>/g,
+      (_m, lang: "math" | "plot", code: string) => math.block(lang, decodeEntities(code)),
+    );
+  }
+
   // expand embed placeholders (marked may wrap them in a <p>)
   html = html.replace(
     /(?:<p>)?<!--EMBED:([^:]+):([^>]*)-->(?:<\/p>)?/g,
@@ -259,14 +309,26 @@ export function renderMarkdown(
       if (!note) return "";
       if (stack.has(id)) return `<div class="embed embed-cycle">↻ ${note.title}</div>`;
       const next = new Set(stack).add(id);
-      const body = headingSlug ? sectionBySlug(note.content, headingSlug) : note.content;
-      const inner = renderMarkdown(body, resolve, getNote, cite, next);
+      const inner = renderMarkdown(
+        headingSlug ? sectionBySlug(note.content, headingSlug) : note.content,
+        ctx,
+        next,
+      );
       return `<div class="embed"><a class="embed-head" data-note="${id}" href="#/note/${id}">${note.title}</a><div class="embed-body">${inner}</div></div>`;
     },
   );
 
-  // restore rendered math (block placeholders may be wrapped in a <p>)
-  html = html.replace(/(?:<p>)?<!--MATH:(\d+)-->(?:<\/p>)?/g, (_m, i: string) => math[+i] ?? "");
+  // restore rendered KaTeX (block placeholders may be wrapped in a <p>)
+  html = html.replace(/(?:<p>)?<!--MATH:(\d+)-->(?:<\/p>)?/g, (_m, i: string) => katexStore[+i] ?? "");
 
   return html;
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 }
