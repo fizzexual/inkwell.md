@@ -40,6 +40,15 @@
   background: var(--tl-green);
 }
 
+.titlebar-nav {
+  display: flex;
+  gap: 1px;
+  margin-left: 14px;
+}
+.titlebar-btn:disabled {
+  opacity: 0.32;
+  pointer-events: none;
+}
 .titlebar-spacer {
   flex: 1;
 }

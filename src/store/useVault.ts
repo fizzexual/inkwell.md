@@ -74,6 +74,15 @@ function withTab(panes: Pane[], paneIdx: number, id: string): Pane[] {
   );
 }
 
+function openInPane(panes: Pane[], activePane: number, id: string) {
+  return {
+    panes: withTab(panes, activePane, id),
+    selectedId: id,
+    centerView: "article" as const,
+    sidebarView: "notes" as const,
+  };
+}
+
 interface Derived {
   tree: TreeFolder;
   graph: ReturnType<typeof buildGraph>;
@@ -144,6 +153,10 @@ interface VaultState extends Derived {
   activePane: number;
   openInTab: (id: string) => void;
   splitWith: (id: string) => void;
+  history: string[];
+  histIndex: number;
+  goBack: () => void;
+  goForward: () => void;
   closeTab: (paneIdx: number, id: string) => void;
   setActivePane: (idx: number) => void;
   activateTab: (paneIdx: number, id: string) => void;
@@ -329,19 +342,32 @@ export const useVault = create<VaultState>((set, get) => ({
   clearScrollTarget: () => set({ scrollTarget: null }),
   select: (id) => set({ selectedId: id }),
   openArticle: (id) =>
-    set((s) => ({
-      panes: withTab(s.panes, s.activePane, id),
-      selectedId: id,
-      centerView: "article",
-      sidebarView: "notes",
-    })),
+    set((s) => {
+      const base = openInPane(s.panes, s.activePane, id);
+      if (s.history[s.histIndex] === id) return base;
+      const history = [...s.history.slice(0, s.histIndex + 1), id];
+      return { ...base, history, histIndex: history.length - 1 };
+    }),
   openInTab: (id) =>
-    set((s) => ({
-      panes: withTab(s.panes, s.activePane, id),
-      selectedId: id,
-      centerView: "article",
-      sidebarView: "notes",
-    })),
+    set((s) => {
+      const base = openInPane(s.panes, s.activePane, id);
+      const history = [...s.history.slice(0, s.histIndex + 1), id];
+      return { ...base, history, histIndex: history.length - 1 };
+    }),
+  history: [persisted.selectedId ?? "convolutional-neural-networks"],
+  histIndex: 0,
+  goBack: () =>
+    set((s) => {
+      if (s.histIndex <= 0) return {};
+      const i = s.histIndex - 1;
+      return { ...openInPane(s.panes, s.activePane, s.history[i]), histIndex: i };
+    }),
+  goForward: () =>
+    set((s) => {
+      if (s.histIndex >= s.history.length - 1) return {};
+      const i = s.histIndex + 1;
+      return { ...openInPane(s.panes, s.activePane, s.history[i]), histIndex: i };
+    }),
   splitWith: (id) =>
     set((s) => {
       const panes: Pane[] = [s.panes[0], { tabs: [id], active: id }];

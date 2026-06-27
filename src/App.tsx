@@ -45,6 +45,12 @@ export default function App() {
       } else if (mod && e.key === "g") {
         e.preventDefault();
         s.setCenterView("graph");
+      } else if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault();
+        s.goBack();
+      } else if (e.altKey && e.key === "ArrowRight") {
+        e.preventDefault();
+        s.goForward();
       } else if (e.key === "Escape" && !s.paletteOpen) {
         if (s.editing) s.setEditing(false);
         else if (s.centerView === "article") s.setCenterView("graph");

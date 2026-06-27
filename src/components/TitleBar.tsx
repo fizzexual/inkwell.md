@@ -1,11 +1,15 @@
 import { useVault } from "../store/useVault";
 import { windowControl } from "../tauri";
-import { Sun, Moon } from "../icons";
+import { Sun, Moon, ChevronRight } from "../icons";
 import "./TitleBar.css";
 
 export default function TitleBar() {
   const theme = useVault((s) => s.theme);
   const toggleTheme = useVault((s) => s.toggleTheme);
+  const histIndex = useVault((s) => s.histIndex);
+  const histLen = useVault((s) => s.history.length);
+  const goBack = useVault((s) => s.goBack);
+  const goForward = useVault((s) => s.goForward);
   return (
     <div className="titlebar" data-tauri-drag-region>
       <div className="traffic">
@@ -24,6 +28,26 @@ export default function TitleBar() {
           aria-label="Maximize"
           onClick={() => windowControl("maximize")}
         />
+      </div>
+      <div className="titlebar-nav">
+        <button
+          className="titlebar-btn"
+          aria-label="Back"
+          title="Back (Alt+←)"
+          disabled={histIndex <= 0}
+          onClick={goBack}
+        >
+          <ChevronRight size={15} style={{ transform: "rotate(180deg)" }} />
+        </button>
+        <button
+          className="titlebar-btn"
+          aria-label="Forward"
+          title="Forward (Alt+→)"
+          disabled={histIndex >= histLen - 1}
+          onClick={goForward}
+        >
+          <ChevronRight size={15} />
+        </button>
       </div>
       <div className="titlebar-spacer" />
       <button
