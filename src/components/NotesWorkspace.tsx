@@ -1,5 +1,7 @@
+import { useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import ArticleView from "./ArticleView";
+import Resizer from "./Resizer";
 import { Plus } from "../icons";
 import "./NotesWorkspace.css";
 
@@ -58,16 +60,34 @@ export default function NotesWorkspace() {
   const activePane = useVault((s) => s.activePane);
   const setActivePane = useVault((s) => s.setActivePane);
 
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const [leftW, setLeftW] = useState<number | null>(null);
+  const split = panes.length === 2;
+
   return (
-    <div className="notes-workspace">
+    <div className="notes-workspace" ref={wrapRef}>
       {panes.map((pane, idx) => (
-        <div
-          key={idx}
-          className={"workspace-pane" + (idx === activePane ? " active" : "")}
-          onMouseDownCapture={() => idx !== activePane && setActivePane(idx)}
-        >
-          <TabBar paneIdx={idx} />
-          <ArticleView noteId={pane.active} isActive={idx === activePane} />
+        <div key={idx} style={{ display: "contents" }}>
+          <div
+            ref={idx === 0 ? leftRef : undefined}
+            className={"workspace-pane" + (idx === activePane ? " active" : "")}
+            style={split && idx === 0 && leftW != null ? { flex: `0 0 ${leftW}px` } : undefined}
+            onMouseDownCapture={() => idx !== activePane && setActivePane(idx)}
+          >
+            <TabBar paneIdx={idx} />
+            <ArticleView noteId={pane.active} isActive={idx === activePane} />
+          </div>
+          {split && idx === 0 && (
+            <Resizer
+              dir={1}
+              getStart={() => leftRef.current?.offsetWidth ?? 400}
+              onChange={(w) => {
+                const total = wrapRef.current?.offsetWidth ?? 1000;
+                setLeftW(Math.max(300, Math.min(total - 300, w)));
+              }}
+            />
+          )}
         </div>
       ))}
     </div>
