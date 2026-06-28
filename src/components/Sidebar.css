@@ -197,6 +197,15 @@
 .tree-icon.doc {
   color: var(--tx-muted);
 }
+.tree-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  font-size: 13px;
+  flex-shrink: 0;
+  line-height: 1;
+}
 .tree-label {
   overflow: hidden;
   text-overflow: ellipsis;

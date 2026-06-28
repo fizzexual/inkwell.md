@@ -43,6 +43,7 @@ function NoteRow({ note }: { note: Note }) {
   const selectedId = useVault((s) => s.selectedId);
   const openArticle = useVault((s) => s.openArticle);
   const openMenu = useVault((s) => s.openMenu);
+  const icon = useVault((s) => s.noteIcons[note.id]);
   const active = note.id === selectedId;
   return (
     <button
@@ -54,7 +55,7 @@ function NoteRow({ note }: { note: Note }) {
       }}
       title={note.title}
     >
-      <Doc className="tree-icon doc" size={15} />
+      {icon ? <span className="tree-emoji">{icon}</span> : <Doc className="tree-icon doc" size={15} />}
       <span className="tree-label">{note.title}</span>
     </button>
   );
@@ -63,6 +64,8 @@ function NoteRow({ note }: { note: Note }) {
 function FolderRow({ folder, depth }: { folder: TreeFolder; depth: number }) {
   const expanded = useVault((s) => s.expanded);
   const toggle = useVault((s) => s.toggleFolder);
+  const openPicker = useVault((s) => s.openPicker);
+  const color = useVault((s) => s.folderColors[folder.path]);
   const open = expanded.has(folder.path);
   return (
     <div className="tree-folder">
@@ -70,12 +73,16 @@ function FolderRow({ folder, depth }: { folder: TreeFolder; depth: number }) {
         className="tree-item folder"
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => toggle(folder.path)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          openPicker(e.clientX, e.clientY, "color", folder.path);
+        }}
         title={folder.name}
       >
         <span className={"chev" + (open ? " open" : "")}>
           <ChevronRight size={13} />
         </span>
-        <Folder className="tree-icon" size={15} />
+        <Folder className="tree-icon" size={15} style={color ? { color } : undefined} />
         <span className="tree-label">{folder.name}</span>
       </button>
       {open && (

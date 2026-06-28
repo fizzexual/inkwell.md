@@ -158,6 +158,8 @@ interface Persisted {
   pinned?: string[];
   sidebarCollapsed?: boolean;
   inspectorCollapsed?: boolean;
+  folderColors?: Record<string, string>;
+  noteIcons?: Record<string, string>;
 }
 function loadPersisted(): Persisted {
   try {
@@ -217,6 +219,13 @@ interface VaultState extends Derived {
   menu: MenuState | null;
   openMenu: (x: number, y: number, noteId: string) => void;
   closeMenu: () => void;
+  picker: { x: number; y: number; kind: "icon" | "color"; target: string } | null;
+  openPicker: (x: number, y: number, kind: "icon" | "color", target: string) => void;
+  closePicker: () => void;
+  folderColors: Record<string, string>;
+  noteIcons: Record<string, string>;
+  setFolderColor: (path: string, color: string | null) => void;
+  setNoteIcon: (id: string, icon: string | null) => void;
   deleteNote: (id: string) => void;
   restoreNote: (note: Note) => void;
   toasts: Toast[];
@@ -298,6 +307,25 @@ export const useVault = create<VaultState>((set, get) => ({
   menu: null,
   openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
   closeMenu: () => set({ menu: null }),
+  picker: null,
+  openPicker: (x, y, kind, target) => set({ picker: { x, y, kind, target }, menu: null }),
+  closePicker: () => set({ picker: null }),
+  folderColors: persisted.folderColors ?? {},
+  noteIcons: persisted.noteIcons ?? {},
+  setFolderColor: (path, color) =>
+    set((s) => {
+      const folderColors = { ...s.folderColors };
+      if (color) folderColors[path] = color;
+      else delete folderColors[path];
+      return { folderColors, picker: null };
+    }),
+  setNoteIcon: (id, icon) =>
+    set((s) => {
+      const noteIcons = { ...s.noteIcons };
+      if (icon) noteIcons[id] = icon;
+      else delete noteIcons[id];
+      return { noteIcons, picker: null };
+    }),
   toasts: [],
   toast: (message, action) =>
     set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, message, action }] })),
@@ -599,6 +627,8 @@ useVault.subscribe(() => {
       pinned: s.pinned,
       sidebarCollapsed: s.sidebarCollapsed,
       inspectorCollapsed: s.inspectorCollapsed,
+      folderColors: s.folderColors,
+      noteIcons: s.noteIcons,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

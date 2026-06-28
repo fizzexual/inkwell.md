@@ -1,0 +1,54 @@
+.picker {
+  position: fixed;
+  z-index: 125;
+  padding: 8px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  animation: pop-in var(--dur-1) var(--ease-out);
+}
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  width: 216px;
+}
+.picker-emoji {
+  height: 32px;
+  border-radius: var(--radius-sm);
+  font-size: 17px;
+  transition: background var(--dur-1) var(--ease);
+}
+.picker-emoji:hover {
+  background: var(--bg-hover);
+}
+.picker-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.picker-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-app);
+  box-shadow: 0 0 0 1px var(--line-card);
+  transition: transform var(--dur-1) var(--ease);
+}
+.picker-swatch:hover {
+  transform: scale(1.15);
+}
+.picker-clear {
+  width: 100%;
+  margin-top: 7px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--tx-3);
+  border-top: 1px solid var(--line);
+}
+.picker-clear:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}

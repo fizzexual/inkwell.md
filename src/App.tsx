@@ -14,6 +14,7 @@ import Inspector from "./components/Inspector";
 const PdfView = lazy(() => import("./components/PdfView"));
 import CommandPalette from "./components/CommandPalette";
 import ContextMenu from "./components/ContextMenu";
+import Picker from "./components/Picker";
 import Toaster from "./components/Toaster";
 import ShortcutsModal from "./components/ShortcutsModal";
 import Resizer from "./components/Resizer";
@@ -136,6 +137,7 @@ export default function App() {
       </div>
       <CommandPalette />
       <ContextMenu />
+      <Picker />
       <ShortcutsModal />
       <Toaster />
     </div>

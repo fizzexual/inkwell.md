@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useVault } from "../store/useVault";
-import { Doc, Pencil, Copy, Graph, SplitView, Board, Pin, Trash } from "../icons";
+import { Doc, Pencil, Copy, Graph, SplitView, Board, Pin, Palette, Trash } from "../icons";
 import "./ContextMenu.css";
 
 interface Item {
@@ -24,6 +24,7 @@ export default function ContextMenu() {
   const deleteNote = useVault((s) => s.deleteNote);
   const togglePin = useVault((s) => s.togglePin);
   const pinned = useVault((s) => s.pinned);
+  const openPicker = useVault((s) => s.openPicker);
   const toast = useVault((s) => s.toast);
 
   useEffect(() => {
@@ -90,6 +91,11 @@ export default function ContextMenu() {
       icon: <Pin size={15} />,
       label: pinned.includes(note.id) ? "Unpin" : "Pin to top",
       onClick: run(() => togglePin(note.id)),
+    },
+    {
+      icon: <Palette size={15} />,
+      label: "Set icon…",
+      onClick: () => openPicker(menu.x, menu.y, "icon", note.id),
     },
     "sep",
     {
