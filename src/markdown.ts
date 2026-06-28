@@ -155,6 +155,19 @@ export function parseHeadings(md: string): Heading[] {
   return out;
 }
 
+const CALLOUT_ICON: Record<string, string> = {
+  note: "📝",
+  info: "ℹ️",
+  tip: "💡",
+  success: "✅",
+  question: "❓",
+  warning: "⚠️",
+  danger: "🔥",
+  quote: "❝",
+  example: "🧪",
+  bug: "🐞",
+};
+
 marked.setOptions({ gfm: true, breaks: false });
 
 export interface EmbedSource {
@@ -292,6 +305,21 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
     const text = inner.replace(/<[^>]+>/g, "");
     return `<h${lvl} id="${slugify(text)}">${inner}</h${lvl}>`;
   });
+
+  // callouts: > [!type] Optional title \n > body…
+  html = html.replace(
+    /<blockquote>\s*<p>\[!(\w+)\]([\s\S]*?)<\/p>([\s\S]*?)<\/blockquote>/g,
+    (_m, type: string, firstPara: string, rest: string) => {
+      const t = type.toLowerCase();
+      const icon = CALLOUT_ICON[t] ?? "💬";
+      const nl = firstPara.indexOf("\n");
+      const title = (nl === -1 ? firstPara : firstPara.slice(0, nl)).trim();
+      const inlineBody = nl === -1 ? "" : firstPara.slice(nl + 1).trim();
+      const head = title || t.charAt(0).toUpperCase() + t.slice(1);
+      const body = (inlineBody ? `<p>${inlineBody}</p>` : "") + rest;
+      return `<div class="callout callout-${t}"><div class="callout-title"><span class="callout-icon">${icon}</span>${head}</div><div class="callout-body">${body}</div></div>`;
+    },
+  );
 
   // live ```math / ```plot fenced blocks
   if (math) {

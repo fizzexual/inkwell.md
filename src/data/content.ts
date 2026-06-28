@@ -25,7 +25,8 @@ reading it also shows the features working.
 - **Do math** — the [[The Math Engine]] and the visual [[Visual Math Builder]]
 - **Research** — the [[PDF Reader & Highlights]] and [[Citations & BibTeX]]
 
-> Tip: press **Ctrl/Cmd + P** at any time to jump to any note.`,
+> [!tip]
+> Press **Ctrl/Cmd + P** at any time to jump to any note.`,
 
   "quick-start": `# Quick Start
 
@@ -100,9 +101,17 @@ see the raw text behind any of this.
 1. Numbered
 2. Lists too
 
-## Quotes & code
+## Quotes, callouts & code
 
 > A blockquote for asides and pull-quotes.
+
+Add \`[!type]\` to a quote to make a **callout**:
+
+> [!note]
+> Types include note, tip, info, success, question, warning, danger, example and quote.
+
+> [!warning] Heads up
+> Callouts can have a custom title, too.
 
 \`\`\`js
 // fenced code keeps its formatting

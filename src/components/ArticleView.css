@@ -199,6 +199,61 @@
   color: var(--tx-4);
 }
 
+/* callouts */
+.md-preview .callout {
+  margin: 16px 0;
+  border: 1px solid var(--line-card);
+  border-left: 3px solid var(--cl, var(--accent));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--cl, var(--accent)) 8%, transparent);
+  padding: 10px 14px;
+}
+.md-preview .callout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tx-1);
+}
+.md-preview .callout-icon {
+  font-size: 14px;
+}
+.md-preview .callout-body > :first-child {
+  margin-top: 6px;
+}
+.md-preview .callout-body > :last-child {
+  margin-bottom: 0;
+}
+.md-preview .callout-note {
+  --cl: #3b82f6;
+}
+.md-preview .callout-info {
+  --cl: #0ea5e9;
+}
+.md-preview .callout-tip {
+  --cl: #10b981;
+}
+.md-preview .callout-success {
+  --cl: #22c55e;
+}
+.md-preview .callout-question {
+  --cl: #a855f7;
+}
+.md-preview .callout-warning {
+  --cl: #f59e0b;
+}
+.md-preview .callout-danger,
+.md-preview .callout-bug {
+  --cl: #ef4444;
+}
+.md-preview .callout-quote {
+  --cl: var(--tx-3);
+}
+.md-preview .callout-example {
+  --cl: #6d4bd0;
+}
+
 /* math (KaTeX) */
 .md-preview .katex-display {
   margin: 18px 0;
