@@ -9,6 +9,7 @@ import TasksView from "./components/TasksView";
 import CanvasView from "./components/CanvasView";
 import MathEngineView from "./components/MathEngineView";
 import DailyView from "./components/DailyView";
+import KanbanView from "./components/KanbanView";
 import Inspector from "./components/Inspector";
 
 // pdf.js is heavy — only load the reader when it's actually opened
@@ -120,6 +121,8 @@ export default function App() {
           <MathEngineView />
         ) : centerView === "daily" ? (
           <DailyView />
+        ) : centerView === "kanban" ? (
+          <KanbanView />
         ) : centerView === "pdf" ? (
           <Suspense fallback={<div className="lazy-fallback">Loading reader…</div>}>
             <PdfView />

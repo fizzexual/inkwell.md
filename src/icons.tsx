@@ -217,6 +217,14 @@ export const Moon = (p: P) => (
   </svg>
 );
 
+export const Columns = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="4.5" width="5" height="15" rx="1.2" />
+    <rect x="9.5" y="4.5" width="5" height="11" rx="1.2" />
+    <rect x="15.5" y="4.5" width="5" height="8" rx="1.2" />
+  </svg>
+);
+
 export const Calendar = (p: P) => (
   <svg {...base(p)}>
     <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
