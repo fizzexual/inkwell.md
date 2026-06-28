@@ -207,6 +207,10 @@ interface VaultState extends Derived {
   graphColorFolder: boolean;
   toggleGraphLocal: () => void;
   toggleGraphColorFolder: () => void;
+  graphFilter: string;
+  graphReveal: number | null;
+  setGraphFilter: (q: string) => void;
+  setGraphReveal: (n: number | null) => void;
   theme: Theme;
   toggleTheme: () => void;
   sidebarWidth: number;
@@ -296,6 +300,10 @@ export const useVault = create<VaultState>((set, get) => ({
   graphColorFolder: false,
   toggleGraphLocal: () => set((s) => ({ graphLocal: !s.graphLocal })),
   toggleGraphColorFolder: () => set((s) => ({ graphColorFolder: !s.graphColorFolder })),
+  graphFilter: "",
+  graphReveal: null,
+  setGraphFilter: (q) => set({ graphFilter: q }),
+  setGraphReveal: (n) => set({ graphReveal: n }),
   theme: persisted.theme ?? "light",
   toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
   sidebarWidth: persisted.sidebarWidth ?? 256,

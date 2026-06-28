@@ -1,7 +1,7 @@
 import { useVault } from "../store/useVault";
 import KnowledgeGraph from "./KnowledgeGraph";
 import { buildFolderColors } from "../folders";
-import { Focus, Palette, Fit } from "../icons";
+import { Focus, Palette, Fit, Search } from "../icons";
 import "./KnowledgeMap.css";
 
 export default function KnowledgeMap() {
@@ -11,6 +11,23 @@ export default function KnowledgeMap() {
   const toggleGraphLocal = useVault((s) => s.toggleGraphLocal);
   const toggleGraphColorFolder = useVault((s) => s.toggleGraphColorFolder);
   const graph = useVault((s) => s.graph);
+  const graphFilter = useVault((s) => s.graphFilter);
+  const setGraphFilter = useVault((s) => s.setGraphFilter);
+  const setGraphReveal = useVault((s) => s.setGraphReveal);
+
+  const replay = () => {
+    const total = graph.nodes.length;
+    const start = performance.now();
+    const dur = 3600;
+    setGraphReveal(0);
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      setGraphReveal(Math.round(t * total));
+      if (t < 1) requestAnimationFrame(tick);
+      else setGraphReveal(null);
+    };
+    requestAnimationFrame(tick);
+  };
 
   const folderColors = graphColorFolder ? buildFolderColors(graph.nodes.map((n) => n.folder)) : null;
 
@@ -22,6 +39,22 @@ export default function KnowledgeMap() {
           <span className="map-subtitle">{graphLocal ? "Local graph" : "Deep Learning"}</span>
         </div>
         <div className="map-tools">
+          <div className="map-filter">
+            <Search size={13} />
+            <input
+              value={graphFilter}
+              placeholder="filter… (#tag, folder, title)"
+              onChange={(e) => setGraphFilter(e.target.value)}
+            />
+            {graphFilter && (
+              <button className="map-filter-clear" onClick={() => setGraphFilter("")}>
+                ×
+              </button>
+            )}
+          </div>
+          <button className="seg-btn" onClick={replay} title="Replay how the graph grew">
+            ▶<span>Replay</span>
+          </button>
           <button
             className={"seg-btn" + (graphLocal ? " active" : "")}
             onClick={toggleGraphLocal}

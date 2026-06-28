@@ -16,6 +16,7 @@ import { drag } from "d3-drag";
 import { zoom, zoomIdentity, type ZoomBehavior } from "d3-zoom";
 import { useVault } from "../store/useVault";
 import type { GraphNode } from "../data/derive";
+import { parseTags } from "../markdown";
 import { buildFolderColors, topFolder } from "../folders";
 
 interface SimNode extends GraphNode, SimulationNodeDatum {}
@@ -45,6 +46,9 @@ export default function KnowledgeGraph() {
   const fitNonce = useVault((s) => s.fitNonce);
   const graphLocal = useVault((s) => s.graphLocal);
   const graphColorFolder = useVault((s) => s.graphColorFolder);
+  const graphFilter = useVault((s) => s.graphFilter);
+  const graphReveal = useVault((s) => s.graphReveal);
+  const notesById = useVault((s) => s.notesById);
 
   // latest-value refs so the d3 callbacks never go stale
   const selectRef = useRef(useVault.getState().select);
@@ -254,6 +258,31 @@ export default function KnowledgeGraph() {
   useEffect(() => {
     if (fitNonce > 0) fitRef.current();
   }, [fitNonce]);
+
+  // ---- filter + timelapse reveal (no re-layout) ----
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const order = new Map<string, number>();
+    [...graph.nodes].sort((a, b) => b.degree - a.degree).forEach((n, i) => order.set(n.id, i));
+    const f = graphFilter.trim().toLowerCase();
+    const matches = (id: string) => {
+      if (!f) return true;
+      const note = notesById.get(id);
+      if (!note) return false;
+      if (f.startsWith("#")) return parseTags(note.content ?? "").some((t) => `#${t}`.includes(f));
+      return note.title.toLowerCase().includes(f) || note.folder.toLowerCase().includes(f);
+    };
+    const visible = (id: string) =>
+      matches(id) && (graphReveal == null || (order.get(id) ?? 0) < graphReveal);
+
+    const idOf = (x: SimNode | string) => (typeof x === "string" ? x : x.id);
+    const svg = select(svgEl);
+    svg.selectAll<SVGGElement, SimNode>("g.graph-node").style("display", (d) => (visible(d.id) ? "" : "none"));
+    svg
+      .selectAll<SVGLineElement, SimLink>("line.graph-edge")
+      .style("display", (d) => (visible(idOf(d.source)) && visible(idOf(d.target)) ? "" : "none"));
+  }, [graphFilter, graphReveal, graph, notesById]);
 
   // ---- highlight selection + neighbours ----
   useEffect(() => {
