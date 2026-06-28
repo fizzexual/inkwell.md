@@ -71,7 +71,7 @@ const defaultCanvas: CanvasState = {
     { id: "foundations-moc", x: 70, y: 230 },
     { id: "nn-fundamentals-moc", x: 360, y: 250 },
     { id: "architectures-moc", x: 660, y: 230 },
-    { id: "convolutional-neural-networks", x: 560, y: 440 },
+    { id: "welcome", x: 560, y: 440 },
     { id: "transformer", x: 800, y: 430 },
   ],
 };
@@ -141,7 +141,7 @@ function derive(notes: Note[]): Derived {
 
 const seedContents = buildContents(vault);
 
-const STORAGE_KEY = "inkwell.vault.v1";
+const STORAGE_KEY = "inkwell.vault.v2";
 interface Persisted {
   contents?: Record<string, string>;
   newNotes?: Note[];
@@ -265,21 +265,16 @@ export const useVault = create<VaultState>((set, get) => ({
   vaultName: vault.name,
   notes: seedNotes,
   ...derive(seedNotes),
-  selectedId: persisted.selectedId ?? "convolutional-neural-networks",
+  selectedId: persisted.selectedId ?? "welcome",
   panes: [
     {
-      tabs: [persisted.selectedId ?? "convolutional-neural-networks"],
-      active: persisted.selectedId ?? "convolutional-neural-networks",
+      tabs: [persisted.selectedId ?? "welcome"],
+      active: persisted.selectedId ?? "welcome",
     },
   ],
   activePane: 0,
   expanded: new Set(
-    persisted.expanded ?? [
-      "00 - Meta",
-      "01 - Foundations",
-      "02 - Neural Network Fundamentals",
-      "03 - Training & Optimization",
-    ],
+    persisted.expanded ?? ["00 - Start Here", "01 - Writing", "03 - Views"],
   ),
   sidebarView: persisted.sidebarView ?? "graph",
   mapView: persisted.mapView ?? "links",
@@ -408,7 +403,7 @@ export const useVault = create<VaultState>((set, get) => ({
       const history = [...s.history.slice(0, s.histIndex + 1), id];
       return { ...base, history, histIndex: history.length - 1 };
     }),
-  history: [persisted.selectedId ?? "convolutional-neural-networks"],
+  history: [persisted.selectedId ?? "welcome"],
   histIndex: 0,
   goBack: () =>
     set((s) => {

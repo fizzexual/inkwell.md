@@ -14,7 +14,6 @@ export interface VaultData {
   notes: Note[];
 }
 
-// Helper keeps the authored list terse.
 const n = (
   id: string,
   title: string,
@@ -23,167 +22,69 @@ const n = (
   kind: NoteKind = "note",
 ): Note => ({ id, title, folder, kind, links });
 
-const META = "00 - Meta";
-const FOUND = "01 - Foundations";
-const MLB = "01 - Foundations/Machine Learning Basics";
-const MATH = "01 - Foundations/Mathematics";
-const NNF = "02 - Neural Network Fundamentals";
-const TRAIN = "03 - Training & Optimization";
-const NORM = "03 - Training & Optimization/Normalization";
-const ARCH = "04 - Architectures";
-const APP = "05 - Applications";
-const SRC = "06 - Sources";
+const START = "00 - Start Here";
+const WRITING = "01 - Writing";
+const ORGANIZE = "02 - Organizing";
+const VIEWS = "03 - Views";
+const MATH = "04 - Math";
+const RESEARCH = "05 - Research";
+const SRC = "05 - Research/Sources";
+const REF = "06 - Reference";
 
 export const vault: VaultData = {
-  name: "Deep Learning",
+  name: "Inkwell Handbook",
   notes: [
-    // 00 - Meta
-    n("glossary", "Glossary", META, ["deep-learning-moc"]),
-    n("how-to-use", "How to Use This Vault", META, ["deep-learning-moc", "tags"]),
-    n("tags", "Tags", META, []),
-    n("math-demo", "Math Engine Demo", META, ["backpropagation"]),
+    // 00 - Start Here
+    n("welcome", "Welcome to Inkwell", START, [
+      "quick-start",
+      "markdown-basics",
+      "knowledge-graph",
+      "math-engine",
+      "pdf-reader",
+      "shortcuts",
+    ]),
+    n("quick-start", "Quick Start", START, ["the-editor", "wikilinks", "command-palette", "welcome"]),
+    n("shortcuts", "Keyboard Shortcuts", START, ["command-palette", "the-editor", "themes"]),
 
-    // 01 - Foundations
-    n("foundations-moc", "Foundations MOC", FOUND, [
-      "the-perceptron",
-      "supervised-learning",
-      "linear-algebra",
-      "gradient-descent",
-      "deep-learning-moc",
-    ]),
-    n("the-perceptron", "The Perceptron", FOUND, [
-      "artificial-neuron",
-      "activation-functions",
-      "linear-algebra",
-    ]),
-    //   Machine Learning Basics
-    n("supervised-learning", "Supervised Learning", MLB, ["loss-functions", "overfitting"]),
-    n("unsupervised-learning", "Unsupervised Learning", MLB, ["autoencoders"]),
-    n("overfitting", "Overfitting", MLB, ["regularization", "dropout"]),
-    //   Mathematics
-    n("linear-algebra", "Linear Algebra", MATH, ["calculus"]),
-    n("calculus", "Calculus", MATH, ["gradient-descent", "backpropagation"]),
-    n("probability", "Probability", MATH, ["loss-functions"]),
+    // 01 - Writing
+    n("markdown-basics", "Markdown Basics", WRITING, ["the-editor", "math-in-notes", "markdown-cheatsheet"]),
+    n("the-editor", "The Editor", WRITING, ["markdown-basics", "wikilinks", "embeds"]),
+    n("wikilinks", "Linking Notes", WRITING, ["embeds", "knowledge-graph", "the-editor"]),
+    n("embeds", "Embedding Notes", WRITING, ["wikilinks", "markdown-basics"]),
+    n("tags", "Tags", WRITING, ["search", "table-view"]),
+    n("properties", "Properties & Frontmatter", WRITING, ["table-view", "citations"]),
+    n("math-in-notes", "Math in Notes", WRITING, ["math-engine", "plotting", "markdown-basics"]),
 
-    // 02 - Neural Network Fundamentals
-    n("nn-fundamentals-moc", "NN Fundamentals MOC", NNF, [
-      "artificial-neuron",
-      "activation-functions",
-      "backpropagation",
-      "feedforward-neural-networks",
-      "gradient-descent",
-      "loss-functions",
-    ]),
-    n("artificial-neuron", "Artificial Neuron", NNF, ["activation-functions", "the-perceptron"]),
-    n("activation-functions", "Activation Functions", NNF, [
-      "feedforward-neural-networks",
-      "backpropagation",
-    ]),
-    n("backpropagation", "Backpropagation", NNF, ["gradient-descent", "calculus", "loss-functions"]),
-    n("feedforward-neural-networks", "Feedforward Neural Networks", NNF, [
-      "activation-functions",
-      "backpropagation",
-      "convolutional-neural-networks",
-    ]),
-    n("gradient-descent", "Gradient Descent", NNF, ["optimizers", "loss-functions", "learning-rate"]),
-    n("loss-functions", "Loss Functions", NNF, ["gradient-descent"]),
-    n("universal-approximation", "Universal Approximation Theorem", NNF, [
-      "feedforward-neural-networks",
-      "activation-functions",
-    ]),
-    n("weight-initialization", "Weight Initialization", NNF, ["activation-functions", "batch-normalization"]),
+    // 02 - Organizing
+    n("vault-tree", "Your Vault & File Tree", ORGANIZE, ["pins", "search", "welcome"]),
+    n("search", "Search", ORGANIZE, ["command-palette", "tags"]),
+    n("command-palette", "Command Palette", ORGANIZE, ["search", "shortcuts"]),
+    n("tabs", "Tabs & Split View", ORGANIZE, ["vault-tree", "the-editor"]),
+    n("pins", "Pinned Notes & History", ORGANIZE, ["vault-tree", "shortcuts"]),
 
-    // 03 - Training & Optimization
-    n("optimizers", "Optimizers", TRAIN, ["gradient-descent", "learning-rate"]),
-    n("learning-rate", "Learning Rate Schedules", TRAIN, ["optimizers"]),
-    n("regularization", "Regularization", TRAIN, ["dropout", "overfitting"]),
-    n("dropout", "Dropout", TRAIN, ["regularization", "convolutional-neural-networks"]),
-    //   Normalization
-    n("batch-normalization", "Batch Normalization", NORM, [
-      "layer-normalization",
-      "convolutional-neural-networks",
-    ]),
-    n("layer-normalization", "Layer Normalization", NORM, ["transformer"]),
+    // 03 - Views
+    n("knowledge-graph", "Knowledge Graph", VIEWS, ["wikilinks", "canvas", "welcome"]),
+    n("table-view", "Table View", VIEWS, ["properties", "tags"]),
+    n("tasks", "Tasks", VIEWS, ["markdown-basics"]),
+    n("canvas", "Canvas", VIEWS, ["knowledge-graph"]),
 
-    // 04 - Architectures
-    n("architectures-moc", "Architectures MOC", ARCH, [
-      "convolutional-neural-networks",
-      "transformer",
-      "recurrent-neural-networks",
-      "graph-neural-networks",
-      "autoencoders",
-      "generative-adversarial-networks",
-    ]),
-    n("convolutional-neural-networks", "Convolutional Neural Networks", ARCH, [
-      "activation-functions",
-      "vision-transformer",
-      "pooling",
-      "computer-vision",
-      "convolution-operation",
-      "famous-cnn-architectures",
-      "batch-normalization",
-      "feedforward-neural-networks",
-      "dropout",
-    ]),
-    n("convolution-operation", "Convolution Operation", ARCH, [
-      "convolutional-neural-networks",
-      "pooling",
-    ]),
-    n("pooling", "Pooling", ARCH, ["convolutional-neural-networks"]),
-    n("famous-cnn-architectures", "Famous CNN Architectures", ARCH, [
-      "convolutional-neural-networks",
-      "residual-networks",
-      "image-classification",
-    ]),
-    n("residual-networks", "Residual Networks", ARCH, [
-      "famous-cnn-architectures",
-      "batch-normalization",
-    ]),
-    n("recurrent-neural-networks", "Recurrent Neural Networks", ARCH, ["lstm", "speech-audio"]),
-    n("lstm", "LSTM", ARCH, ["recurrent-neural-networks", "natural-language-processing"]),
-    n("attention-mechanism", "Attention Mechanism", ARCH, ["transformer"]),
-    n("transformer", "Transformer", ARCH, [
-      "attention-mechanism",
-      "vision-transformer",
-      "natural-language-processing",
-      "layer-normalization",
-    ]),
-    n("vision-transformer", "Vision Transformer", ARCH, [
-      "transformer",
-      "convolutional-neural-networks",
-      "computer-vision",
-    ]),
-    n("graph-neural-networks", "Graph Neural Networks", ARCH, ["attention-mechanism"]),
-    n("autoencoders", "Autoencoders", ARCH, ["generative-adversarial-networks"]),
-    n("generative-adversarial-networks", "Generative Adversarial Networks", ARCH, ["autoencoders"]),
+    // 04 - Math
+    n("math-engine", "The Math Engine", MATH, ["math-in-notes", "plotting", "math-builder", "math-functions"]),
+    n("math-builder", "Visual Math Builder", MATH, ["math-engine"]),
+    n("plotting", "Plotting & Parameters", MATH, ["math-engine", "math-in-notes"]),
 
-    // 05 - Applications
-    n("computer-vision", "Computer Vision", APP, [
-      "convolutional-neural-networks",
-      "image-classification",
-      "object-detection",
-    ]),
-    n("image-classification", "Image Classification", APP, [
-      "famous-cnn-architectures",
-      "transfer-learning",
-    ]),
-    n("object-detection", "Object Detection", APP, ["convolutional-neural-networks"]),
-    n("natural-language-processing", "Natural Language Processing", APP, ["transformer", "lstm"]),
-    n("speech-audio", "Speech & Audio", APP, ["recurrent-neural-networks"]),
-    n("transfer-learning", "Transfer Learning", APP, ["convolutional-neural-networks"]),
+    // 05 - Research
+    n("pdf-reader", "PDF Reader & Highlights", RESEARCH, ["citations"]),
+    n("citations", "Citations & BibTeX", RESEARCH, ["pdf-reader", "properties", "src-markdown", "src-katex", "src-mathjs"]),
 
-    // central hub
-    n("deep-learning-moc", "Deep Learning MOC", "", [
-      "foundations-moc",
-      "nn-fundamentals-moc",
-      "architectures-moc",
-      "transformer",
-    ]),
+    // 05 - Research / Sources
+    n("src-markdown", "Markdown (Gruber, 2004)", SRC, ["citations"], "source"),
+    n("src-katex", "KaTeX (Khan Academy, 2014)", SRC, ["math-in-notes"], "source"),
+    n("src-mathjs", "math.js (de Jong, 2013)", SRC, ["math-engine"], "source"),
 
-    // 06 - Sources
-    n("src-alexnet", "AlexNet (2012)", SRC, ["famous-cnn-architectures"], "source"),
-    n("src-resnet", "ResNet (2015)", SRC, ["residual-networks"], "source"),
-    n("src-attention", "Attention Is All You Need (2017)", SRC, ["transformer"], "source"),
-    n("src-vit", "An Image Is Worth 16x16 Words (2020)", SRC, ["vision-transformer"], "source"),
+    // 06 - Reference
+    n("markdown-cheatsheet", "Markdown Cheat Sheet", REF, ["markdown-basics"]),
+    n("math-functions", "Math Function Reference", REF, ["math-engine"]),
+    n("themes", "Themes, Focus Mode & Motion", REF, ["shortcuts"]),
   ],
 };
