@@ -22,9 +22,10 @@ export type SidebarView =
   | "table"
   | "tasks"
   | "canvas"
-  | "math";
+  | "math"
+  | "daily";
 export type MapView = "links" | "sources";
-export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas" | "pdf" | "math";
+export type CenterView = "graph" | "article" | "table" | "tasks" | "canvas" | "pdf" | "math" | "daily";
 
 export interface PdfDoc {
   name: string;
@@ -265,6 +266,7 @@ interface VaultState extends Derived {
   createNoteWith: (title: string, content: string, folder?: string) => void;
   pdf: PdfDoc | null;
   openPdf: (name: string, data: ArrayBuffer) => void;
+  openDailyNote: (dateStr: string) => void;
   requestFit: () => void;
   linksOf: (id: string) => Note[];
   backlinksOf: (id: string) => Note[];
@@ -490,6 +492,7 @@ export const useVault = create<VaultState>((set, get) => ({
       if (v === "tasks") return { sidebarView: v, centerView: "tasks" as const };
       if (v === "canvas") return { sidebarView: v, centerView: "canvas" as const };
       if (v === "math") return { sidebarView: v, centerView: "math" as const };
+      if (v === "daily") return { sidebarView: v, centerView: "daily" as const };
       return { sidebarView: v };
     }),
   setMapView: (v) => set({ mapView: v }),
@@ -583,6 +586,19 @@ export const useVault = create<VaultState>((set, get) => ({
     }),
   pdf: null,
   openPdf: (name, data) => set({ pdf: { name, data }, centerView: "pdf" }),
+  openDailyNote: (dateStr) => {
+    const s = get();
+    const existing = s.notes.find((nn) => nn.folder === "Daily" && nn.title === dateStr);
+    if (existing) {
+      s.openArticle(existing.id);
+      return;
+    }
+    s.createNoteWith(
+      dateStr,
+      `# ${dateStr}\n\n## Plan\n\n- [ ] \n\n## Log\n\n## Notes\n`,
+      "Daily",
+    );
+  },
   requestFit: () => set((s) => ({ fitNonce: s.fitNonce + 1 })),
   linksOf: (id) => {
     const { linkMap, notesById } = get();

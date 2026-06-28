@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Board,
   FunctionIcon,
+  Calendar,
   Search,
   Tag,
   Import,
@@ -38,6 +39,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "tasks", Icon: CheckSquare, label: "Tasks" },
   { id: "canvas", Icon: Board, label: "Canvas" },
   { id: "math", Icon: FunctionIcon, label: "Math Engine" },
+  { id: "daily", Icon: Calendar, label: "Journal" },
   { id: "search", Icon: Search, label: "Search" },
 ];
 

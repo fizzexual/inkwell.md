@@ -1,0 +1,114 @@
+.daily-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
+}
+.daily-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 22px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.daily-title h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.daily-subtitle {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tx-4);
+  margin-top: 2px;
+}
+.daily-body {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 28px;
+  overflow-y: auto;
+}
+.cal {
+  width: 100%;
+  max-width: 440px;
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.cal-nav button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+}
+.cal-nav button:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.cal-month {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx-4);
+  padding-bottom: 6px;
+}
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--tx-2);
+  transition: background var(--dur-1) var(--ease);
+}
+.cal-cell.empty {
+  pointer-events: none;
+}
+.cal-cell:not(.empty):hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.cal-cell.has {
+  color: var(--tx-1);
+  font-weight: 600;
+}
+.cal-cell.today {
+  border: 1.5px solid var(--accent);
+  color: var(--accent-text);
+}
+.cal-dot {
+  position: absolute;
+  bottom: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.cal-hint {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--tx-muted);
+}
