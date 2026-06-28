@@ -1,7 +1,7 @@
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
 import { parseTags, parseHeadings, parseCitations } from "../markdown";
-import { toBibtex } from "../data/derive";
+import { toBibtex, aliasesOf } from "../data/derive";
 import { ArrowRight, OpenExternal, Copy } from "../icons";
 import "./Inspector.css";
 
@@ -60,6 +60,15 @@ export default function Inspector() {
         <div className="insp-eyebrow">{note.kind === "source" ? "SOURCE" : "ARTICLE"}</div>
         <h2 className="insp-title">{note.title}</h2>
         <div className="insp-meta">{note.kind === "source" ? "Source" : "Note"}</div>
+        {aliasesOf(note).length > 0 && (
+          <div className="insp-aliases">
+            {aliasesOf(note).map((a) => (
+              <span key={a} className="alias-pill">
+                {a}
+              </span>
+            ))}
+          </div>
+        )}
 
         <button className="open-btn" onClick={() => openArticle(note.id)}>
           <OpenExternal size={15} />

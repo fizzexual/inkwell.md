@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { fuzzyMatch } from "../fuzzy";
+import { aliasesOf } from "../data/derive";
 import { Search, Doc, Sources } from "../icons";
 import "./CommandPalette.css";
 
@@ -36,12 +37,20 @@ export default function CommandPalette() {
   }, [open]);
 
   const results = useMemo(() => {
-    const scored = notes
-      .map((n) => ({ note: n, m: fuzzyMatch(query, n.title) }))
-      .filter((r) => r.m !== null)
-      .sort((a, b) => b.m!.score - a.m!.score)
+    return notes
+      .map((n) => {
+        const onTitle = fuzzyMatch(query, n.title);
+        if (onTitle) return { note: n, m: onTitle, alias: undefined as string | undefined };
+        // fall back to matching an alias (no title highlight)
+        for (const a of aliasesOf(n)) {
+          const am = fuzzyMatch(query, a);
+          if (am) return { note: n, m: { score: am.score, ranges: [] }, alias: a };
+        }
+        return null;
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => b.m.score - a.m.score)
       .slice(0, 50);
-    return scored;
   }, [notes, query]);
 
   useEffect(() => {
@@ -100,7 +109,8 @@ export default function CommandPalette() {
             >
               {r.note.kind === "source" ? <Sources size={15} /> : <Doc size={15} />}
               <span className="palette-title">
-                <Highlight text={r.note.title} ranges={r.m!.ranges} />
+                <Highlight text={r.note.title} ranges={r.m.ranges} />
+                {r.alias && <span className="palette-alias"> · {r.alias}</span>}
               </span>
               <span className="palette-folder">{r.note.folder || "/"}</span>
             </button>

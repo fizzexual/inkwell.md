@@ -173,6 +173,12 @@ you can navigate in both directions.
 Links are parsed from your text, so deleting a \`[[link]]\` removes the connection
 automatically.
 
+## Aliases
+
+Give a note alternate names with an \`aliases\` property, and \`[[link]]\` it (or
+find it in the palette) under any of them. This note answers to \`[[links]]\` and
+\`[[wikilink]]\` too.
+
 Next: pull a whole note inline with [[Embedding Notes]].`,
 
   embeds: `# Embedding Notes
@@ -562,6 +568,14 @@ function tagsFor(note: { folder: string; kind: string; title: string }): string 
   return tags.join(" ");
 }
 
+const aliasesFor: Record<string, string[]> = {
+  wikilinks: ["links", "wikilink"],
+  "the-editor": ["editor"],
+  "command-palette": ["palette"],
+  "math-engine": ["math", "calculator"],
+  "knowledge-graph": ["graph"],
+};
+
 interface SourceMeta {
   authors: string;
   year: string;
@@ -584,6 +598,8 @@ function frontmatterFor(
   const area = note.folder ? note.folder.split("/")[0].replace(/^\d+\s*-\s*/, "") : "Vault";
   const type = note.kind === "source" ? "source" : "note";
   const lines = [`type: ${type}`, `area: ${area}`, `status: ${written ? "written" : "stub"}`];
+  const aliases = aliasesFor[note.id];
+  if (aliases) lines.push("aliases:", ...aliases.map((a) => `  - ${a}`));
   const sm = sourceMeta[note.id];
   if (sm) lines.push(`authors: ${sm.authors}`, `year: ${sm.year}`, `venue: ${sm.venue}`, `citekey: ${sm.citekey}`);
   return `---\n${lines.join("\n")}\n---\n\n`;
