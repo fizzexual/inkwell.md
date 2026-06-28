@@ -36,6 +36,46 @@
   padding: 0 6px 6px;
 }
 
+.tag-explorer {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--tx-2);
+  transition: background var(--dur-1) var(--ease);
+}
+.tag-row:hover {
+  background: var(--bg-hover);
+}
+.tag-hash {
+  color: var(--accent);
+  font-weight: 600;
+}
+.tag-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-count {
+  font-size: 11px;
+  color: var(--tx-4);
+  background: var(--bg-chip);
+  border-radius: 20px;
+  padding: 0 7px;
+}
+
 .search-results {
   flex: 1;
   overflow-y: auto;

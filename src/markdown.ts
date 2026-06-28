@@ -46,7 +46,7 @@ export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
 }
 
 /** #tags found in `md` (lowercased, without the #). */
-const TAG = /(^|\s)#([a-z0-9][a-z0-9_-]*)/gi;
+const TAG = /(^|\s)#([a-z0-9](?:[a-z0-9_/-]*[a-z0-9])?)/gi;
 export function parseTags(md: string): string[] {
   const tags: string[] = [];
   const seen = new Set<string>();

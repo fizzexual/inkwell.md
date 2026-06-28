@@ -208,7 +208,14 @@ Drop a \`#tag\` anywhere in a note to label it: #handbook #organize.
 - Counted on the **Overview** dashboard.
 
 Tags are great for cross-cutting themes that don't fit the folder tree, like
-#todo, #idea or #reference. See also [[Search]] and [[Properties & Frontmatter]].`,
+#todo, #idea or #reference.
+
+## Nested tags
+
+Use slashes to nest: #guide/writing and #guide/research group under *guide* in
+the **tag explorer** (open the Search tab with an empty query to browse them).
+
+See also [[Search]] and [[Properties & Frontmatter]].`,
 
   properties: `# Properties & Frontmatter
 

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useVault } from "../store/useVault";
+import { parseTags } from "../markdown";
 import { Search } from "../icons";
 import "./SearchPanel.css";
 
@@ -52,6 +53,12 @@ export default function SearchPanel() {
       .sort((a, b) => Number(b.inTitle) - Number(a.inTitle));
   }, [notes, query]);
 
+  const tags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const note of notes) for (const t of parseTags(note.content ?? "")) counts.set(t, (counts.get(t) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [notes]);
+
   return (
     <div className="search-panel">
       <div className="search-box">
@@ -68,6 +75,29 @@ export default function SearchPanel() {
           {hits.length} {hits.length === 1 ? "result" : "results"}
         </div>
       )}
+
+      {!query && tags.length > 0 && (
+        <div className="tag-explorer">
+          <div className="search-count">Browse by tag · {tags.length}</div>
+          {tags.map(([tag, count]) => {
+            const depth = tag.split("/").length - 1;
+            const leaf = tag.split("/").pop();
+            return (
+              <button
+                key={tag}
+                className="tag-row"
+                style={{ paddingLeft: 9 + depth * 14 }}
+                onClick={() => setQuery(`#${tag}`)}
+              >
+                <span className="tag-hash">#</span>
+                <span className="tag-name">{depth ? leaf : tag}</span>
+                <span className="tag-count">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="search-results">
         {hits.map((h, i) => (
           <button
