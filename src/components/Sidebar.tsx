@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import type { SidebarView } from "../store/useVault";
 import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
+import { TEMPLATES } from "../templates";
 import { useSmoothScroll } from "../useSmoothScroll";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
@@ -25,6 +26,7 @@ import {
   Folder,
   Doc,
   Pin,
+  Templates,
 } from "../icons";
 import "./Sidebar.css";
 
@@ -138,10 +140,12 @@ export default function Sidebar() {
   const sidebarView = useVault((s) => s.sidebarView);
   const setSidebarView = useVault((s) => s.setSidebarView);
   const createNote = useVault((s) => s.createNote);
+  const createNoteWith = useVault((s) => s.createNoteWith);
   const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
   const treeRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(treeRef);
+  const [tplOpen, setTplOpen] = useState(false);
 
   const onImportPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -194,6 +198,37 @@ export default function Sidebar() {
               <Import size={15} />
               <input type="file" accept="application/pdf" onChange={onImportPdf} hidden />
             </label>
+            <div className="tpl-wrap">
+              <button
+                className="ghost-btn sm"
+                aria-label="New from template"
+                title="New from template"
+                onClick={() => setTplOpen((o) => !o)}
+              >
+                <Templates size={15} />
+              </button>
+              {tplOpen && (
+                <>
+                  <div className="tpl-overlay" onClick={() => setTplOpen(false)} />
+                  <div className="tpl-menu">
+                    {TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        className="tpl-item"
+                        onClick={() => {
+                          const d = new Date();
+                          createNoteWith(t.title(d), t.body(d), t.folder);
+                          setTplOpen(false);
+                        }}
+                      >
+                        <span className="tpl-icon">{t.icon}</span>
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <button className="ghost-btn sm" aria-label="New folder">
               <FolderPlus size={15} />
             </button>

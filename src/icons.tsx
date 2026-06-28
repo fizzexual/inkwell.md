@@ -217,6 +217,13 @@ export const Moon = (p: P) => (
   </svg>
 );
 
+export const Templates = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="4" y="3.5" width="16" height="17" rx="2" />
+    <path d="M8 8h8M8 12h8M8 16h5" />
+  </svg>
+);
+
 export const Pin = (p: P) => (
   <svg {...base(p)}>
     <path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 16v4" />
