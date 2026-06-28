@@ -199,6 +199,25 @@
   color: var(--tx-4);
 }
 
+/* mermaid diagrams */
+.md-preview .mermaid-src {
+  margin: 18px 0;
+  text-align: center;
+  color: transparent;
+  font-size: 0;
+}
+.md-preview .mermaid-src.mermaid-done {
+  color: inherit;
+}
+.md-preview .mermaid-src svg {
+  max-width: 100%;
+  height: auto;
+}
+.md-preview .mermaid-error {
+  color: var(--tl-red);
+  font-size: 13px;
+}
+
 /* callouts */
 .md-preview .callout {
   margin: 16px 0;

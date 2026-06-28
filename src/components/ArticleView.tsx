@@ -26,6 +26,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const updateContent = useVault((s) => s.updateContent);
   const scrollTarget = useVault((s) => s.scrollTarget);
   const clearScrollTarget = useVault((s) => s.clearScrollTarget);
+  const theme = useVault((s) => s.theme);
   const mathResult = useMath((s) => s.result);
 
   const showEditor = isActive && editing;
@@ -59,6 +60,41 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
     clearScrollTarget();
   }, [scrollTarget, showEditor, isActive, html, clearScrollTarget]);
+
+  // render ```mermaid diagrams (lazy-loaded)
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (showEditor || !root) return;
+    const blocks = root.querySelectorAll<HTMLElement>(".mermaid-src:not(.mermaid-done)");
+    if (!blocks.length) return;
+    let cancelled = false;
+    import("mermaid").then(({ default: mermaid }) => {
+      if (cancelled) return;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: theme === "dark" ? "dark" : "neutral",
+        securityLevel: "loose",
+        fontFamily: "Inter, sans-serif",
+      });
+      blocks.forEach((el, i) => {
+        const src = (el.textContent || "").trim();
+        mermaid
+          .render(`mmd-${i}-${src.length}-${Math.floor(performance.now())}`, src)
+          .then(({ svg }) => {
+            if (cancelled) return;
+            el.innerHTML = svg;
+            el.classList.add("mermaid-done");
+          })
+          .catch(() => {
+            el.innerHTML = `<div class="mermaid-error">Diagram syntax error</div>`;
+            el.classList.add("mermaid-done");
+          });
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [html, showEditor, theme]);
 
   if (!note) return <main className="article" />;
 

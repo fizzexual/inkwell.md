@@ -306,6 +306,12 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
     return `<h${lvl} id="${slugify(text)}">${inner}</h${lvl}>`;
   });
 
+  // mermaid blocks → a host div the ArticleView renders asynchronously
+  html = html.replace(
+    /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
+    (_m, code: string) => `<div class="mermaid-src">${code}</div>`,
+  );
+
   // callouts: > [!type] Optional title \n > body…
   html = html.replace(
     /<blockquote>\s*<p>\[!(\w+)\]([\s\S]*?)<\/p>([\s\S]*?)<\/blockquote>/g,

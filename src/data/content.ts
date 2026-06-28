@@ -125,6 +125,17 @@ const hi = "hello";
 | New note | Ctrl/Cmd + N |
 | Palette | Ctrl/Cmd + P |
 
+## Diagrams
+
+A \`mermaid\` code block renders a diagram:
+
+\`\`\`mermaid
+graph LR
+  A[Write a note] --> B[Link it]
+  B --> C[See the graph]
+  C --> A
+\`\`\`
+
 ## And more
 
 Headings (\`#\` … \`###\`) build the outline, \`---\` is a divider, and you can drop in
