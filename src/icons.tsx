@@ -217,6 +217,13 @@ export const Moon = (p: P) => (
   </svg>
 );
 
+export const Cards = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="6" y="4" width="13" height="16" rx="2" transform="rotate(6 12 12)" />
+    <rect x="4" y="5" width="13" height="16" rx="2" />
+  </svg>
+);
+
 export const Columns = (p: P) => (
   <svg {...base(p)}>
     <rect x="3.5" y="4.5" width="5" height="15" rx="1.2" />

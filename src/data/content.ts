@@ -521,6 +521,15 @@ matrices and symbolic algebra. It powers [[The Math Engine]].`,
 | \`$x^2$\` | inline [[Math in Notes|math]] |
 | \`---\` | a divider |
 
+## Flashcards
+
+Write \`Question :: Answer\` on a line and it becomes a review card in the
+**Flashcards** tab. A few to try:
+
+What turns a quote into a callout :: adding [!type]
+How do you embed a note :: with ![[Note]]
+What renders inline math :: single dollar signs
+
 Back to [[Markdown Basics]].`,
 
   "math-functions": `# Math Function Reference

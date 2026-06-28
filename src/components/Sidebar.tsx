@@ -17,6 +17,7 @@ import {
   FunctionIcon,
   Calendar,
   Columns,
+  Cards,
   Search,
   Tag,
   Import,
@@ -42,6 +43,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "canvas", Icon: Board, label: "Canvas" },
   { id: "math", Icon: FunctionIcon, label: "Math Engine" },
   { id: "daily", Icon: Calendar, label: "Journal" },
+  { id: "cards", Icon: Cards, label: "Flashcards" },
   { id: "search", Icon: Search, label: "Search" },
 ];
 
