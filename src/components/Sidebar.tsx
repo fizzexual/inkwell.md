@@ -18,6 +18,7 @@ import {
   Calendar,
   Columns,
   Cards,
+  Brush,
   Search,
   Tag,
   Import,
@@ -44,6 +45,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "math", Icon: FunctionIcon, label: "Math Engine" },
   { id: "daily", Icon: Calendar, label: "Journal" },
   { id: "cards", Icon: Cards, label: "Flashcards" },
+  { id: "sketch", Icon: Brush, label: "Sketch" },
   { id: "search", Icon: Search, label: "Search" },
 ];
 

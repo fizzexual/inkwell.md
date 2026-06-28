@@ -217,6 +217,13 @@ export const Moon = (p: P) => (
   </svg>
 );
 
+export const Brush = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9.5 14.5 18 6a2 2 0 0 1 3 3l-8.5 8.5" />
+    <path d="M9.5 14.5a3 3 0 0 0-3 3c0 1-1 1.8-2.5 1.8 1-1.3 0-2 0-3.3a3 3 0 0 1 5.5-1.5z" />
+  </svg>
+);
+
 export const Cards = (p: P) => (
   <svg {...base(p)}>
     <rect x="6" y="4" width="13" height="16" rx="2" transform="rotate(6 12 12)" />

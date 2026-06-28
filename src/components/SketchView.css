@@ -1,0 +1,94 @@
+.sketch-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  animation: fade-in var(--dur-2) var(--ease);
+}
+.sketch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.sketch-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tool-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--tx-3);
+}
+.tool-btn:hover {
+  background: var(--bg-hover);
+}
+.tool-btn.active {
+  background: var(--bg-active);
+  color: var(--tx-1);
+}
+.sketch-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line-strong);
+  margin: 0 3px;
+}
+.sketch-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-app);
+  box-shadow: 0 0 0 1px var(--line-card);
+  transition: transform var(--dur-1) var(--ease);
+}
+.sketch-swatch:hover {
+  transform: scale(1.12);
+}
+.sketch-swatch.active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.size-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+.size-btn span {
+  background: var(--tx-2);
+  border-radius: 50%;
+}
+.size-btn:hover {
+  background: var(--bg-hover);
+}
+.size-btn.active {
+  background: var(--bg-active);
+}
+.sketch-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sketch-canvas {
+  flex: 1;
+  width: 100%;
+  touch-action: none;
+  background:
+    radial-gradient(circle, var(--line) 1px, transparent 1px) 0 0 / 24px 24px;
+}
+.sketch-canvas.pen {
+  cursor: crosshair;
+}
+.sketch-canvas.eraser {
+  cursor: cell;
+}
