@@ -28,6 +28,20 @@ function protectMath(md: string, store: string[]): string {
   return out;
 }
 
+/**
+ * Pull fenced + inline code out before the inline expanders run, so syntax shown as code
+ * (`[[link]]`, `{{ref}}`, `[@cite]`) stays literal instead of being turned into links/spans.
+ * Restored right before marked parses it back into <code>/<pre>.
+ */
+function protectCode(md: string, store: string[]): string {
+  let out = md.replace(/```[\s\S]*?```/g, (m) => `<!--CODE:${store.push(m) - 1}-->`);
+  out = out.replace(/`[^`\n]+`/g, (m) => `<!--CODE:${store.push(m) - 1}-->`);
+  return out;
+}
+function restoreCode(md: string, store: string[]): string {
+  return md.replace(/<!--CODE:(\d+)-->/g, (_m, i: string) => store[Number(i)] ?? "");
+}
+
 const WIKILINK = /\[\[([^\]]+)\]\]/g;
 
 /** Ordered, unique target note ids referenced by [[wikilinks]] in `md`. */
@@ -283,9 +297,12 @@ function sectionBySlug(content: string, slug: string): string {
 export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = new Set()): string {
   const { resolve, getNote, cite, math } = ctx;
   const { body } = parseFrontmatter(md);
-  // pull KaTeX math out first so $ and \ aren't mangled by markdown
+  // shield code spans/blocks so [[ ]], {{ }}, [@ ] shown as examples stay literal
+  const codeStore: string[] = [];
+  let src = protectCode(body, codeStore);
+  // pull KaTeX math out next so $ and \ aren't mangled by markdown
   const katexStore: string[] = [];
-  let src = protectMath(body, katexStore);
+  src = protectMath(src, katexStore);
   // {{name}} engine references
   src = expandMathRefs(src, math);
   // turn `![[Note#Section]]` lines into placeholders before markdown parsing
@@ -296,7 +313,8 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
     return `\n\n<!--EMBED:${id}:${heading ? slugify(heading) : ""}-->\n\n`;
   });
 
-  let html = marked.parse(expandWikilinks(expandCitations(withEmbeds, cite), resolve), {
+  const inlineExpanded = expandWikilinks(expandCitations(withEmbeds, cite), resolve);
+  let html = marked.parse(restoreCode(inlineExpanded, codeStore), {
     async: false,
   }) as string;
 
