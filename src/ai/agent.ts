@@ -435,7 +435,7 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
   ];
   const headers: Record<string, string> = {
     "content-type": "application/json",
-    authorization: `Bearer ${o.apiKey}`,
+    authorization: `Bearer ${o.apiKey || "local"}`,
   };
   if (o.provider.id === "openrouter") {
     headers["HTTP-Referer"] = location.origin;

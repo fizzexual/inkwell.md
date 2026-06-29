@@ -124,7 +124,7 @@ export const useChat = create<ChatState>((set, get) => ({
     if (!t || get().status === "running") return;
     const provider = getProvider(get().provider);
     const apiKey = (get().keys[provider.id] || "").trim();
-    if (!apiKey) {
+    if (!apiKey && !provider.keyless) {
       set({ error: `Add a ${provider.label} API key to start.`, keyManagerOpen: true });
       return;
     }

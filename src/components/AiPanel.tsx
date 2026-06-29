@@ -52,7 +52,7 @@ export default function AiPanel() {
   const clear = useChat((s) => s.clear);
 
   const provider = getProvider(providerId);
-  const hasKey = !!(keys[providerId] || "").trim();
+  const hasKey = !!provider.keyless || !!(keys[providerId] || "").trim();
 
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);

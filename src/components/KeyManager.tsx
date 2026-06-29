@@ -51,27 +51,38 @@ export default function KeyManager() {
                   <span className="km-name">{p.label}</span>
                   {p.recommended ? (
                     <span className="km-badge rec">Free · recommended</span>
+                  ) : p.keyless ? (
+                    <span className="km-badge free">Local · no key</span>
                   ) : p.free ? (
                     <span className="km-badge free">Free tier</span>
                   ) : (
                     <span className="km-badge paid">Paid</span>
                   )}
-                  {hasKey && <span className="km-badge key">key set</span>}
+                  {hasKey && !p.keyless && <span className="km-badge key">key set</span>}
                 </div>
                 <p className="km-note">{p.note}</p>
-                <div className="km-key-row" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="password"
-                    value={keys[p.id] || ""}
-                    placeholder={p.keyHint}
-                    spellCheck={false}
-                    autoComplete="off"
-                    onChange={(e) => setKey(p.id, e.target.value)}
-                  />
-                  <a href={p.keyUrl} target="_blank" rel="noreferrer">
-                    Get a key ↗
-                  </a>
-                </div>
+                {p.keyless ? (
+                  <div className="km-key-row" onClick={(e) => e.stopPropagation()}>
+                    <span className="km-local">No API key needed — runs on your machine.</span>
+                    <a href={p.keyUrl} target="_blank" rel="noreferrer">
+                      Install ↗
+                    </a>
+                  </div>
+                ) : (
+                  <div className="km-key-row" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="password"
+                      value={keys[p.id] || ""}
+                      placeholder={p.keyHint}
+                      spellCheck={false}
+                      autoComplete="off"
+                      onChange={(e) => setKey(p.id, e.target.value)}
+                    />
+                    <a href={p.keyUrl} target="_blank" rel="noreferrer">
+                      Get a key ↗
+                    </a>
+                  </div>
+                )}
                 {isActive && (
                   <div className="km-model" onClick={(e) => e.stopPropagation()}>
                     <label>Model</label>
