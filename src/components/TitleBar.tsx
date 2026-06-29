@@ -1,6 +1,6 @@
 import { useVault } from "../store/useVault";
 import { windowControl } from "../tauri";
-import { Sun, Moon, ChevronRight, PanelLeft, PanelRight } from "../icons";
+import { Sun, Moon, ChevronRight, PanelLeft, PanelRight, Sparkles } from "../icons";
 import "./TitleBar.css";
 
 export default function TitleBar() {
@@ -14,6 +14,8 @@ export default function TitleBar() {
   const inspectorCollapsed = useVault((s) => s.inspectorCollapsed);
   const toggleSidebar = useVault((s) => s.toggleSidebar);
   const toggleInspector = useVault((s) => s.toggleInspector);
+  const aiOpen = useVault((s) => s.aiOpen);
+  const toggleAi = useVault((s) => s.toggleAi);
   return (
     <div className="titlebar" data-tauri-drag-region>
       <div className="traffic">
@@ -62,6 +64,14 @@ export default function TitleBar() {
         </button>
       </div>
       <div className="titlebar-spacer" />
+      <button
+        className={"titlebar-btn" + (aiOpen ? " on" : "")}
+        aria-label="Toggle assistant"
+        title="Toggle AI assistant (Ctrl/Cmd+J)"
+        onClick={toggleAi}
+      >
+        <Sparkles size={15} />
+      </button>
       <button
         className="titlebar-btn"
         aria-label="Toggle theme"

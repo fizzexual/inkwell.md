@@ -13,6 +13,7 @@ import KanbanView from "./components/KanbanView";
 import CardsView from "./components/CardsView";
 import SketchView from "./components/SketchView";
 import Inspector from "./components/Inspector";
+import AiPanel from "./components/AiPanel";
 
 // pdf.js is heavy — only load the reader when it's actually opened
 const PdfView = lazy(() => import("./components/PdfView"));
@@ -43,6 +44,7 @@ export default function App() {
   const setInspectorWidth = useVault((s) => s.setInspectorWidth);
   const sidebarCollapsed = useVault((s) => s.sidebarCollapsed);
   const inspectorCollapsed = useVault((s) => s.inspectorCollapsed);
+  const aiOpen = useVault((s) => s.aiOpen);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -75,6 +77,9 @@ export default function App() {
         e.preventDefault();
         if (e.shiftKey) s.toggleInspector();
         else s.toggleSidebar();
+      } else if (mod && e.key === "j") {
+        e.preventDefault();
+        s.toggleAi();
       } else if (mod && (e.key === "z" || e.key === "Z")) {
         // let native undo win inside other text fields (math sheet, search…)
         const t = e.target as HTMLElement | null;
@@ -146,6 +151,7 @@ export default function App() {
             <Inspector />
           </>
         )}
+        {aiOpen && <AiPanel />}
       </div>
       <CommandPalette />
       <ContextMenu />

@@ -173,6 +173,7 @@ interface Persisted {
   pinned?: string[];
   sidebarCollapsed?: boolean;
   inspectorCollapsed?: boolean;
+  aiOpen?: boolean;
   folderColors?: Record<string, string>;
   noteIcons?: Record<string, string>;
 }
@@ -233,8 +234,10 @@ interface VaultState extends Derived {
   setInspectorWidth: (w: number) => void;
   sidebarCollapsed: boolean;
   inspectorCollapsed: boolean;
+  aiOpen: boolean;
   toggleSidebar: () => void;
   toggleInspector: () => void;
+  toggleAi: () => void;
   menu: MenuState | null;
   openMenu: (x: number, y: number, noteId: string) => void;
   closeMenu: () => void;
@@ -328,8 +331,10 @@ export const useVault = create<VaultState>((set, get) => ({
   setInspectorWidth: (w) => set({ inspectorWidth: Math.max(240, Math.min(460, w)) }),
   sidebarCollapsed: persisted.sidebarCollapsed ?? false,
   inspectorCollapsed: persisted.inspectorCollapsed ?? false,
+  aiOpen: persisted.aiOpen ?? false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   toggleInspector: () => set((s) => ({ inspectorCollapsed: !s.inspectorCollapsed })),
+  toggleAi: () => set((s) => ({ aiOpen: !s.aiOpen })),
   menu: null,
   openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
   closeMenu: () => set({ menu: null }),
@@ -695,6 +700,7 @@ useVault.subscribe(() => {
       pinned: s.pinned,
       sidebarCollapsed: s.sidebarCollapsed,
       inspectorCollapsed: s.inspectorCollapsed,
+      aiOpen: s.aiOpen,
       folderColors: s.folderColors,
       noteIcons: s.noteIcons,
     };

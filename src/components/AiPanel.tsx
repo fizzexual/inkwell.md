@@ -1,0 +1,202 @@
+import { useEffect, useRef, useState } from "react";
+import { marked } from "marked";
+import { useChat } from "../ai/useChat";
+import { useVault } from "../store/useVault";
+import { AI_MODELS } from "../ai/agent";
+import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight } from "../icons";
+import "./AiPanel.css";
+
+const EXAMPLES = [
+  "Summarise what this vault is about",
+  "How does linking between notes work?",
+  "What can the Math Engine do?",
+];
+
+function escapeAttr(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function renderAnswer(md: string): string {
+  const withLinks = md.replace(
+    /\[\[([^\]]+)\]\]/g,
+    (_, t) => `<a class="ai-link" data-title="${escapeAttr(t)}">${t}</a>`,
+  );
+  return marked.parse(withLinks, { async: false }) as string;
+}
+
+const STEP_ICON = { search: Search, links: Graph, read: Doc } as const;
+const STEP_VERB = { search: "Searching", links: "Following links from", read: "Reading" } as const;
+
+export default function AiPanel() {
+  const toggleAi = useVault((s) => s.toggleAi);
+  const openArticle = useVault((s) => s.openArticle);
+  const resolve = useVault((s) => s.resolve);
+
+  const { apiKey, model, messages, steps, status, error } = useChat();
+  const setApiKey = useChat((s) => s.setApiKey);
+  const setModel = useChat((s) => s.setModel);
+  const send = useChat((s) => s.send);
+  const stop = useChat((s) => s.stop);
+  const clear = useChat((s) => s.clear);
+
+  const [draft, setDraft] = useState("");
+  const [showSettings, setShowSettings] = useState(!apiKey);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, steps, status]);
+
+  const submit = () => {
+    if (!draft.trim()) return;
+    send(draft);
+    setDraft("");
+  };
+
+  const onLinkClick = (e: React.MouseEvent) => {
+    const a = (e.target as HTMLElement).closest(".ai-link") as HTMLElement | null;
+    if (!a) return;
+    e.preventDefault();
+    const id = resolve(a.dataset.title || "");
+    if (id) openArticle(id);
+  };
+
+  return (
+    <aside className="ai-panel">
+      <header className="ai-head">
+        <div className="ai-title">
+          <Sparkles size={15} />
+          <span>Assistant</span>
+        </div>
+        <div className="ai-head-actions">
+          <select
+            className="ai-model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            title="Model"
+          >
+            {AI_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <button className="ai-icon-btn" title="Clear chat" onClick={clear} disabled={!messages.length}>
+            <Trash size={14} />
+          </button>
+          <button className="ai-icon-btn" title="Close" onClick={toggleAi}>
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </header>
+
+      <div className="ai-scroll" ref={scrollRef} onClick={onLinkClick}>
+        {messages.length === 0 && (
+          <div className="ai-empty">
+            <Sparkles size={22} />
+            <p className="ai-empty-lead">Ask anything about your vault.</p>
+            <p className="ai-empty-sub">
+              I navigate your notes through the knowledge graph — reading only the few that matter, not the
+              whole vault.
+            </p>
+            <div className="ai-examples">
+              {EXAMPLES.map((q) => (
+                <button key={q} onClick={() => send(q)} disabled={status === "running"}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) =>
+          m.role === "user" ? (
+            <div key={i} className="ai-msg ai-user">
+              {m.content}
+            </div>
+          ) : (
+            <div
+              key={i}
+              className="ai-msg ai-bot"
+              dangerouslySetInnerHTML={{ __html: renderAnswer(m.content) }}
+            />
+          ),
+        )}
+
+        {status === "running" && (
+          <div className="ai-steps">
+            {steps.map((s, i) => {
+              const Icon = STEP_ICON[s.kind];
+              return (
+                <div key={i} className="ai-step">
+                  <Icon size={13} />
+                  <span>
+                    {STEP_VERB[s.kind]} <b>{s.detail}</b>
+                  </span>
+                </div>
+              );
+            })}
+            <div className="ai-step ai-thinking">
+              <span className="ai-dot" />
+              <span className="ai-dot" />
+              <span className="ai-dot" />
+            </div>
+          </div>
+        )}
+
+        {error && <div className="ai-error">{error}</div>}
+      </div>
+
+      {(showSettings || !apiKey) && (
+        <div className="ai-settings">
+          <label>Anthropic API key</label>
+          <input
+            type="password"
+            value={apiKey}
+            placeholder="sk-ant-…"
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <p className="ai-hint">
+            Stored only in this browser. Get one at{" "}
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
+              console.anthropic.com
+            </a>
+            .
+          </p>
+        </div>
+      )}
+
+      <div className="ai-input">
+        <button
+          className="ai-gear"
+          title="API key & settings"
+          onClick={() => setShowSettings((v) => !v)}
+        >
+          ⚙
+        </button>
+        <textarea
+          value={draft}
+          rows={1}
+          placeholder="Ask your vault…"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
+        {status === "running" ? (
+          <button className="ai-send stop" title="Stop" onClick={stop}>
+            <Stop size={15} />
+          </button>
+        ) : (
+          <button className="ai-send" title="Send" onClick={submit} disabled={!draft.trim()}>
+            <Send size={16} />
+          </button>
+        )}
+      </div>
+    </aside>
+  );
+}

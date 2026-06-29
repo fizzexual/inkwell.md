@@ -323,3 +323,22 @@ export const OpenExternal = (p: P) => (
     <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-9A1.5 1.5 0 0 1 6 18.5v-9A1.5 1.5 0 0 1 7.5 8H12" />
   </svg>
 );
+
+export const Sparkles = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6L12 3.5z" />
+    <path d="M18.5 14.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z" />
+  </svg>
+);
+
+export const Send = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4.5 12h13M11 5.5 17.5 12 11 18.5" />
+  </svg>
+);
+
+export const Stop = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />
+  </svg>
+);

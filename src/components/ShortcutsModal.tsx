@@ -37,6 +37,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
     items: [
       ["Ctrl / Cmd + \\", "Toggle sidebar"],
       ["Ctrl / Cmd + Shift + \\", "Toggle inspector"],
+      ["Ctrl / Cmd + J", "Toggle AI assistant"],
       ["?", "This help"],
     ],
   },
