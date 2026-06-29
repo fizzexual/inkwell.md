@@ -179,6 +179,7 @@ interface Persisted {
   aiOpen?: boolean;
   folderColors?: Record<string, string>;
   noteIcons?: Record<string, string>;
+  savedSearches?: { id: string; name: string; query: string }[];
 }
 function loadPersisted(): Persisted {
   try {
@@ -275,6 +276,9 @@ interface VaultState extends Derived {
   setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
+  savedSearches: { id: string; name: string; query: string }[];
+  addSavedSearch: (name: string, query: string) => void;
+  removeSavedSearch: (id: string) => void;
   openTag: (tag: string) => void;
   scrollTarget: string | null;
   scrollToHeading: (slug: string) => void;
@@ -461,6 +465,12 @@ export const useVault = create<VaultState>((set, get) => ({
   setShortcutsOpen: (v) => set({ shortcutsOpen: v }),
   searchQuery: "",
   setSearchQuery: (q) => set({ searchQuery: q }),
+  savedSearches: persisted.savedSearches ?? [],
+  addSavedSearch: (name, query) =>
+    set((s) => ({
+      savedSearches: [...s.savedSearches, { id: `ss-${Date.now().toString(36)}`, name, query }],
+    })),
+  removeSavedSearch: (id) => set((s) => ({ savedSearches: s.savedSearches.filter((x) => x.id !== id) })),
   openTag: (tag) => set({ searchQuery: `#${tag}`, sidebarView: "search" }),
   scrollTarget: null,
   scrollToHeading: (slug) => set({ centerView: "article", editing: false, scrollTarget: slug }),
@@ -756,6 +766,7 @@ useVault.subscribe(() => {
       aiOpen: s.aiOpen,
       folderColors: s.folderColors,
       noteIcons: s.noteIcons,
+      savedSearches: s.savedSearches,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

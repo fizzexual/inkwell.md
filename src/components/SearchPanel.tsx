@@ -30,6 +30,9 @@ export default function SearchPanel() {
   const select = useVault((s) => s.select);
   const query = useVault((s) => s.searchQuery);
   const setQuery = useVault((s) => s.setSearchQuery);
+  const savedSearches = useVault((s) => s.savedSearches);
+  const addSavedSearch = useVault((s) => s.addSavedSearch);
+  const removeSavedSearch = useVault((s) => s.removeSavedSearch);
 
   const hits = useMemo<Hit[]>(() => {
     const q = query.trim();
@@ -71,8 +74,38 @@ export default function SearchPanel() {
         />
       </div>
       {query && (
-        <div className="search-count">
-          {hits.length} {hits.length === 1 ? "result" : "results"}
+        <div className="search-meta">
+          <span className="search-count">
+            {hits.length} {hits.length === 1 ? "result" : "results"}
+          </span>
+          <button
+            className="search-save"
+            title="Save this search"
+            onClick={() => {
+              const name = window.prompt("Name this saved search", query.trim());
+              if (name) addSavedSearch(name.trim(), query.trim());
+            }}
+          >
+            ★ Save
+          </button>
+        </div>
+      )}
+
+      {!query && savedSearches.length > 0 && (
+        <div className="saved-searches">
+          <div className="search-count">Saved searches</div>
+          {savedSearches.map((ss) => (
+            <div key={ss.id} className="saved-row">
+              <button className="saved-open" onClick={() => setQuery(ss.query)}>
+                <span className="saved-star">★</span>
+                <span className="saved-name">{ss.name}</span>
+                <span className="saved-q">{ss.query}</span>
+              </button>
+              <button className="saved-del" title="Remove" onClick={() => removeSavedSearch(ss.id)}>
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
