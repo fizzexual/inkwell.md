@@ -17,7 +17,9 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
     title: "Notes",
     items: [
       ["Ctrl / Cmd + N", "New note"],
+      ["Ctrl / Cmd + Shift + K", "Quick capture → Inbox"],
       ["Ctrl / Cmd + E", "Toggle edit / read"],
+      ["Ctrl / Cmd + .", "Focus / zen mode"],
       ["Ctrl / Cmd + Z", "Undo"],
       ["Ctrl / Cmd + Y", "Redo"],
       ["Esc", "Leave edit, then return to map"],

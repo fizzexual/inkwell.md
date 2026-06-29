@@ -64,6 +64,26 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     return [...s].sort();
   }, [notes]);
 
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const item = [...e.clipboardData.items].find((i) => i.type.startsWith("image/"));
+    const file = item?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const ta = ref.current;
+      if (!ta) return;
+      const md = `\n![pasted image](${reader.result})\n`;
+      const at = ta.selectionStart;
+      onChange(ta.value.slice(0, at) + md + ta.value.slice(ta.selectionEnd));
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.setSelectionRange(at + md.length, at + md.length);
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const apply = (from: number, to: number, text: string, caret: number) => {
     const ta = ref.current;
     if (!ta) return;
@@ -245,6 +265,7 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
           onKeyUp={refresh}
           onClick={refresh}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
           onBlur={() => window.setTimeout(() => setPopup(null), 150)}
           placeholder="Write in markdown… type / for commands, [[ to link, ![[ to embed."
         />

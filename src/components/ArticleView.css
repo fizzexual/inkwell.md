@@ -98,6 +98,13 @@
 .md-preview p {
   margin: 12px 0;
 }
+.md-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-card);
+  margin: 6px 0;
+}
 .md-preview ul,
 .md-preview ol {
   margin: 12px 0;

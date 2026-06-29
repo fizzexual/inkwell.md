@@ -269,6 +269,8 @@ interface VaultState extends Derived {
   setCanvasTransform: (tx: number, ty: number, scale: number) => void;
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
+  quickOpen: boolean;
+  setQuickOpen: (v: boolean) => void;
   shortcutsOpen: boolean;
   setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
@@ -294,6 +296,7 @@ interface VaultState extends Derived {
   createNote: (folder?: string) => void;
   createNoteWith: (title: string, content: string, folder?: string) => void;
   duplicateNote: (id: string) => void;
+  quickCapture: (text: string) => void;
   pdf: PdfDoc | null;
   openPdf: (name: string, data: ArrayBuffer) => void;
   openDailyNote: (dateStr: string) => void;
@@ -451,6 +454,8 @@ export const useVault = create<VaultState>((set, get) => ({
     }),
   paletteOpen: false,
   setPaletteOpen: (v) => set({ paletteOpen: v }),
+  quickOpen: false,
+  setQuickOpen: (v) => set({ quickOpen: v }),
   shortcutsOpen: false,
   setShortcutsOpen: (v) => set({ shortcutsOpen: v }),
   searchQuery: "",
@@ -639,6 +644,33 @@ export const useVault = create<VaultState>((set, get) => ({
         ...pushHist(s),
       };
     }),
+  quickCapture: (text) => {
+    const t = text.trim();
+    if (!t) return;
+    set((s) => {
+      const existing = s.notes.find((n) => n.title === "Inbox");
+      let notes: Note[];
+      if (existing) {
+        notes = s.notes.map((n) =>
+          n.id === existing.id
+            ? { ...n, content: `${(n.content ?? "# Inbox\n").replace(/\s*$/, "")}\n- ${t}\n` }
+            : n,
+        );
+      } else {
+        const note: Note = {
+          id: `inbox-${s.notes.length}`,
+          title: "Inbox",
+          folder: "",
+          kind: "note",
+          links: [],
+          content: `# Inbox\n\n- ${t}\n`,
+        };
+        notes = [...s.notes, note];
+      }
+      return { notes, ...derive(notes) };
+    });
+    get().toast("Captured to Inbox");
+  },
   duplicateNote: (id) => {
     const s = get();
     const note = s.notes.find((n) => n.id === id);

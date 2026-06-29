@@ -20,6 +20,7 @@ import KeyManager from "./components/KeyManager";
 // pdf.js is heavy — only load the reader when it's actually opened
 const PdfView = lazy(() => import("./components/PdfView"));
 import CommandPalette from "./components/CommandPalette";
+import QuickCapture from "./components/QuickCapture";
 import ContextMenu from "./components/ContextMenu";
 import Picker from "./components/Picker";
 import Toaster from "./components/Toaster";
@@ -77,9 +78,12 @@ export default function App() {
       if (mod && e.key === ".") {
         e.preventDefault();
         s.toggleZen();
-      } else if (mod && (e.key === "p" || e.key === "k")) {
+      } else if (mod && !e.shiftKey && (e.key === "p" || e.key === "k")) {
         e.preventDefault();
         setPaletteOpen(!s.paletteOpen);
+      } else if (mod && e.shiftKey && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        s.setQuickOpen(!s.quickOpen);
       } else if (mod && e.key === "n") {
         e.preventDefault();
         s.createNote();
@@ -184,6 +188,7 @@ export default function App() {
         {aiOpen && <AiPanel />}
       </div>
       <CommandPalette />
+      <QuickCapture />
       <ContextMenu />
       <Picker />
       <ShortcutsModal />
