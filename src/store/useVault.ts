@@ -270,6 +270,7 @@ interface VaultState extends Derived {
   select: (id: string) => void;
   openArticle: (id: string) => void;
   toggleFolder: (path: string) => void;
+  setAllFolders: (open: boolean) => void;
   setSidebarView: (v: SidebarView) => void;
   setMapView: (v: MapView) => void;
   setCenterView: (v: CenterView) => void;
@@ -506,6 +507,17 @@ export const useVault = create<VaultState>((set, get) => ({
       const next = new Set(s.expanded);
       next.has(path) ? next.delete(path) : next.add(path);
       return { expanded: next };
+    }),
+  setAllFolders: (open) =>
+    set((s) => {
+      if (!open) return { expanded: new Set<string>() };
+      const paths = new Set<string>();
+      const walk = (f: TreeFolder) => {
+        if (f.path) paths.add(f.path);
+        f.folders.forEach(walk);
+      };
+      walk(s.tree);
+      return { expanded: paths };
     }),
   setSidebarView: (v) =>
     set(() => {

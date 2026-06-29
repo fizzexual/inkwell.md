@@ -22,6 +22,7 @@ export default function CommandPalette() {
   const open = useVault((s) => s.paletteOpen);
   const setOpen = useVault((s) => s.setPaletteOpen);
   const notes = useVault((s) => s.notes);
+  const history = useVault((s) => s.history);
   const openArticle = useVault((s) => s.openArticle);
 
   const [query, setQuery] = useState("");
@@ -36,7 +37,23 @@ export default function CommandPalette() {
     }
   }, [open]);
 
+  const recentEmpty = query.trim() === "";
+
   const results = useMemo(() => {
+    if (recentEmpty) {
+      // most recently visited notes, newest first, de-duplicated
+      const byId = new Map(notes.map((n) => [n.id, n]));
+      const seen = new Set<string>();
+      const out: { note: (typeof notes)[number]; m: { score: number; ranges: [number, number][] }; alias: undefined }[] = [];
+      for (let i = history.length - 1; i >= 0 && out.length < 12; i--) {
+        const id = history[i];
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const n = byId.get(id);
+        if (n) out.push({ note: n, m: { score: 0, ranges: [] }, alias: undefined });
+      }
+      return out;
+    }
     return notes
       .map((n) => {
         const onTitle = fuzzyMatch(query, n.title);
@@ -51,7 +68,7 @@ export default function CommandPalette() {
       .filter((r): r is NonNullable<typeof r> => r !== null)
       .sort((a, b) => b.m.score - a.m.score)
       .slice(0, 50);
-  }, [notes, query]);
+  }, [notes, query, history, recentEmpty]);
 
   useEffect(() => {
     if (active >= results.length) setActive(0);
@@ -98,6 +115,7 @@ export default function CommandPalette() {
           <kbd>esc</kbd>
         </div>
         <div className="palette-results">
+          {recentEmpty && results.length > 0 && <div className="palette-section">Recent</div>}
           {results.length === 0 && <div className="palette-empty">No matching notes.</div>}
           {results.map((r, i) => (
             <button

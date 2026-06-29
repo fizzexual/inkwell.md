@@ -149,6 +149,8 @@ export default function Sidebar() {
   const setSidebarView = useVault((s) => s.setSidebarView);
   const createNote = useVault((s) => s.createNote);
   const createNoteWith = useVault((s) => s.createNoteWith);
+  const setAllFolders = useVault((s) => s.setAllFolders);
+  const anyExpanded = useVault((s) => s.expanded.size > 0);
   const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
   const treeRef = useRef<HTMLDivElement>(null);
@@ -199,6 +201,14 @@ export default function Sidebar() {
       ) : (
         <>
           <div className="tree-toolbar">
+            <button
+              className="ghost-btn sm"
+              aria-label={anyExpanded ? "Collapse all" : "Expand all"}
+              title={anyExpanded ? "Collapse all folders" : "Expand all folders"}
+              onClick={() => setAllFolders(!anyExpanded)}
+            >
+              {anyExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            </button>
             <button className="ghost-btn sm" aria-label="Tags">
               <Tag size={15} />
             </button>
