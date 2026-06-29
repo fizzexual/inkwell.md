@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
 import { useMath } from "../math/useMath";
 import { buildMathCtx } from "../math/render";
@@ -23,6 +23,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const setEditing = useVault((s) => s.setEditing);
   const setCenterView = useVault((s) => s.setCenterView);
   const openArticle = useVault((s) => s.openArticle);
+  const openTag = useVault((s) => s.openTag);
   const updateContent = useVault((s) => s.updateContent);
   const scrollTarget = useVault((s) => s.scrollTarget);
   const clearScrollTarget = useVault((s) => s.clearScrollTarget);
@@ -30,6 +31,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const mathResult = useMath((s) => s.result);
 
   const showEditor = isActive && editing;
+  const [hover, setHover] = useState<{ x: number; y: number; id: string } | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(bodyRef);
 
@@ -101,12 +103,29 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const crumbs = note.folder ? note.folder.split("/") : [];
 
   const onPreviewClick = (e: MouseEvent<HTMLDivElement>) => {
+    const tag = (e.target as HTMLElement).closest("a.tag") as HTMLElement | null;
+    if (tag?.dataset.tag) {
+      e.preventDefault();
+      openTag(tag.dataset.tag);
+      return;
+    }
     const target = (e.target as HTMLElement).closest("a.wikilink, a.embed-head, a.cite") as HTMLElement | null;
     if (target?.dataset.note) {
       e.preventDefault();
       openArticle(target.dataset.note);
     }
   };
+
+  const onPreviewOver = (e: MouseEvent<HTMLDivElement>) => {
+    const a = (e.target as HTMLElement).closest("a.wikilink[data-note]") as HTMLElement | null;
+    if (!a?.dataset.note) return;
+    const r = a.getBoundingClientRect();
+    setHover({ x: Math.min(r.left, window.innerWidth - 320), y: r.bottom + 6, id: a.dataset.note });
+  };
+  const onPreviewOut = (e: MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("a.wikilink")) setHover(null);
+  };
+  const hoverNote = hover ? notesById.get(hover.id) : null;
 
   return (
     <main className="article">
@@ -149,8 +168,26 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
             <div
               className="md-preview"
               onClick={onPreviewClick}
+              onMouseOver={onPreviewOver}
+              onMouseOut={onPreviewOut}
+              onMouseLeave={() => setHover(null)}
               dangerouslySetInnerHTML={{ __html: html }}
             />
+          </div>
+        </div>
+      )}
+
+      {hoverNote && (
+        <div className="link-preview" style={{ left: hover!.x, top: hover!.y }}>
+          <div className="lp-title">{hoverNote.title}</div>
+          <div className="lp-body">
+            {(hoverNote.content ?? "")
+              .replace(/^---\n[\s\S]*?\n---\n/, "")
+              .replace(/^#\s+.*$/m, "")
+              .replace(/[#>*`_[\]]/g, "")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 220) || "Empty note"}
           </div>
         </div>
       )}

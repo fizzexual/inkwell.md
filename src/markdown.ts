@@ -241,6 +241,14 @@ function expandMathRefs(md: string, math?: MathCtx): string {
   });
 }
 
+/** Wrap #tags in clickable anchors (code/math already shielded upstream). */
+function expandTags(md: string): string {
+  return md.replace(
+    /(^|\s)#([a-z0-9](?:[a-z0-9_/-]*[a-z0-9])?)/gi,
+    (_m, pre: string, tag: string) => `${pre}<a class="tag" data-tag="${tag.toLowerCase()}">#${tag}</a>`,
+  );
+}
+
 const CITATION = /\[@([\w:-]+)\]/g;
 
 /** Unique citekeys referenced via [@key] in document order. */
@@ -305,6 +313,8 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
   src = protectMath(src, katexStore);
   // {{name}} engine references
   src = expandMathRefs(src, math);
+  // #tags → clickable
+  src = expandTags(src);
   // turn `![[Note#Section]]` lines into placeholders before markdown parsing
   const withEmbeds = src.replace(EMBED_LINE, (_m, inner: string) => {
     const [rawTitle, heading] = inner.split("#");

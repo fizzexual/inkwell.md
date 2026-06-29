@@ -59,6 +59,42 @@
   white-space: nowrap;
 }
 
+.md-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-subtle, var(--bg-app));
+}
+.md-find-input {
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--tx-1);
+  outline: none;
+  width: 150px;
+}
+.md-find-input:focus {
+  border-color: var(--accent);
+}
+.md-find button {
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-2, var(--tx-1));
+  border: 1px solid var(--line-card);
+}
+.md-find button:hover {
+  background: var(--bg-hover);
+}
+.md-find-x {
+  margin-left: auto;
+  border: none !important;
+}
+
 /* ---- editor surface ---- */
 .md-editor {
   border: none;

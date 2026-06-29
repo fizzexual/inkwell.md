@@ -57,7 +57,13 @@ const CLOSERS = new Set(Object.values(PAIRS));
 
 export default function MarkdownEditor({ value, onChange, notes, selfId }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const frInputRef = useRef<HTMLInputElement>(null);
   const [popup, setPopup] = useState<Popup | null>(null);
+  const [fr, setFr] = useState<{ open: boolean; find: string; replace: string }>({
+    open: false,
+    find: "",
+    replace: "",
+  });
   const allTags = useMemo(() => {
     const s = new Set<string>();
     for (const n of notes) for (const t of parseTags(n.content ?? "")) s.add(t);
@@ -171,6 +177,34 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     }
   };
 
+  const findNext = (from?: number) => {
+    const ta = ref.current;
+    if (!ta || !fr.find) return;
+    const hay = ta.value.toLowerCase();
+    const needle = fr.find.toLowerCase();
+    let idx = hay.indexOf(needle, from ?? ta.selectionEnd);
+    if (idx === -1) idx = hay.indexOf(needle, 0);
+    if (idx === -1) return;
+    ta.focus();
+    ta.setSelectionRange(idx, idx + fr.find.length);
+  };
+  const replaceOne = () => {
+    const ta = ref.current;
+    if (!ta || !fr.find) return;
+    const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+    if (sel.toLowerCase() === fr.find.toLowerCase()) {
+      const at = ta.selectionStart;
+      onChange(ta.value.slice(0, at) + fr.replace + ta.value.slice(ta.selectionEnd));
+      requestAnimationFrame(() => findNext(at + fr.replace.length));
+    } else findNext();
+  };
+  const replaceAll = () => {
+    const ta = ref.current;
+    if (!ta || !fr.find) return;
+    const re = new RegExp(fr.find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    onChange(ta.value.replace(re, fr.replace));
+  };
+
   const autoPair = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     const ta = ref.current;
     if (!ta) return;
@@ -201,6 +235,13 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
       e.preventDefault();
       e.stopPropagation();
       surround(e.key === "b" ? "**" : "_");
+      return;
+    }
+    if (mod && (e.key === "f" || e.key === "F")) {
+      e.preventDefault();
+      e.stopPropagation();
+      setFr((f) => ({ ...f, open: true }));
+      requestAnimationFrame(() => frInputRef.current?.focus());
       return;
     }
     if (popup) {
@@ -251,6 +292,46 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
         <span className="tb-hint">/ commands · [[ link · # tag · ⌘B/⌘I</span>
         <span className="tb-count">{(value.trim().match(/\S+/g) || []).length} words</span>
       </div>
+
+      {fr.open && (
+        <div className="md-find">
+          <input
+            ref={frInputRef}
+            className="md-find-input"
+            value={fr.find}
+            placeholder="Find"
+            onChange={(e) => setFr((f) => ({ ...f, find: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                findNext();
+              } else if (e.key === "Escape") {
+                setFr((f) => ({ ...f, open: false }));
+                ref.current?.focus();
+              }
+            }}
+          />
+          <input
+            className="md-find-input"
+            value={fr.replace}
+            placeholder="Replace"
+            onChange={(e) => setFr((f) => ({ ...f, replace: e.target.value }))}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), replaceOne())}
+          />
+          <button onClick={() => findNext()}>Next</button>
+          <button onClick={replaceOne}>Replace</button>
+          <button onClick={replaceAll}>All</button>
+          <button
+            className="md-find-x"
+            onClick={() => {
+              setFr((f) => ({ ...f, open: false }));
+              ref.current?.focus();
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="md-editor-scroll">
         <textarea
