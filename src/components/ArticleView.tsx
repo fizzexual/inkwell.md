@@ -99,6 +99,22 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
     };
   }, [html, showEditor, theme]);
 
+  // syntax-highlight ```code blocks (highlight.js lazy-loaded, only when a block exists)
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (showEditor || !root) return;
+    const blocks = root.querySelectorAll<HTMLElement>("pre code:not(.hljs)");
+    if (!blocks.length) return;
+    let cancelled = false;
+    import("highlight.js").then(({ default: hljs }) => {
+      if (cancelled) return;
+      blocks.forEach((el) => hljs.highlightElement(el));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [html, showEditor]);
+
   if (!note) return <main className="article" />;
 
   const crumbs = note.folder ? note.folder.split("/") : [];
