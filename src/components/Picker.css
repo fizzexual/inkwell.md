@@ -8,14 +8,46 @@
   box-shadow: var(--shadow-pop);
   animation: pop-in var(--dur-1) var(--ease-out);
 }
+.picker-custom {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.picker-custom input {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  color: var(--tx-1);
+  outline: none;
+}
+.picker-custom input:focus {
+  border-color: var(--accent);
+}
+.picker-custom button {
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--accent-text);
+  background: var(--accent-weak);
+}
+.picker-custom button:disabled {
+  opacity: 0.4;
+}
 .picker-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 2px;
-  width: 216px;
+  width: 280px;
+  max-height: 200px;
+  overflow-y: auto;
 }
 .picker-emoji {
-  height: 32px;
+  height: 31px;
   border-radius: var(--radius-sm);
   font-size: 17px;
   transition: background var(--dur-1) var(--ease);

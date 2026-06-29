@@ -1,11 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useVault } from "../store/useVault";
 import { FOLDER_PALETTE } from "../folders";
 import "./Picker.css";
 
 const EMOJIS = [
-  "📄", "📝", "⭐", "🔖", "💡", "📌", "🎯", "🔬", "📚", "🧪", "🧠", "🚀",
-  "🔧", "🎨", "📊", "🗺️", "✅", "❓", "⚠️", "🔥", "💬", "📐", "🧩", "🌱",
+  "📄", "📝", "📃", "📑", "🗒️", "📓", "📔", "📕", "📗", "📘", "📙", "📚",
+  "⭐", "🌟", "✨", "🔥", "💡", "🎯", "🚩", "📌", "🔖", "🏷️", "📎", "🔗",
+  "✅", "☑️", "✔️", "❌", "⚠️", "❓", "❗", "💬", "🗨️", "📣", "🔔", "⏰",
+  "📅", "📆", "🗓️", "⏳", "🕐", "📊", "📈", "📉", "🧮", "📐", "📏", "🔢",
+  "🧠", "💭", "🔬", "🧪", "⚗️", "🔭", "🧬", "🩺", "💊", "🌱", "🌿", "🍀",
+  "🚀", "🛠️", "🔧", "⚙️", "🔩", "🧩", "🎨", "🖌️", "🖊️", "✏️", "🗺️", "🧭",
+  "🎵", "🎬", "📷", "🎮", "🏆", "🎓", "💼", "🏠", "🌍", "🌙", "☀️", "❤️",
+  "🟣", "🔵", "🟢", "🟡", "🔴", "🟠", "⚫", "⚪",
 ];
 
 export default function Picker() {
@@ -13,9 +19,11 @@ export default function Picker() {
   const close = useVault((s) => s.closePicker);
   const setNoteIcon = useVault((s) => s.setNoteIcon);
   const setFolderColor = useVault((s) => s.setFolderColor);
+  const [custom, setCustom] = useState("");
 
   useEffect(() => {
     if (!picker) return;
+    setCustom("");
     const onDown = () => close();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("pointerdown", onDown);
@@ -27,16 +35,35 @@ export default function Picker() {
   }, [picker, close]);
 
   if (!picker) return null;
-  const left = Math.min(picker.x, window.innerWidth - 240);
-  const top = Math.min(picker.y, window.innerHeight - 200);
+  const left = Math.min(picker.x, window.innerWidth - 260);
+  const top = Math.min(picker.y, window.innerHeight - 320);
 
   return (
     <div className="picker" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
       {picker.kind === "icon" ? (
         <>
+          <form
+            className="picker-custom"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const v = custom.trim();
+              if (v) setNoteIcon(picker.target, v);
+            }}
+          >
+            <input
+              value={custom}
+              maxLength={4}
+              autoFocus
+              placeholder="type or paste any emoji…"
+              onChange={(e) => setCustom(e.target.value)}
+            />
+            <button type="submit" disabled={!custom.trim()}>
+              Set
+            </button>
+          </form>
           <div className="picker-grid">
-            {EMOJIS.map((e) => (
-              <button key={e} className="picker-emoji" onClick={() => setNoteIcon(picker.target, e)}>
+            {EMOJIS.map((e, i) => (
+              <button key={i} className="picker-emoji" onClick={() => setNoteIcon(picker.target, e)}>
                 {e}
               </button>
             ))}
