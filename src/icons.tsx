@@ -344,6 +344,32 @@ export const Clock = (p: P) => (
   </svg>
 );
 
+export const Minus = (p: P) => (
+  <svg {...base({ ...p, strokeWidth: 2 })}>
+    <path d="M5 12h14" />
+  </svg>
+);
+
+export const Hand = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1V4.5a1.5 1.5 0 0 1 3 0V11m0-.5V6a1.5 1.5 0 0 1 3 0v6.5c0 3.5-2.2 7-6 7-2.5 0-4-1.2-5.2-3l-2-3.3a1.5 1.5 0 0 1 2.5-1.6l1.2 1.9" />
+  </svg>
+);
+
+export const Eraser = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M5.5 14.5 12 8l5 5-4 4H8.5l-3-3a1 1 0 0 1 0-1.5z" />
+    <path d="M11 19h8M12 8l4-4 5 5-4 4" />
+  </svg>
+);
+
+export const StickyNote = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M5 4.5h14v9l-5.5 5.5H5z" />
+    <path d="M19 13.5h-5.5V19" />
+  </svg>
+);
+
 export const Stop = (p: P) => (
   <svg {...base(p)}>
     <rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />

@@ -26,7 +26,8 @@ export type SidebarView =
   | "daily"
   | "kanban"
   | "cards"
-  | "sketch";
+  | "sketch"
+  | "board";
 export type MapView = "links" | "sources";
 export type CenterView =
   | "graph"
@@ -39,7 +40,8 @@ export type CenterView =
   | "daily"
   | "kanban"
   | "cards"
-  | "sketch";
+  | "sketch"
+  | "board";
 
 export interface PdfDoc {
   name: string;
@@ -536,6 +538,7 @@ export const useVault = create<VaultState>((set, get) => ({
       if (v === "kanban") return { sidebarView: v, centerView: "kanban" as const };
       if (v === "cards") return { sidebarView: v, centerView: "cards" as const };
       if (v === "sketch") return { sidebarView: v, centerView: "sketch" as const };
+      if (v === "board") return { sidebarView: v, centerView: "board" as const };
       return { sidebarView: v };
     }),
   setMapView: (v) => set({ mapView: v }),

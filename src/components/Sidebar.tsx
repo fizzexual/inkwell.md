@@ -19,6 +19,7 @@ import {
   Columns,
   Cards,
   Brush,
+  StickyNote,
   Search,
   Tag,
   Import,
@@ -46,6 +47,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "daily", Icon: Calendar, label: "Journal" },
   { id: "cards", Icon: Cards, label: "Flashcards" },
   { id: "sketch", Icon: Brush, label: "Sketch" },
+  { id: "board", Icon: StickyNote, label: "Whiteboard" },
   { id: "search", Icon: Search, label: "Search" },
 ];
 

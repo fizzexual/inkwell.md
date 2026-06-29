@@ -12,6 +12,7 @@ import DailyView from "./components/DailyView";
 import KanbanView from "./components/KanbanView";
 import CardsView from "./components/CardsView";
 import SketchView from "./components/SketchView";
+import WhiteboardView from "./components/WhiteboardView";
 import Inspector from "./components/Inspector";
 import AiPanel from "./components/AiPanel";
 import KeyManager from "./components/KeyManager";
@@ -135,6 +136,8 @@ export default function App() {
           <CardsView />
         ) : centerView === "sketch" ? (
           <SketchView />
+        ) : centerView === "board" ? (
+          <WhiteboardView />
         ) : centerView === "pdf" ? (
           <Suspense fallback={<div className="lazy-fallback">Loading reader…</div>}>
             <PdfView />
