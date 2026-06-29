@@ -337,6 +337,13 @@ export const Send = (p: P) => (
   </svg>
 );
 
+export const Clock = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);
+
 export const Stop = (p: P) => (
   <svg {...base(p)}>
     <rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />

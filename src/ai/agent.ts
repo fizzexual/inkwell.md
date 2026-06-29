@@ -18,7 +18,7 @@ export interface ChatMsg {
 
 /** A visible step the agent took — surfaced in the UI so graph navigation is observable. */
 export interface AgentStep {
-  kind: "search" | "links" | "read";
+  kind: "search" | "links" | "read" | "wait";
   detail: string;
 }
 
@@ -130,15 +130,16 @@ function runTool(name: string, input: Record<string, unknown>, v: VaultAccess): 
   }
 
   if (name === "read_notes") {
-    const titles = Array.isArray(input.titles) ? (input.titles as unknown[]).map(String) : [];
+    const titles = Array.isArray(input.titles) ? (input.titles as unknown[]).map(String).slice(0, 5) : [];
     if (!titles.length) return "No titles given.";
     return titles
       .map((t) => {
         const id = v.resolve(t);
         const note = id ? v.getNote(id) : undefined;
         if (!note) return `### ${t}\n(not found)`;
-        const body = (note.content ?? "").slice(0, 6000);
-        return `### ${note.title}\n${body}`;
+        const full = note.content ?? "";
+        const body = full.slice(0, 2600);
+        return `### ${note.title}\n${body}${full.length > 2600 ? "\n…(truncated)" : ""}`;
       })
       .join("\n\n---\n\n");
   }
@@ -171,6 +172,52 @@ function emitStep(name: string, input: Record<string, unknown>, onStep: (s: Agen
     onStep({ kind: "read", detail: (Array.isArray(input.titles) ? input.titles : []).map(String).join(", ") });
 }
 
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("aborted", "AbortError"));
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(t);
+        reject(new DOMException("aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
+/** How long to wait before retrying a 429 — from the retry-after header or the "try again in Ns" message. */
+async function retryDelayMs(res: Response): Promise<number> {
+  const h = res.headers.get("retry-after");
+  if (h && !Number.isNaN(Number(h))) return Math.min(Number(h) * 1000 + 300, 65000);
+  try {
+    const m = (await res.clone().text()).match(/try again in ([\d.]+)\s*s/i);
+    if (m) return Math.min(parseFloat(m[1]) * 1000 + 300, 65000);
+  } catch {
+    /* ignore */
+  }
+  return 5000;
+}
+
+/** POST that transparently waits out free-tier rate limits (HTTP 429) up to a few times. */
+async function postWithRetry(
+  url: string,
+  init: RequestInit,
+  provider: Provider,
+  onStep: (s: AgentStep) => void,
+  signal?: AbortSignal,
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 || attempt >= 3) return res;
+    const wait = await retryDelayMs(res);
+    if (wait > 65000) return res;
+    onStep({ kind: "wait", detail: `${provider.label} rate limit — retrying in ${Math.ceil(wait / 1000)}s` });
+    await delay(wait, signal);
+  }
+}
+
 const NO_CONVERGE = "I looked through several notes but couldn't converge — try narrowing the question.";
 
 interface LoopOpts {
@@ -187,17 +234,23 @@ interface LoopOpts {
 async function loopAnthropic(o: LoopOpts, system: string): Promise<string> {
   const api: unknown[] = o.messages.map((m) => ({ role: m.role, content: m.content }));
   for (let i = 0; i < 8; i++) {
-    const res = await fetch(`${o.provider.baseUrl}/messages`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": o.apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
+    const res = await postWithRetry(
+      `${o.provider.baseUrl}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": o.apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({ model: o.model, max_tokens: 1024, system, tools, messages: api }),
+        signal: o.signal,
       },
-      body: JSON.stringify({ model: o.model, max_tokens: 2048, system, tools, messages: api }),
-      signal: o.signal,
-    });
+      o.provider,
+      o.onStep,
+      o.signal,
+    );
     if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
     const data: { content: Block[]; stop_reason: string } = await res.json();
     api.push({ role: "assistant", content: data.content });
@@ -253,12 +306,18 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
   }
 
   for (let i = 0; i < 8; i++) {
-    const res = await fetch(`${o.provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model: o.model, messages: api, tools: oaiTools, tool_choice: "auto", max_tokens: 2048 }),
-      signal: o.signal,
-    });
+    const res = await postWithRetry(
+      `${o.provider.baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ model: o.model, messages: api, tools: oaiTools, tool_choice: "auto", max_tokens: 1024 }),
+        signal: o.signal,
+      },
+      o.provider,
+      o.onStep,
+      o.signal,
+    );
     if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
     const data: { choices: { message: OAIMessage }[] } = await res.json();
     const msg = data.choices?.[0]?.message;

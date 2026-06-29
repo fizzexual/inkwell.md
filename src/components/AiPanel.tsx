@@ -3,7 +3,7 @@ import { marked } from "marked";
 import { useChat } from "../ai/useChat";
 import { useVault } from "../store/useVault";
 import { getProvider } from "../ai/providers";
-import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette } from "../icons";
+import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette, Clock } from "../icons";
 import "./AiPanel.css";
 
 const EXAMPLES = [
@@ -24,8 +24,8 @@ function renderAnswer(md: string): string {
   return marked.parse(withLinks, { async: false }) as string;
 }
 
-const STEP_ICON = { search: Search, links: Graph, read: Doc } as const;
-const STEP_VERB = { search: "Searching", links: "Following links from", read: "Reading" } as const;
+const STEP_ICON = { search: Search, links: Graph, read: Doc, wait: Clock } as const;
+const STEP_VERB = { search: "Searching", links: "Following links from", read: "Reading", wait: "" } as const;
 
 export default function AiPanel() {
   const toggleAi = useVault((s) => s.toggleAi);
