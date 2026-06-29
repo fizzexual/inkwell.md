@@ -3,7 +3,7 @@ import { marked } from "marked";
 import { useChat } from "../ai/useChat";
 import { useVault } from "../store/useVault";
 import { getProvider } from "../ai/providers";
-import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette, Clock } from "../icons";
+import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette, Clock, Pencil } from "../icons";
 import "./AiPanel.css";
 
 const EXAMPLES = [
@@ -40,6 +40,11 @@ export default function AiPanel() {
   const status = useChat((s) => s.status);
   const sessionTokens = useChat((s) => s.sessionTokens);
   const error = useChat((s) => s.error);
+  const canWrite = useChat((s) => s.canWrite);
+  const setCanWrite = useChat((s) => s.setCanWrite);
+  const proposals = useChat((s) => s.proposals);
+  const applyProposal = useChat((s) => s.applyProposal);
+  const rejectProposal = useChat((s) => s.rejectProposal);
   const setModel = useChat((s) => s.setModel);
   const setKeyManagerOpen = useChat((s) => s.setKeyManagerOpen);
   const send = useChat((s) => s.send);
@@ -91,6 +96,13 @@ export default function AiPanel() {
               </option>
             ))}
           </select>
+          <button
+            className={"ai-icon-btn" + (canWrite ? " on" : "")}
+            title={canWrite ? "Allow edits: ON (agent can propose changes)" : "Allow edits: OFF (read-only)"}
+            onClick={() => setCanWrite(!canWrite)}
+          >
+            <Pencil size={14} />
+          </button>
           <button className="ai-icon-btn" title="API keys & providers" onClick={() => setKeyManagerOpen(true)}>
             <Palette size={14} />
           </button>
@@ -146,6 +158,24 @@ export default function AiPanel() {
             </div>
           ),
         )}
+
+        {proposals.map((p) => (
+          <div key={p.id} className="ai-proposal">
+            <div className="ai-prop-head">
+              <span className={"ai-prop-kind " + p.kind}>{p.kind === "create" ? "New note" : "Edit"}</span>
+              <span className="ai-prop-title">{p.title}</span>
+            </div>
+            <pre className="ai-prop-body">{p.content.slice(0, 600)}{p.content.length > 600 ? "\n…" : ""}</pre>
+            <div className="ai-prop-actions">
+              <button className="ai-prop-reject" onClick={() => rejectProposal(p.id)}>
+                Reject
+              </button>
+              <button className="ai-prop-approve" onClick={() => applyProposal(p.id)}>
+                {p.kind === "create" ? "Create note" : "Apply edit"}
+              </button>
+            </div>
+          </div>
+        ))}
 
         {status === "running" && (
           <div className="ai-steps">

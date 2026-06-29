@@ -219,6 +219,83 @@
   background: var(--accent-weak);
 }
 
+.ai-proposal {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-weak);
+  overflow: hidden;
+  animation: ai-pop var(--dur-1, 0.14s) var(--ease-out, ease);
+}
+.ai-prop-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px 6px;
+}
+.ai-prop-kind {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--accent);
+}
+.ai-prop-kind.edit {
+  background: var(--tx-3);
+}
+.ai-prop-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-prop-body {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 11px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--tx-2, var(--tx-1));
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-app);
+  border-top: 1px solid var(--line-card);
+  border-bottom: 1px solid var(--line-card);
+}
+.ai-prop-actions {
+  display: flex;
+  gap: 7px;
+  justify-content: flex-end;
+  padding: 8px 11px;
+}
+.ai-prop-reject,
+.ai-prop-approve {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 13px;
+  border-radius: var(--radius-sm);
+}
+.ai-prop-reject {
+  color: var(--tx-3);
+  border: 1px solid var(--line-card);
+}
+.ai-prop-reject:hover {
+  background: var(--bg-hover);
+}
+.ai-prop-approve {
+  color: #fff;
+  background: var(--accent);
+}
+.ai-prop-approve:hover {
+  opacity: 0.92;
+}
+
 .ai-steps {
   display: flex;
   flex-direction: column;

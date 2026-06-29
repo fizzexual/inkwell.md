@@ -2,6 +2,16 @@ import type { Note } from "../data/vault";
 import { parseTags } from "../markdown";
 import type { Provider } from "./providers";
 
+/** A pending write the agent wants to make — surfaced for the user to approve. */
+export interface Proposal {
+  id: string;
+  kind: "create" | "edit";
+  title: string;
+  folder?: string;
+  content: string;
+  targetId?: string;
+}
+
 /** Everything the agent needs to read the vault, pulled from the store at send time. */
 export interface VaultAccess {
   notes: Note[];
@@ -9,6 +19,8 @@ export interface VaultAccess {
   getNote: (id: string) => Note | undefined;
   linksOf: (id: string) => Note[];
   backlinksOf: (id: string) => Note[];
+  /** record a pending write for user approval; returns a status string for the model. */
+  propose?: (p: Omit<Proposal, "id">) => string;
 }
 
 export interface ChatMsg {
@@ -53,8 +65,11 @@ function buildMap(v: VaultAccess): string {
     .join("\n");
 }
 
-function systemPrompt(v: VaultAccess): string {
-  return `You are the research assistant built into Inkwell, a personal knowledge vault. Answer the user's questions using ONLY the contents of their vault.
+function systemPrompt(v: VaultAccess, canWrite: boolean): string {
+  const writeNote = canWrite
+    ? `\n\nYou may also PROPOSE changes with create_note(title, content, folder?) and edit_note(title, content). These do NOT save directly — the user reviews and approves each one. Only propose a write when the user clearly asks you to create or change a note; otherwise just answer.`
+    : "";
+  return `You are the research assistant built into Inkwell, a personal knowledge vault. Answer the user's questions using ONLY the contents of their vault.${writeNote}
 
 You are given a MAP of every note below: its title, folder, #tags and the notes it links to (→). Treat that link graph as your index. To stay fast and cheap you must NOT read the whole vault — use the map to decide which few notes are relevant, then read only those.
 
@@ -98,6 +113,39 @@ const tools = [
     },
   },
 ];
+
+/** Write tools — only offered when the user has allowed edits. They PROPOSE changes for approval. */
+const writeTools = [
+  {
+    name: "create_note",
+    description:
+      "Propose a NEW note. Does not save directly — the user must approve. Start the content with a '# Title' heading.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Note title." },
+        content: { type: "string", description: "Full markdown body, beginning with '# Title'." },
+        folder: { type: "string", description: "Optional folder, e.g. 'Notes' or 'Projects'." },
+      },
+      required: ["title", "content"],
+    },
+  },
+  {
+    name: "edit_note",
+    description:
+      "Propose replacing an existing note's full content. Does not save directly — the user must approve.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Exact title of the note to edit." },
+        content: { type: "string", description: "The complete new markdown body." },
+      },
+      required: ["title", "content"],
+    },
+  },
+];
+
+const toolsFor = (canWrite: boolean) => (canWrite ? [...tools, ...writeTools] : tools);
 
 /** Keyword-rank notes by title/body overlap with the query. Shared by the search tool and the RAG fallback. */
 function rankNotes(v: VaultAccess, query: string, k: number): Note[] {
@@ -158,6 +206,22 @@ function runTool(name: string, input: Record<string, unknown>, v: VaultAccess): 
         return `### ${note.title}\n${body}${full.length > 2600 ? "\n…(truncated)" : ""}`;
       })
       .join("\n\n---\n\n");
+  }
+
+  if (name === "create_note") {
+    if (!v.propose) return "Editing is not enabled.";
+    const title = String(input.title ?? "").trim();
+    if (!title) return "A title is required.";
+    return v.propose({ kind: "create", title, content: String(input.content ?? `# ${title}\n`), folder: String(input.folder ?? "") });
+  }
+
+  if (name === "edit_note") {
+    if (!v.propose) return "Editing is not enabled.";
+    const title = String(input.title ?? "").trim();
+    const id = v.resolve(title);
+    const note = id ? v.getNote(id) : undefined;
+    if (!note) return `Note not found: "${title}".`;
+    return v.propose({ kind: "edit", title: note.title, content: String(input.content ?? ""), targetId: note.id });
   }
 
   return `Unknown tool: ${name}`;
@@ -244,6 +308,7 @@ interface LoopOpts {
   vault: VaultAccess;
   onStep: (s: AgentStep) => void;
   signal?: AbortSignal;
+  canWrite?: boolean;
 }
 
 /** Anthropic Messages API loop (tool_use / tool_result blocks). */
@@ -263,7 +328,13 @@ async function loopAnthropic(o: LoopOpts, system: string): Promise<AgentResult> 
           "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true",
         },
-        body: JSON.stringify({ model: o.model, max_tokens: 1024, system: systemBlocks, tools, messages: api }),
+        body: JSON.stringify({
+          model: o.model,
+          max_tokens: 1024,
+          system: systemBlocks,
+          tools: toolsFor(!!o.canWrite),
+          messages: api,
+        }),
         signal: o.signal,
       },
       o.provider,
@@ -354,7 +425,7 @@ const LEAN_MODEL = /(\b\d+b\b|mini|flash-lite|instant|haiku|gemma|1\.5-flash)/i;
 
 /** OpenAI-compatible Chat Completions loop — covers Groq, OpenRouter, OpenAI, etc. */
 async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
-  const oaiTools = tools.map((t) => ({
+  const oaiTools = toolsFor(!!o.canWrite).map((t) => ({
     type: "function",
     function: { name: t.name, description: t.description, parameters: t.input_schema },
   }));
@@ -427,6 +498,6 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
  * Dispatches to the right API dialect for the chosen provider.
  */
 export function runVaultAgent(o: LoopOpts): Promise<AgentResult> {
-  const system = systemPrompt(o.vault);
+  const system = systemPrompt(o.vault, !!o.canWrite);
   return o.provider.kind === "anthropic" ? loopAnthropic(o, system) : loopOpenAI(o, system);
 }
