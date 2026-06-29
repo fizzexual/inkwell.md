@@ -169,6 +169,7 @@ interface Persisted {
   centerView?: CenterView;
   mapView?: MapView;
   theme?: Theme;
+  accent?: string;
   sidebarWidth?: number;
   inspectorWidth?: number;
   canvas?: CanvasState;
@@ -230,6 +231,10 @@ interface VaultState extends Derived {
   setGraphReveal: (n: number | null) => void;
   theme: Theme;
   toggleTheme: () => void;
+  accent: string;
+  setAccent: (hex: string) => void;
+  zen: boolean;
+  toggleZen: () => void;
   sidebarWidth: number;
   inspectorWidth: number;
   setSidebarWidth: (w: number) => void;
@@ -327,6 +332,10 @@ export const useVault = create<VaultState>((set, get) => ({
   setGraphReveal: (n) => set({ graphReveal: n }),
   theme: persisted.theme ?? "light",
   toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
+  accent: persisted.accent ?? "",
+  setAccent: (hex) => set({ accent: hex }),
+  zen: false,
+  toggleZen: () => set((s) => ({ zen: !s.zen })),
   sidebarWidth: persisted.sidebarWidth ?? 256,
   inspectorWidth: persisted.inspectorWidth ?? 296,
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(200, Math.min(420, w)) }),
@@ -697,6 +706,7 @@ useVault.subscribe(() => {
       centerView: s.centerView,
       mapView: s.mapView,
       theme: s.theme,
+      accent: s.accent,
       sidebarWidth: s.sidebarWidth,
       inspectorWidth: s.inspectorWidth,
       canvas: s.canvas,

@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { useVault } from "../store/useVault";
 import { useSmoothScroll } from "../useSmoothScroll";
 import { parseTags } from "../markdown";
+import { exportVaultMarkdown, exportVaultJson } from "../export";
 import CountUp from "./CountUp";
 import "./StatsPanel.css";
 
@@ -98,6 +99,14 @@ export default function StatsPanel() {
             </button>
           ))
         )}
+      </div>
+
+      <div className="stat-section">
+        <div className="stat-heading">Export vault</div>
+        <div className="stat-export">
+          <button onClick={() => exportVaultMarkdown(notes)}>Markdown</button>
+          <button onClick={() => exportVaultJson(notes)}>JSON backup</button>
+        </div>
       </div>
     </div>
   );

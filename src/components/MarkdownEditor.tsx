@@ -229,6 +229,7 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
           <Link size={15} />
         </button>
         <span className="tb-hint">/ commands · [[ link · # tag · ⌘B/⌘I</span>
+        <span className="tb-count">{(value.trim().match(/\S+/g) || []).length} words</span>
       </div>
 
       <div className="md-editor-scroll">

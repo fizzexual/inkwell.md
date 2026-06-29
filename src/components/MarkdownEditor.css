@@ -51,6 +51,13 @@
   font-size: 11px;
   color: var(--tx-muted);
 }
+.tb-count {
+  font-size: 11px;
+  color: var(--tx-muted);
+  font-variant-numeric: tabular-nums;
+  padding-left: 12px;
+  white-space: nowrap;
+}
 
 /* ---- editor surface ---- */
 .md-editor {

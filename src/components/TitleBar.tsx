@@ -1,11 +1,10 @@
 import { useVault } from "../store/useVault";
 import { windowControl } from "../tauri";
-import { Sun, Moon, ChevronRight, PanelLeft, PanelRight, Sparkles } from "../icons";
+import { ChevronRight, PanelLeft, PanelRight, Sparkles } from "../icons";
+import AppearanceMenu from "./AppearanceMenu";
 import "./TitleBar.css";
 
 export default function TitleBar() {
-  const theme = useVault((s) => s.theme);
-  const toggleTheme = useVault((s) => s.toggleTheme);
   const histIndex = useVault((s) => s.histIndex);
   const histLen = useVault((s) => s.history.length);
   const goBack = useVault((s) => s.goBack);
@@ -72,14 +71,7 @@ export default function TitleBar() {
       >
         <Sparkles size={15} />
       </button>
-      <button
-        className="titlebar-btn"
-        aria-label="Toggle theme"
-        title="Toggle light / dark"
-        onClick={toggleTheme}
-      >
-        {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
-      </button>
+      <AppearanceMenu />
       <button
         className={"titlebar-btn" + (inspectorCollapsed ? " on" : "")}
         aria-label="Toggle inspector"

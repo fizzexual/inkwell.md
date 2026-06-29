@@ -5,6 +5,24 @@
   animation: fade-in var(--dur-2) var(--ease);
 }
 
+.stat-export {
+  display: flex;
+  gap: 7px;
+}
+.stat-export button {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx-2, var(--tx-1));
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-1) var(--ease);
+}
+.stat-export button:hover {
+  background: var(--bg-hover);
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

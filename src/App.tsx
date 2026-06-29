@@ -47,16 +47,37 @@ export default function App() {
   const sidebarCollapsed = useVault((s) => s.sidebarCollapsed);
   const inspectorCollapsed = useVault((s) => s.inspectorCollapsed);
   const aiOpen = useVault((s) => s.aiOpen);
+  const accent = useVault((s) => s.accent);
+  const zen = useVault((s) => s.zen);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   useEffect(() => {
+    const root = document.documentElement;
+    if (accent) {
+      root.style.setProperty("--accent", accent);
+      root.style.setProperty("--accent-weak", `color-mix(in srgb, ${accent} 15%, transparent)`);
+    } else {
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--accent-weak");
+    }
+  }, [accent]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       const s = useVault.getState();
-      if (mod && (e.key === "p" || e.key === "k")) {
+      if (e.key === "Escape" && s.zen) {
+        e.preventDefault();
+        s.toggleZen();
+        return;
+      }
+      if (mod && e.key === ".") {
+        e.preventDefault();
+        s.toggleZen();
+      } else if (mod && (e.key === "p" || e.key === "k")) {
         e.preventDefault();
         setPaletteOpen(!s.paletteOpen);
       } else if (mod && e.key === "n") {
@@ -105,7 +126,12 @@ export default function App() {
   }, [setPaletteOpen]);
 
   return (
-    <div className="app">
+    <div className={"app" + (zen ? " zen" : "")}>
+      {zen && (
+        <button className="zen-exit" title="Exit focus mode (Esc)" onClick={() => useVault.getState().toggleZen()}>
+          Exit focus
+        </button>
+      )}
       <TitleBar />
       <div className="app-body">
         {!sidebarCollapsed && (
