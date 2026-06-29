@@ -296,6 +296,7 @@ interface VaultState extends Derived {
   createNote: (folder?: string) => void;
   createNoteWith: (title: string, content: string, folder?: string) => void;
   duplicateNote: (id: string) => void;
+  moveNote: (id: string, folder: string) => void;
   quickCapture: (text: string) => void;
   pdf: PdfDoc | null;
   openPdf: (name: string, data: ArrayBuffer) => void;
@@ -643,6 +644,13 @@ export const useVault = create<VaultState>((set, get) => ({
         expanded: folder ? new Set([...s.expanded, folder]) : s.expanded,
         ...pushHist(s),
       };
+    }),
+  moveNote: (id, folder) =>
+    set((s) => {
+      const target = s.notes.find((n) => n.id === id);
+      if (!target || target.folder === folder) return {};
+      const notes = s.notes.map((n) => (n.id === id ? { ...n, folder } : n));
+      return { notes, ...derive(notes), expanded: new Set([...s.expanded, folder]) };
     }),
   quickCapture: (text) => {
     const t = text.trim();

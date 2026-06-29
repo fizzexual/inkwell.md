@@ -215,6 +215,14 @@
   color: var(--tx-1);
   font-weight: 500;
 }
+.tree-item.note[draggable] {
+  cursor: grab;
+}
+.tree-item.folder.drop-target {
+  background: var(--accent-weak);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  border-radius: var(--radius-sm);
+}
 .chev {
   display: inline-flex;
   width: 14px;

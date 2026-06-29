@@ -60,6 +60,11 @@ function NoteRow({ note }: { note: Note }) {
   return (
     <button
       className={"tree-item note" + (active ? " active" : "")}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/inkwell-note", note.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
       onClick={() => openArticle(note.id)}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -77,17 +82,31 @@ function FolderRow({ folder, depth }: { folder: TreeFolder; depth: number }) {
   const expanded = useVault((s) => s.expanded);
   const toggle = useVault((s) => s.toggleFolder);
   const openPicker = useVault((s) => s.openPicker);
+  const moveNote = useVault((s) => s.moveNote);
   const color = useVault((s) => s.folderColors[folder.path]);
+  const [dropping, setDropping] = useState(false);
   const open = expanded.has(folder.path);
   return (
     <div className="tree-folder">
       <button
-        className="tree-item folder"
+        className={"tree-item folder" + (dropping ? " drop-target" : "")}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => toggle(folder.path)}
         onContextMenu={(e) => {
           e.preventDefault();
           openPicker(e.clientX, e.clientY, "color", folder.path);
+        }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("text/inkwell-note")) {
+            e.preventDefault();
+            setDropping(true);
+          }
+        }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={(e) => {
+          const id = e.dataTransfer.getData("text/inkwell-note");
+          setDropping(false);
+          if (id) moveNote(id, folder.path);
         }}
         title={folder.name}
       >
