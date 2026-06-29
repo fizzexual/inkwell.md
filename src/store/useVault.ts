@@ -243,6 +243,8 @@ interface VaultState extends Derived {
   sidebarCollapsed: boolean;
   inspectorCollapsed: boolean;
   aiOpen: boolean;
+  constellationOpen: boolean;
+  setConstellation: (v: boolean) => void;
   toggleSidebar: () => void;
   toggleInspector: () => void;
   toggleAi: () => void;
@@ -353,6 +355,8 @@ export const useVault = create<VaultState>((set, get) => ({
   sidebarCollapsed: persisted.sidebarCollapsed ?? false,
   inspectorCollapsed: persisted.inspectorCollapsed ?? false,
   aiOpen: persisted.aiOpen ?? false,
+  constellationOpen: false,
+  setConstellation: (v) => set({ constellationOpen: v }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   toggleInspector: () => set((s) => ({ inspectorCollapsed: !s.inspectorCollapsed })),
   toggleAi: () => set((s) => ({ aiOpen: !s.aiOpen })),

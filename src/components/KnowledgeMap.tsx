@@ -1,7 +1,7 @@
 import { useVault } from "../store/useVault";
 import KnowledgeGraph from "./KnowledgeGraph";
 import { buildFolderColors } from "../folders";
-import { Focus, Palette, Fit, Search } from "../icons";
+import { Focus, Palette, Fit, Search, Sparkles } from "../icons";
 import "./KnowledgeMap.css";
 
 export default function KnowledgeMap() {
@@ -74,6 +74,14 @@ export default function KnowledgeMap() {
           <button className="seg-btn" onClick={requestFit}>
             <Fit size={14} />
             <span>Fit</span>
+          </button>
+          <button
+            className="seg-btn"
+            onClick={() => useVault.getState().setConstellation(true)}
+            title="Open the immersive constellation view"
+          >
+            <Sparkles size={14} />
+            <span>Constellation</span>
           </button>
         </div>
       </header>

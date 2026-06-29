@@ -13,6 +13,7 @@ import KanbanView from "./components/KanbanView";
 import CardsView from "./components/CardsView";
 import SketchView from "./components/SketchView";
 import WhiteboardView from "./components/WhiteboardView";
+import ConstellationView from "./components/ConstellationView";
 import Inspector from "./components/Inspector";
 import AiPanel from "./components/AiPanel";
 import KeyManager from "./components/KeyManager";
@@ -49,6 +50,7 @@ export default function App() {
   const sidebarCollapsed = useVault((s) => s.sidebarCollapsed);
   const inspectorCollapsed = useVault((s) => s.inspectorCollapsed);
   const aiOpen = useVault((s) => s.aiOpen);
+  const constellationOpen = useVault((s) => s.constellationOpen);
   const accent = useVault((s) => s.accent);
   const zen = useVault((s) => s.zen);
 
@@ -195,6 +197,7 @@ export default function App() {
       <Picker />
       <ShortcutsModal />
       <KeyManager />
+      {constellationOpen && <ConstellationView />}
       <Toaster />
     </div>
   );
