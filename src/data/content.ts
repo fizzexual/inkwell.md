@@ -869,18 +869,26 @@ Every reply shows the time taken and tokens used. Set it up in [[AI Providers & 
 
 The assistant talks to a model **you** choose, with **your** API key — stored only in this browser, never uploaded. Open the key manager from the 🎨 icon in the assistant panel.
 
-## Free options (recommended)
+Twelve providers are built in, each with its full current model lineup — pick the active provider **and** model in the panel.
 
-- **Groq** — free, no credit card, very fast (Llama 3.3 70B). The easiest start.
-- **Google Gemini** — generous free tier (2.5 Flash and friends), strong at tool use.
-- **OpenRouter** — routes to many models, several with a free tier.
+## Free (recommended)
 
-## Paid options
+- **Groq** — free, no credit card, very fast (Llama 3.3 70B, Llama 4, GPT-OSS…). The easiest start.
+- **Cerebras** — free tier, wafer-scale speed.
+- **Google Gemini** — generous free tier (2.5 Flash/Pro, 2.0, 1.5…), great at tool use.
+- **Mistral** — European models with a free tier.
+- **OpenRouter** — one key, 300+ models, many \`:free\`.
 
-- **Anthropic (Claude)** — top quality for this kind of vault reasoning.
-- **OpenAI** — GPT-4o and 4o-mini.
+## Local — no key, fully private
 
-Pick the active provider and model in the same panel. If a free model hits a rate limit, the assistant waits and retries automatically; smaller models fall back to a one-shot answer. Back to [[The AI Assistant]].`,
+- **Ollama** — runs models on *your* machine (Llama, Qwen, Mistral, Phi, DeepSeek). Free, offline, no key. Install Ollama, run \`ollama serve\` (set \`OLLAMA_ORIGINS=*\` so the browser can reach it).
+
+## Paid
+
+- **Anthropic (Claude)** — Opus / Sonnet / Haiku, top quality for vault reasoning.
+- **OpenAI** — GPT-4o, GPT-4.1, o3 / o4-mini.
+- **DeepSeek** — very cheap, strong reasoning (R1).
+- **xAI (Grok)**, **Together AI** (open models), **Perplexity** (web-connected). If a free model hits a rate limit, the assistant waits and retries automatically; smaller models fall back to a one-shot answer. Back to [[The AI Assistant]].`,
 
   "ex-research": `---
 type: project
