@@ -128,11 +128,16 @@ export default function AiPanel() {
               {m.content}
             </div>
           ) : (
-            <div
-              key={i}
-              className="ai-msg ai-bot"
-              dangerouslySetInnerHTML={{ __html: renderAnswer(m.content) }}
-            />
+            <div key={i} className="ai-bot-wrap">
+              <div className="ai-msg ai-bot" dangerouslySetInnerHTML={{ __html: renderAnswer(m.content) }} />
+              {m.meta && (
+                <div className="ai-meta">
+                  <Clock size={11} />
+                  {(m.meta.ms / 1000).toFixed(1)}s
+                  {m.meta.tokens > 0 && <> · {m.meta.tokens.toLocaleString()} tokens</>}
+                </div>
+              )}
+            </div>
           ),
         )}
 

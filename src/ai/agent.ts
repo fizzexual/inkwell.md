@@ -14,6 +14,14 @@ export interface VaultAccess {
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
+  /** assistant-only: timing + token cost for the footer. */
+  meta?: { ms: number; tokens: number };
+}
+
+/** Final answer plus the total tokens burned across every API call in the turn. */
+export interface AgentResult {
+  text: string;
+  tokens: number;
 }
 
 /** A visible step the agent took — surfaced in the UI so graph navigation is observable. */
@@ -237,8 +245,9 @@ interface LoopOpts {
 }
 
 /** Anthropic Messages API loop (tool_use / tool_result blocks). */
-async function loopAnthropic(o: LoopOpts, system: string): Promise<string> {
+async function loopAnthropic(o: LoopOpts, system: string): Promise<AgentResult> {
   const api: unknown[] = o.messages.map((m) => ({ role: m.role, content: m.content }));
+  let tokens = 0;
   for (let i = 0; i < 8; i++) {
     const res = await postWithRetry(
       `${o.provider.baseUrl}/messages`,
@@ -258,17 +267,19 @@ async function loopAnthropic(o: LoopOpts, system: string): Promise<string> {
       o.signal,
     );
     if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
-    const data: { content: Block[]; stop_reason: string } = await res.json();
+    const data: { content: Block[]; stop_reason: string; usage?: { input_tokens?: number; output_tokens?: number } } =
+      await res.json();
+    tokens += (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
     api.push({ role: "assistant", content: data.content });
 
     if (data.stop_reason !== "tool_use") {
-      return (
+      const text =
         data.content
           .filter((b) => b.type === "text")
           .map((b) => b.text ?? "")
           .join("")
-          .trim() || "(no answer)"
-      );
+          .trim() || "(no answer)";
+      return { text, tokens };
     }
     const results: unknown[] = [];
     for (const block of data.content) {
@@ -279,7 +290,7 @@ async function loopAnthropic(o: LoopOpts, system: string): Promise<string> {
     }
     api.push({ role: "user", content: results });
   }
-  return NO_CONVERGE;
+  return { text: NO_CONVERGE, tokens };
 }
 
 interface OAIToolCall {
@@ -291,12 +302,17 @@ interface OAIMessage {
   content: string | null;
   tool_calls?: OAIToolCall[];
 }
+interface OAIUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
 
 /**
  * No-tools fallback for models that can't reliably agentic-tool-call (e.g. small Llama on Groq):
  * rank notes locally for the question, stuff the top few in the prompt, ask once. Classic RAG.
  */
-async function answerWithContext(o: LoopOpts, headers: Record<string, string>): Promise<string> {
+async function answerWithContext(o: LoopOpts, headers: Record<string, string>, priorTokens: number): Promise<AgentResult> {
   const question = [...o.messages].reverse().find((m) => m.role === "user")?.content ?? "";
   const hits = rankNotes(o.vault, question, 5);
   if (hits.length) o.onStep({ kind: "read", detail: hits.map((n) => n.title).join(", ") });
@@ -321,14 +337,17 @@ async function answerWithContext(o: LoopOpts, headers: Record<string, string>): 
     o.signal,
   );
   if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
-  const data: { choices: { message: OAIMessage }[] } = await res.json();
-  return (data.choices?.[0]?.message?.content || "").trim() || "(no answer)";
+  const data: { choices: { message: OAIMessage }[]; usage?: OAIUsage } = await res.json();
+  return {
+    text: (data.choices?.[0]?.message?.content || "").trim() || "(no answer)",
+    tokens: priorTokens + (data.usage?.total_tokens ?? 0),
+  };
 }
 
 const FN_FAIL = /failed.*function|tool[_ ]?use[_ ]?failed|failed_generation|function.*call/i;
 
 /** OpenAI-compatible Chat Completions loop — covers Groq, OpenRouter, OpenAI, etc. */
-async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
+async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
   const oaiTools = tools.map((t) => ({
     type: "function",
     function: { name: t.name, description: t.description, parameters: t.input_schema },
@@ -346,6 +365,7 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
     headers["X-Title"] = "Inkwell";
   }
 
+  let tokens = 0;
   for (let i = 0; i < 8; i++) {
     const res = await postWithRetry(
       `${o.provider.baseUrl}/chat/completions`,
@@ -363,11 +383,12 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
       const detail = await readError(res);
       // some models (small Llama on Groq) fail to emit a valid tool call — fall back to plain RAG
       if (res.status === 400 && FN_FAIL.test(detail)) {
-        return answerWithContext(o, headers);
+        return answerWithContext(o, headers, tokens);
       }
       throw new Error(`${o.provider.label} ${res.status}: ${detail}`);
     }
-    const data: { choices: { message: OAIMessage }[] } = await res.json();
+    const data: { choices: { message: OAIMessage }[]; usage?: OAIUsage } = await res.json();
+    tokens += data.usage?.total_tokens ?? 0;
     const msg = data.choices?.[0]?.message;
     if (!msg) throw new Error(`${o.provider.label}: empty response`);
 
@@ -385,18 +406,18 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
       }
       continue;
     }
-    return (msg.content || "").trim() || "(no answer)";
+    return { text: (msg.content || "").trim() || "(no answer)", tokens };
   }
-  return NO_CONVERGE;
+  return { text: NO_CONVERGE, tokens };
 }
 
 /**
- * Run the vault agent. Emits its navigation steps via onStep, returns the final answer text.
+ * Run the vault agent. Emits its navigation steps via onStep, returns the final answer + tokens burned.
  * It loops: model picks tools (search / explore_links / read_notes) → we run them locally →
  * feed results back → repeat until it answers (token-cheap, graph-guided retrieval).
  * Dispatches to the right API dialect for the chosen provider.
  */
-export function runVaultAgent(o: LoopOpts): Promise<string> {
+export function runVaultAgent(o: LoopOpts): Promise<AgentResult> {
   const system = systemPrompt(o.vault);
   return o.provider.kind === "anthropic" ? loopAnthropic(o, system) : loopOpenAI(o, system);
 }

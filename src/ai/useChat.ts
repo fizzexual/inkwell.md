@@ -114,8 +114,9 @@ export const useChat = create<ChatState>((set, get) => ({
       backlinksOf: (id) => st.backlinksOf(id),
     };
 
+    const startedAt = performance.now();
     try {
-      const answer = await runVaultAgent({
+      const result = await runVaultAgent({
         provider,
         apiKey,
         model: get().model,
@@ -125,7 +126,14 @@ export const useChat = create<ChatState>((set, get) => ({
         signal: controller.signal,
       });
       set((p) => ({
-        messages: [...p.messages, { role: "assistant", content: answer }],
+        messages: [
+          ...p.messages,
+          {
+            role: "assistant",
+            content: result.text,
+            meta: { ms: Math.round(performance.now() - startedAt), tokens: result.tokens },
+          },
+        ],
         status: "idle",
         controller: null,
       }));
