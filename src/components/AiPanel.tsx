@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { marked } from "marked";
 import { useChat } from "../ai/useChat";
 import { useVault } from "../store/useVault";
-import { AI_MODELS } from "../ai/agent";
-import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight } from "../icons";
+import { getProvider } from "../ai/providers";
+import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette } from "../icons";
 import "./AiPanel.css";
 
 const EXAMPLES = [
@@ -32,15 +32,23 @@ export default function AiPanel() {
   const openArticle = useVault((s) => s.openArticle);
   const resolve = useVault((s) => s.resolve);
 
-  const { apiKey, model, messages, steps, status, error } = useChat();
-  const setApiKey = useChat((s) => s.setApiKey);
+  const providerId = useChat((s) => s.provider);
+  const keys = useChat((s) => s.keys);
+  const model = useChat((s) => s.model);
+  const messages = useChat((s) => s.messages);
+  const steps = useChat((s) => s.steps);
+  const status = useChat((s) => s.status);
+  const error = useChat((s) => s.error);
   const setModel = useChat((s) => s.setModel);
+  const setKeyManagerOpen = useChat((s) => s.setKeyManagerOpen);
   const send = useChat((s) => s.send);
   const stop = useChat((s) => s.stop);
   const clear = useChat((s) => s.clear);
 
+  const provider = getProvider(providerId);
+  const hasKey = !!(keys[providerId] || "").trim();
+
   const [draft, setDraft] = useState("");
-  const [showSettings, setShowSettings] = useState(!apiKey);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,18 +78,16 @@ export default function AiPanel() {
           <span>Assistant</span>
         </div>
         <div className="ai-head-actions">
-          <select
-            className="ai-model"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            title="Model"
-          >
-            {AI_MODELS.map((m) => (
+          <select className="ai-model" value={model} onChange={(e) => setModel(e.target.value)} title="Model">
+            {provider.models.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
               </option>
             ))}
           </select>
+          <button className="ai-icon-btn" title="API keys & providers" onClick={() => setKeyManagerOpen(true)}>
+            <Palette size={14} />
+          </button>
           <button className="ai-icon-btn" title="Clear chat" onClick={clear} disabled={!messages.length}>
             <Trash size={14} />
           </button>
@@ -100,13 +106,19 @@ export default function AiPanel() {
               I navigate your notes through the knowledge graph — reading only the few that matter, not the
               whole vault.
             </p>
-            <div className="ai-examples">
-              {EXAMPLES.map((q) => (
-                <button key={q} onClick={() => send(q)} disabled={status === "running"}>
-                  {q}
-                </button>
-              ))}
-            </div>
+            {!hasKey ? (
+              <button className="ai-setup" onClick={() => setKeyManagerOpen(true)}>
+                Set up an API key — free options available
+              </button>
+            ) : (
+              <div className="ai-examples">
+                {EXAMPLES.map((q) => (
+                  <button key={q} onClick={() => send(q)} disabled={status === "running"}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -145,40 +157,24 @@ export default function AiPanel() {
           </div>
         )}
 
-        {error && <div className="ai-error">{error}</div>}
+        {error && (
+          <div className="ai-error">
+            {error}
+            <button className="ai-error-fix" onClick={() => setKeyManagerOpen(true)}>
+              Open key manager
+            </button>
+          </div>
+        )}
       </div>
 
-      {(showSettings || !apiKey) && (
-        <div className="ai-settings">
-          <label>Anthropic API key</label>
-          <input
-            type="password"
-            value={apiKey}
-            placeholder="sk-ant-…"
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <p className="ai-hint">
-            Stored only in this browser. Get one at{" "}
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
-              console.anthropic.com
-            </a>
-            .
-          </p>
-        </div>
-      )}
-
       <div className="ai-input">
-        <button
-          className="ai-gear"
-          title="API key & settings"
-          onClick={() => setShowSettings((v) => !v)}
-        >
+        <button className="ai-gear" title="API keys & providers" onClick={() => setKeyManagerOpen(true)}>
           ⚙
         </button>
         <textarea
           value={draft}
           rows={1}
-          placeholder="Ask your vault…"
+          placeholder={hasKey ? `Ask your vault… · ${provider.label}` : "Add a key to start…"}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {

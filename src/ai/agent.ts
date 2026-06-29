@@ -1,5 +1,6 @@
 import type { Note } from "../data/vault";
 import { parseTags } from "../markdown";
+import type { Provider } from "./providers";
 
 /** Everything the agent needs to read the vault, pulled from the store at send time. */
 export interface VaultAccess {
@@ -20,12 +21,6 @@ export interface AgentStep {
   kind: "search" | "links" | "read";
   detail: string;
 }
-
-export const AI_MODELS = [
-  { id: "claude-sonnet-4-6", label: "Sonnet 4.6 · balanced" },
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5 · fastest" },
-  { id: "claude-opus-4-8", label: "Opus 4.8 · deepest" },
-];
 
 const stripBody = (md: string) =>
   md
@@ -159,84 +154,142 @@ interface Block {
   input?: Record<string, unknown>;
 }
 
-async function callApi(
-  apiKey: string,
-  model: string,
-  system: string,
-  messages: unknown[],
-  signal?: AbortSignal,
-): Promise<{ content: Block[]; stop_reason: string }> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({ model, max_tokens: 2048, system, tools, messages }),
-    signal,
-  });
-  if (!res.ok) {
-    let detail = await res.text();
-    try {
-      detail = JSON.parse(detail).error?.message ?? detail;
-    } catch {
-      /* keep raw text */
-    }
-    throw new Error(`Anthropic API ${res.status}: ${detail}`);
+async function readError(res: Response): Promise<string> {
+  let detail = await res.text();
+  try {
+    detail = JSON.parse(detail).error?.message ?? detail;
+  } catch {
+    /* keep raw text */
   }
-  return res.json();
+  return detail.slice(0, 400);
 }
 
-const textOf = (blocks: Block[]) =>
-  blocks
-    .filter((b) => b.type === "text")
-    .map((b) => b.text ?? "")
-    .join("")
-    .trim();
+function emitStep(name: string, input: Record<string, unknown>, onStep: (s: AgentStep) => void) {
+  if (name === "search_vault") onStep({ kind: "search", detail: String(input.query ?? "") });
+  else if (name === "explore_links") onStep({ kind: "links", detail: String(input.title ?? "") });
+  else if (name === "read_notes")
+    onStep({ kind: "read", detail: (Array.isArray(input.titles) ? input.titles : []).map(String).join(", ") });
+}
 
-/**
- * Run the vault agent. Streams its navigation steps via onStep, returns the final answer text.
- * It loops: model picks tools (search / explore_links / read_notes) → we run them locally →
- * feed results back → repeat until it produces a final answer (token-cheap, graph-guided retrieval).
- */
-export async function runVaultAgent(opts: {
+const NO_CONVERGE = "I looked through several notes but couldn't converge — try narrowing the question.";
+
+interface LoopOpts {
+  provider: Provider;
   apiKey: string;
   model: string;
   messages: ChatMsg[];
   vault: VaultAccess;
   onStep: (s: AgentStep) => void;
   signal?: AbortSignal;
-}): Promise<string> {
-  const { apiKey, model, messages, vault, onStep, signal } = opts;
-  const system = systemPrompt(vault);
-  const api: unknown[] = messages.map((m) => ({ role: m.role, content: m.content }));
+}
 
+/** Anthropic Messages API loop (tool_use / tool_result blocks). */
+async function loopAnthropic(o: LoopOpts, system: string): Promise<string> {
+  const api: unknown[] = o.messages.map((m) => ({ role: m.role, content: m.content }));
   for (let i = 0; i < 8; i++) {
-    const data = await callApi(apiKey, model, system, api, signal);
+    const res = await fetch(`${o.provider.baseUrl}/messages`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": o.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({ model: o.model, max_tokens: 2048, system, tools, messages: api }),
+      signal: o.signal,
+    });
+    if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
+    const data: { content: Block[]; stop_reason: string } = await res.json();
     api.push({ role: "assistant", content: data.content });
 
     if (data.stop_reason !== "tool_use") {
-      return textOf(data.content) || "(no answer)";
+      return (
+        data.content
+          .filter((b) => b.type === "text")
+          .map((b) => b.text ?? "")
+          .join("")
+          .trim() || "(no answer)"
+      );
     }
-
     const results: unknown[] = [];
     for (const block of data.content) {
       if (block.type !== "tool_use" || !block.name) continue;
       const input = block.input ?? {};
-      if (block.name === "search_vault") onStep({ kind: "search", detail: String(input.query ?? "") });
-      else if (block.name === "explore_links") onStep({ kind: "links", detail: String(input.title ?? "") });
-      else if (block.name === "read_notes")
-        onStep({ kind: "read", detail: (Array.isArray(input.titles) ? input.titles : []).map(String).join(", ") });
-      results.push({
-        type: "tool_result",
-        tool_use_id: block.id,
-        content: runTool(block.name, input, vault),
-      });
+      emitStep(block.name, input, o.onStep);
+      results.push({ type: "tool_result", tool_use_id: block.id, content: runTool(block.name, input, o.vault) });
     }
     api.push({ role: "user", content: results });
   }
+  return NO_CONVERGE;
+}
 
-  return "I looked through several notes but couldn't converge — try narrowing the question.";
+interface OAIToolCall {
+  id: string;
+  function: { name: string; arguments: string };
+}
+interface OAIMessage {
+  role: string;
+  content: string | null;
+  tool_calls?: OAIToolCall[];
+}
+
+/** OpenAI-compatible Chat Completions loop — covers Groq, OpenRouter, OpenAI, etc. */
+async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
+  const oaiTools = tools.map((t) => ({
+    type: "function",
+    function: { name: t.name, description: t.description, parameters: t.input_schema },
+  }));
+  const api: unknown[] = [
+    { role: "system", content: system },
+    ...o.messages.map((m) => ({ role: m.role, content: m.content })),
+  ];
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    authorization: `Bearer ${o.apiKey}`,
+  };
+  if (o.provider.id === "openrouter") {
+    headers["HTTP-Referer"] = location.origin;
+    headers["X-Title"] = "Inkwell";
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const res = await fetch(`${o.provider.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model: o.model, messages: api, tools: oaiTools, tool_choice: "auto", max_tokens: 2048 }),
+      signal: o.signal,
+    });
+    if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
+    const data: { choices: { message: OAIMessage }[] } = await res.json();
+    const msg = data.choices?.[0]?.message;
+    if (!msg) throw new Error(`${o.provider.label}: empty response`);
+
+    if (msg.tool_calls?.length) {
+      api.push(msg);
+      for (const tc of msg.tool_calls) {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(tc.function.arguments || "{}");
+        } catch {
+          /* malformed args — pass empty */
+        }
+        emitStep(tc.function.name, input, o.onStep);
+        api.push({ role: "tool", tool_call_id: tc.id, content: runTool(tc.function.name, input, o.vault) });
+      }
+      continue;
+    }
+    return (msg.content || "").trim() || "(no answer)";
+  }
+  return NO_CONVERGE;
+}
+
+/**
+ * Run the vault agent. Emits its navigation steps via onStep, returns the final answer text.
+ * It loops: model picks tools (search / explore_links / read_notes) → we run them locally →
+ * feed results back → repeat until it answers (token-cheap, graph-guided retrieval).
+ * Dispatches to the right API dialect for the chosen provider.
+ */
+export function runVaultAgent(o: LoopOpts): Promise<string> {
+  const system = systemPrompt(o.vault);
+  return o.provider.kind === "anthropic" ? loopAnthropic(o, system) : loopOpenAI(o, system);
 }

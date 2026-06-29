@@ -14,6 +14,7 @@ import CardsView from "./components/CardsView";
 import SketchView from "./components/SketchView";
 import Inspector from "./components/Inspector";
 import AiPanel from "./components/AiPanel";
+import KeyManager from "./components/KeyManager";
 
 // pdf.js is heavy — only load the reader when it's actually opened
 const PdfView = lazy(() => import("./components/PdfView"));
@@ -157,6 +158,7 @@ export default function App() {
       <ContextMenu />
       <Picker />
       <ShortcutsModal />
+      <KeyManager />
       <Toaster />
     </div>
   );
