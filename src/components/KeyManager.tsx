@@ -12,13 +12,18 @@ export default function KeyManager() {
   const setKey = useChat((s) => s.setKey);
   const setProvider = useChat((s) => s.setProvider);
   const setModel = useChat((s) => s.setModel);
+  const fetchedModels = useChat((s) => s.fetchedModels);
+  const modelsLoading = useChat((s) => s.modelsLoading);
+  const modelsError = useChat((s) => s.modelsError);
+  const loadModels = useChat((s) => s.loadModels);
 
   useEffect(() => {
     if (!open) return;
+    loadModels(active); // pull the live model list for the active provider
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, setOpen]);
+  }, [open, active, setOpen, loadModels]);
 
   if (!open) return null;
 
@@ -83,18 +88,36 @@ export default function KeyManager() {
                     </a>
                   </div>
                 )}
-                {isActive && (
-                  <div className="km-model" onClick={(e) => e.stopPropagation()}>
-                    <label>Model</label>
-                    <select value={model} onChange={(e) => setModel(e.target.value)}>
-                      {p.models.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {isActive &&
+                  (() => {
+                    const live = fetchedModels[p.id];
+                    const base = live && live.length ? live : p.models;
+                    const opts = base.some((m) => m.id === model) ? base : [{ id: model, label: model }, ...base];
+                    const loading = modelsLoading[p.id];
+                    const err = modelsError[p.id];
+                    return (
+                      <div className="km-model" onClick={(e) => e.stopPropagation()}>
+                        <label>
+                          Model
+                          {loading ? " · loading…" : live && live.length ? ` · ${live.length} live` : ""}
+                        </label>
+                        <select value={model} onChange={(e) => setModel(e.target.value)}>
+                          {opts.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="km-refresh"
+                          title={err ? `Couldn't list models (${err}). Click to retry.` : "Refresh model list"}
+                          onClick={() => loadModels(p.id, true)}
+                        >
+                          ↻
+                        </button>
+                      </div>
+                    );
+                  })()}
               </div>
             );
           })}

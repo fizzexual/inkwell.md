@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useVault } from "../store/useVault";
 import { runVaultAgent, type ChatMsg, type AgentStep, type VaultAccess, type Proposal } from "./agent";
-import { PROVIDERS, getProvider } from "./providers";
+import { PROVIDERS, getProvider, fetchModels } from "./providers";
 
 const KEY = "inkwell.ai.v2";
 const OLD_KEY = "inkwell.ai.v1";
@@ -51,6 +51,11 @@ interface ChatState {
   proposals: Proposal[];
   applyProposal: (id: string) => void;
   rejectProposal: (id: string) => void;
+  /** live model lists fetched from each provider's /models endpoint (cache, not persisted). */
+  fetchedModels: Record<string, { id: string; label: string }[]>;
+  modelsLoading: Record<string, boolean>;
+  modelsError: Record<string, string>;
+  loadModels: (providerId: string, force?: boolean) => Promise<void>;
   setKey: (providerId: string, key: string) => void;
   setProvider: (id: string) => void;
   setModel: (m: string) => void;
@@ -84,6 +89,30 @@ export const useChat = create<ChatState>((set, get) => ({
   sessionTokens: 0,
   canWrite: saved.canWrite ?? false,
   proposals: [],
+  fetchedModels: {},
+  modelsLoading: {},
+  modelsError: {},
+
+  loadModels: async (providerId, force) => {
+    const provider = getProvider(providerId);
+    const key = (get().keys[providerId] || "").trim();
+    if (!key && !provider.keyless) return; // need a key (or local) to list models
+    if (!force && get().fetchedModels[providerId]) return; // cached
+    if (get().modelsLoading[providerId]) return;
+    set((s) => ({ modelsLoading: { ...s.modelsLoading, [providerId]: true }, modelsError: { ...s.modelsError, [providerId]: "" } }));
+    try {
+      const list = await fetchModels(provider, key);
+      set((s) => ({
+        fetchedModels: { ...s.fetchedModels, [providerId]: list },
+        modelsLoading: { ...s.modelsLoading, [providerId]: false },
+      }));
+    } catch (e) {
+      set((s) => ({
+        modelsLoading: { ...s.modelsLoading, [providerId]: false },
+        modelsError: { ...s.modelsError, [providerId]: e instanceof Error ? e.message : "failed" },
+      }));
+    }
+  },
 
   setCanWrite: (v) => {
     set({ canWrite: v });
@@ -103,6 +132,7 @@ export const useChat = create<ChatState>((set, get) => ({
   setKey: (providerId, key) => {
     set((s) => ({ keys: { ...s.keys, [providerId]: key }, error: null }));
     persist(get());
+    if (key.trim()) get().loadModels(providerId, true); // refetch the full list with the new key
   },
   setProvider: (id) => {
     const p = getProvider(id);
@@ -112,6 +142,7 @@ export const useChat = create<ChatState>((set, get) => ({
       error: null,
     }));
     persist(get());
+    get().loadModels(id); // pull the live list for this provider
   },
   setModel: (m) => {
     set({ model: m });

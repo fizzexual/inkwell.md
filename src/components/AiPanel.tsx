@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { marked } from "marked";
 import { useChat } from "../ai/useChat";
 import { useVault } from "../store/useVault";
@@ -51,8 +51,21 @@ export default function AiPanel() {
   const stop = useChat((s) => s.stop);
   const clear = useChat((s) => s.clear);
 
+  const fetched = useChat((s) => s.fetchedModels[providerId]);
+  const loadModels = useChat((s) => s.loadModels);
+
   const provider = getProvider(providerId);
   const hasKey = !!provider.keyless || !!(keys[providerId] || "").trim();
+
+  // show the provider's LIVE model list once loaded; fall back to the curated one
+  const modelOptions = useMemo(() => {
+    const base = fetched && fetched.length ? fetched : provider.models;
+    return base.some((m) => m.id === model) ? base : [{ id: model, label: model }, ...base];
+  }, [fetched, provider, model]);
+
+  useEffect(() => {
+    if (hasKey) loadModels(providerId);
+  }, [providerId, hasKey, loadModels]);
 
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -90,7 +103,7 @@ export default function AiPanel() {
         </div>
         <div className="ai-head-actions">
           <select className="ai-model" value={model} onChange={(e) => setModel(e.target.value)} title="Model">
-            {provider.models.map((m) => (
+            {modelOptions.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
               </option>

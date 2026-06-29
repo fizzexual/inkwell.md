@@ -260,3 +260,34 @@ export const PROVIDERS: Provider[] = [
 
 export const getProvider = (id: string): Provider =>
   PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0];
+
+interface RawModel {
+  id?: string;
+  name?: string;
+}
+
+/**
+ * Fetch the provider's COMPLETE live model list from its `/models` endpoint
+ * (OpenAI-compatible for most; Anthropic uses its own auth headers).
+ * Returns [] on failure so callers can fall back to the curated list.
+ */
+export async function fetchModels(p: Provider, apiKey: string): Promise<{ id: string; label: string }[]> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (p.kind === "anthropic") {
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  } else {
+    headers["authorization"] = `Bearer ${apiKey || "local"}`;
+    if (p.id === "openrouter") headers["HTTP-Referer"] = location.origin;
+  }
+  const res = await fetch(`${p.baseUrl}/models`, { headers });
+  if (!res.ok) throw new Error(`${p.label} models ${res.status}`);
+  const data = (await res.json()) as { data?: RawModel[]; models?: RawModel[] };
+  const raw = data.data ?? data.models ?? [];
+  const ids = raw
+    .map((m) => (m.id ?? m.name ?? "").replace(/^models\//, "")) // Gemini prefixes ids with "models/"
+    .filter(Boolean);
+  const uniq = [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+  return uniq.map((id) => ({ id, label: id }));
+}
