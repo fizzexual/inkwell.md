@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useVault } from "../store/useVault";
-import { Doc, Pencil, Copy, Graph, SplitView, Board, Pin, Palette, Trash } from "../icons";
+import { useChat } from "../ai/useChat";
+import { Doc, Pencil, Copy, Graph, SplitView, Board, Pin, Palette, Trash, Sparkles } from "../icons";
 import "./ContextMenu.css";
 
 interface Item {
@@ -105,6 +106,14 @@ export default function ContextMenu() {
       onClick: run(() => {
         select(note.id);
         setCenterView("graph");
+      }),
+    },
+    {
+      icon: <Sparkles size={15} />,
+      label: "Ask AI about this",
+      onClick: run(() => {
+        useVault.setState({ aiOpen: true });
+        useChat.getState().send(`Summarise the note "${note.title}" in a few concise bullet points, citing it.`);
       }),
     },
     {

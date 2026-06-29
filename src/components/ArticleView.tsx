@@ -6,7 +6,8 @@ import { useSmoothScroll } from "../useSmoothScroll";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
 import MarkdownEditor from "./MarkdownEditor";
 import PropertiesPanel from "./PropertiesPanel";
-import { Graph, Pencil, Doc } from "../icons";
+import { useChat } from "../ai/useChat";
+import { Graph, Pencil, Doc, Sparkles } from "../icons";
 import "./ArticleView.css";
 
 function wordCount(md: string): number {
@@ -150,6 +151,19 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
           <button className="seg-btn" onClick={() => setCenterView("graph")}>
             <Graph size={14} />
             <span>Map</span>
+          </button>
+          <button
+            className="seg-btn"
+            title="Ask the assistant about this note"
+            onClick={() => {
+              useVault.setState({ aiOpen: true });
+              useChat
+                .getState()
+                .send(`Summarise the note "${note.title}" in a few concise bullet points, citing it.`);
+            }}
+          >
+            <Sparkles size={14} />
+            <span>Ask AI</span>
           </button>
         </div>
       </header>
