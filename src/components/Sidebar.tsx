@@ -26,6 +26,7 @@ import {
   FolderPlus,
   Plus,
   Pencil,
+  OpenExternal,
   ChevronDown,
   ChevronRight,
   Folder,
@@ -171,6 +172,7 @@ export default function Sidebar() {
   const createNote = useVault((s) => s.createNote);
   const createNoteWith = useVault((s) => s.createNoteWith);
   const setAllFolders = useVault((s) => s.setAllFolders);
+  const setClipOpen = useVault((s) => s.setClipOpen);
   const anyExpanded = useVault((s) => s.expanded.size > 0);
   const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
@@ -237,6 +239,14 @@ export default function Sidebar() {
               <Import size={15} />
               <input type="file" accept="application/pdf" onChange={onImportPdf} hidden />
             </label>
+            <button
+              className="ghost-btn sm"
+              aria-label="Clip web page"
+              title="Clip a web page"
+              onClick={() => setClipOpen(true)}
+            >
+              <OpenExternal size={15} />
+            </button>
             <div className="tpl-wrap">
               <button
                 className="ghost-btn sm"

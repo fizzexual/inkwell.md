@@ -21,6 +21,7 @@ import KeyManager from "./components/KeyManager";
 const PdfView = lazy(() => import("./components/PdfView"));
 import CommandPalette from "./components/CommandPalette";
 import QuickCapture from "./components/QuickCapture";
+import WebClipper from "./components/WebClipper";
 import ContextMenu from "./components/ContextMenu";
 import Picker from "./components/Picker";
 import Toaster from "./components/Toaster";
@@ -189,6 +190,7 @@ export default function App() {
       </div>
       <CommandPalette />
       <QuickCapture />
+      <WebClipper />
       <ContextMenu />
       <Picker />
       <ShortcutsModal />

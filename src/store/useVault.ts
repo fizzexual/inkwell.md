@@ -272,6 +272,8 @@ interface VaultState extends Derived {
   setPaletteOpen: (v: boolean) => void;
   quickOpen: boolean;
   setQuickOpen: (v: boolean) => void;
+  clipOpen: boolean;
+  setClipOpen: (v: boolean) => void;
   shortcutsOpen: boolean;
   setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
@@ -461,6 +463,8 @@ export const useVault = create<VaultState>((set, get) => ({
   setPaletteOpen: (v) => set({ paletteOpen: v }),
   quickOpen: false,
   setQuickOpen: (v) => set({ quickOpen: v }),
+  clipOpen: false,
+  setClipOpen: (v) => set({ clipOpen: v }),
   shortcutsOpen: false,
   setShortcutsOpen: (v) => set({ shortcutsOpen: v }),
   searchQuery: "",
