@@ -89,28 +89,34 @@ const tools = [
   },
 ];
 
+/** Keyword-rank notes by title/body overlap with the query. Shared by the search tool and the RAG fallback. */
+function rankNotes(v: VaultAccess, query: string, k: number): Note[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  const words = q.split(/\s+/).filter((w) => w.length > 1);
+  return v.notes
+    .map((n) => {
+      const title = n.title.toLowerCase();
+      const body = (n.content ?? "").toLowerCase();
+      let score = title.includes(q) ? 4 : 0;
+      for (const w of words) {
+        if (title.includes(w)) score += 2;
+        if (body.includes(w)) score += 1;
+      }
+      return { n, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k)
+    .map((x) => x.n);
+}
+
 function runTool(name: string, input: Record<string, unknown>, v: VaultAccess): string {
   if (name === "search_vault") {
-    const q = String(input.query ?? "").toLowerCase().trim();
-    if (!q) return "Empty query.";
-    const words = q.split(/\s+/);
-    const scored = v.notes
-      .map((n) => {
-        const title = n.title.toLowerCase();
-        const body = (n.content ?? "").toLowerCase();
-        let score = title.includes(q) ? 4 : 0;
-        for (const w of words) {
-          if (title.includes(w)) score += 2;
-          if (body.includes(w)) score += 1;
-        }
-        return { n, score };
-      })
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 6);
-    if (!scored.length) return "No matching notes.";
-    return scored
-      .map(({ n }) => `- ${n.title} [${n.folder || "/"}] — ${stripBody(n.content ?? "").slice(0, 160)}`)
+    const hits = rankNotes(v, String(input.query ?? ""), 6);
+    if (!hits.length) return "No matching notes.";
+    return hits
+      .map((n) => `- ${n.title} [${n.folder || "/"}] — ${stripBody(n.content ?? "").slice(0, 160)}`)
       .join("\n");
   }
 
@@ -286,6 +292,41 @@ interface OAIMessage {
   tool_calls?: OAIToolCall[];
 }
 
+/**
+ * No-tools fallback for models that can't reliably agentic-tool-call (e.g. small Llama on Groq):
+ * rank notes locally for the question, stuff the top few in the prompt, ask once. Classic RAG.
+ */
+async function answerWithContext(o: LoopOpts, headers: Record<string, string>): Promise<string> {
+  const question = [...o.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const hits = rankNotes(o.vault, question, 5);
+  if (hits.length) o.onStep({ kind: "read", detail: hits.map((n) => n.title).join(", ") });
+  const context = hits.length
+    ? hits.map((n) => `### ${n.title} [${n.folder || "/"}]\n${(n.content ?? "").slice(0, 2000)}`).join("\n\n---\n\n")
+    : "(no clearly relevant notes found)";
+  const sys = `You are the research assistant inside Inkwell, a personal knowledge vault. Answer the user's question using ONLY the notes below. Cite each note you use as a [[Note Title]] wikilink. If the notes don't contain the answer, say so plainly.\n\nNOTES:\n${context}`;
+  const res = await postWithRetry(
+    `${o.provider.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: o.model,
+        messages: [{ role: "system", content: sys }, ...o.messages.map((m) => ({ role: m.role, content: m.content }))],
+        max_tokens: 1024,
+      }),
+      signal: o.signal,
+    },
+    o.provider,
+    o.onStep,
+    o.signal,
+  );
+  if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
+  const data: { choices: { message: OAIMessage }[] } = await res.json();
+  return (data.choices?.[0]?.message?.content || "").trim() || "(no answer)";
+}
+
+const FN_FAIL = /failed.*function|tool[_ ]?use[_ ]?failed|failed_generation|function.*call/i;
+
 /** OpenAI-compatible Chat Completions loop — covers Groq, OpenRouter, OpenAI, etc. */
 async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
   const oaiTools = tools.map((t) => ({
@@ -318,7 +359,14 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<string> {
       o.onStep,
       o.signal,
     );
-    if (!res.ok) throw new Error(`${o.provider.label} ${res.status}: ${await readError(res)}`);
+    if (!res.ok) {
+      const detail = await readError(res);
+      // some models (small Llama on Groq) fail to emit a valid tool call — fall back to plain RAG
+      if (res.status === 400 && FN_FAIL.test(detail)) {
+        return answerWithContext(o, headers);
+      }
+      throw new Error(`${o.provider.label} ${res.status}: ${detail}`);
+    }
     const data: { choices: { message: OAIMessage }[] } = await res.json();
     const msg = data.choices?.[0]?.message;
     if (!msg) throw new Error(`${o.provider.label}: empty response`);
