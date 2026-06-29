@@ -44,6 +44,7 @@ interface ChatState {
   error: string | null;
   controller: AbortController | null;
   keyManagerOpen: boolean;
+  sessionTokens: number;
   setKey: (providerId: string, key: string) => void;
   setProvider: (id: string) => void;
   setModel: (m: string) => void;
@@ -71,6 +72,7 @@ export const useChat = create<ChatState>((set, get) => ({
   error: null,
   controller: null,
   keyManagerOpen: false,
+  sessionTokens: 0,
 
   setKey: (providerId, key) => {
     set((s) => ({ keys: { ...s.keys, [providerId]: key }, error: null }));
@@ -134,6 +136,7 @@ export const useChat = create<ChatState>((set, get) => ({
             meta: { ms: Math.round(performance.now() - startedAt), tokens: result.tokens },
           },
         ],
+        sessionTokens: p.sessionTokens + result.tokens,
         status: "idle",
         controller: null,
       }));
@@ -154,7 +157,7 @@ export const useChat = create<ChatState>((set, get) => ({
 
   clear: () => {
     get().controller?.abort();
-    set({ messages: [], steps: [], error: null, status: "idle", controller: null });
+    set({ messages: [], steps: [], error: null, status: "idle", controller: null, sessionTokens: 0 });
     persist(get());
   },
 }));

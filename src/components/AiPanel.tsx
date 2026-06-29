@@ -38,6 +38,7 @@ export default function AiPanel() {
   const messages = useChat((s) => s.messages);
   const steps = useChat((s) => s.steps);
   const status = useChat((s) => s.status);
+  const sessionTokens = useChat((s) => s.sessionTokens);
   const error = useChat((s) => s.error);
   const setModel = useChat((s) => s.setModel);
   const setKeyManagerOpen = useChat((s) => s.setKeyManagerOpen);
@@ -76,6 +77,11 @@ export default function AiPanel() {
         <div className="ai-title">
           <Sparkles size={15} />
           <span>Assistant</span>
+          {sessionTokens > 0 && (
+            <span className="ai-session" title="Tokens used this chat">
+              {sessionTokens >= 1000 ? `${(sessionTokens / 1000).toFixed(1)}k` : sessionTokens} tok
+            </span>
+          )}
         </div>
         <div className="ai-head-actions">
           <select className="ai-model" value={model} onChange={(e) => setModel(e.target.value)} title="Model">

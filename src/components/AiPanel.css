@@ -38,6 +38,14 @@
 .ai-title svg {
   color: var(--accent);
 }
+.ai-session {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--tx-muted);
+  background: var(--bg-hover);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
 .ai-head-actions {
   display: flex;
   align-items: center;

@@ -40,12 +40,14 @@ const stripBody = (md: string) =>
 
 /** Compact index of the whole vault: title, folder, tags and the link graph (→). Cheap to send. */
 function buildMap(v: VaultAccess): string {
+  // kept deliberately lean — this is re-sent on every loop call, so cap tags/links per note
   return v.notes
     .map((n) => {
-      const tags = parseTags(n.content ?? "");
+      const tags = parseTags(n.content ?? "").slice(0, 3);
       const links = v.linksOf(n.id).map((l) => l.title);
       const t = tags.length ? " " + tags.map((x) => "#" + x).join(" ") : "";
-      const l = links.length ? " → " + links.join(", ") : "";
+      const shown = links.slice(0, 6);
+      const l = links.length ? ` → ${shown.join(", ")}${links.length > 6 ? ` +${links.length - 6}` : ""}` : "";
       return `- ${n.title} [${n.folder || "/"}]${t}${l}`;
     })
     .join("\n");
@@ -247,8 +249,10 @@ interface LoopOpts {
 /** Anthropic Messages API loop (tool_use / tool_result blocks). */
 async function loopAnthropic(o: LoopOpts, system: string): Promise<AgentResult> {
   const api: unknown[] = o.messages.map((m) => ({ role: m.role, content: m.content }));
+  // cache the big static system prompt (vault map) so re-sends across the loop & turns bill at ~10%
+  const systemBlocks = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
   let tokens = 0;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 6; i++) {
     const res = await postWithRetry(
       `${o.provider.baseUrl}/messages`,
       {
@@ -259,7 +263,7 @@ async function loopAnthropic(o: LoopOpts, system: string): Promise<AgentResult> 
           "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true",
         },
-        body: JSON.stringify({ model: o.model, max_tokens: 1024, system, tools, messages: api }),
+        body: JSON.stringify({ model: o.model, max_tokens: 1024, system: systemBlocks, tools, messages: api }),
         signal: o.signal,
       },
       o.provider,
@@ -345,6 +349,8 @@ async function answerWithContext(o: LoopOpts, headers: Record<string, string>, p
 }
 
 const FN_FAIL = /failed.*function|tool[_ ]?use[_ ]?failed|failed_generation|function.*call/i;
+// small/cheap models: skip the multi-call tool loop, do one-shot RAG (far fewer tokens, no tool-call flakiness)
+const LEAN_MODEL = /(\b\d+b\b|mini|flash-lite|instant|haiku|gemma|1\.5-flash)/i;
 
 /** OpenAI-compatible Chat Completions loop — covers Groq, OpenRouter, OpenAI, etc. */
 async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
@@ -365,8 +371,11 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
     headers["X-Title"] = "Inkwell";
   }
 
+  // lean models answer in one shot from locally-retrieved context — cheapest path
+  if (LEAN_MODEL.test(o.model)) return answerWithContext(o, headers, 0);
+
   let tokens = 0;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 6; i++) {
     const res = await postWithRetry(
       `${o.provider.baseUrl}/chat/completions`,
       {
