@@ -21,6 +21,7 @@ export default function ContextMenu() {
   const openInTab = useVault((s) => s.openInTab);
   const splitWith = useVault((s) => s.splitWith);
   const addToCanvas = useVault((s) => s.addToCanvas);
+  const duplicateNote = useVault((s) => s.duplicateNote);
   const deleteNote = useVault((s) => s.deleteNote);
   const togglePin = useVault((s) => s.togglePin);
   const pinned = useVault((s) => s.pinned);
@@ -69,6 +70,33 @@ export default function ContextMenu() {
       onClick: run(() => {
         navigator.clipboard?.writeText(`[[${note.title}]]`);
         toast("Copied link to clipboard");
+      }),
+    },
+    {
+      icon: <Copy size={15} />,
+      label: "Copy as Markdown",
+      onClick: run(() => {
+        navigator.clipboard?.writeText(note.content ?? "");
+        toast("Copied Markdown to clipboard");
+      }),
+    },
+    {
+      icon: <Doc size={15} />,
+      label: "Duplicate",
+      onClick: run(() => duplicateNote(note.id)),
+    },
+    {
+      icon: <Doc size={15} />,
+      label: "Export as .md",
+      onClick: run(() => {
+        const blob = new Blob([note.content ?? ""], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${note.title}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast(`Exported “${note.title}.md”`);
       }),
     },
     {

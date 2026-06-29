@@ -282,6 +282,7 @@ interface VaultState extends Derived {
   redo: () => void;
   createNote: (folder?: string) => void;
   createNoteWith: (title: string, content: string, folder?: string) => void;
+  duplicateNote: (id: string) => void;
   pdf: PdfDoc | null;
   openPdf: (name: string, data: ArrayBuffer) => void;
   openDailyNote: (dateStr: string) => void;
@@ -609,6 +610,20 @@ export const useVault = create<VaultState>((set, get) => ({
         ...pushHist(s),
       };
     }),
+  duplicateNote: (id) => {
+    const s = get();
+    const note = s.notes.find((n) => n.id === id);
+    if (!note) return;
+    const titles = new Set(s.notes.map((n) => n.title));
+    let title = `${note.title} copy`;
+    for (let i = 2; titles.has(title); i++) title = `${note.title} copy ${i}`;
+    const body = note.content ?? `# ${note.title}\n\n`;
+    const content = /^#\s+.*$/m.test(body)
+      ? body.replace(/^#\s+.*$/m, `# ${title}`)
+      : `# ${title}\n\n${body}`;
+    s.createNoteWith(title, content, note.folder);
+    s.toast(`Duplicated as “${title}”`);
+  },
   pdf: null,
   openPdf: (name, data) => set({ pdf: { name, data }, centerView: "pdf" }),
   openDailyNote: (dateStr) => {
