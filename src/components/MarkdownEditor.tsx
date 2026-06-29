@@ -1,8 +1,9 @@
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Note } from "../data/vault";
 import { detectWikiTrigger } from "../autocomplete";
 import { getCaretCoordinates } from "../caret";
 import { fuzzyMatch } from "../fuzzy";
+import { parseTags } from "../markdown";
 import { Bold, Italic, Heading, ListIcon, Quote, Code, Link } from "../icons";
 import "./MarkdownEditor.css";
 
@@ -36,7 +37,8 @@ const SLASH_COMMANDS: SlashCmd[] = [
 
 type Popup =
   | { kind: "link"; from: number; to: number; items: { id: string; title: string }[]; index: number; top: number; left: number }
-  | { kind: "slash"; from: number; to: number; items: SlashCmd[]; index: number; top: number; left: number };
+  | { kind: "slash"; from: number; to: number; items: SlashCmd[]; index: number; top: number; left: number }
+  | { kind: "tag"; from: number; to: number; items: string[]; index: number; top: number; left: number };
 
 function detectSlash(value: string, caret: number): { query: string; from: number } | null {
   const m = value.slice(0, caret).match(/(?:^|\s)\/([a-zA-Z]*)$/);
@@ -44,9 +46,23 @@ function detectSlash(value: string, caret: number): { query: string; from: numbe
   return { query: m[1], from: caret - m[1].length - 1 };
 }
 
+function detectTag(value: string, caret: number): { query: string; from: number } | null {
+  const m = value.slice(0, caret).match(/(?:^|\s)#([\w/-]*)$/);
+  if (!m) return null;
+  return { query: m[1], from: caret - m[1].length - 1 };
+}
+
+const PAIRS: Record<string, string> = { "(": ")", "[": "]", "{": "}", '"': '"', "`": "`" };
+const CLOSERS = new Set(Object.values(PAIRS));
+
 export default function MarkdownEditor({ value, onChange, notes, selfId }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [popup, setPopup] = useState<Popup | null>(null);
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    for (const n of notes) for (const t of parseTags(n.content ?? "")) s.add(t);
+    return [...s].sort();
+  }, [notes]);
 
   const apply = (from: number, to: number, text: string, caret: number) => {
     const ta = ref.current;
@@ -110,6 +126,15 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
       }
     }
 
+    const tag = detectTag(ta.value, caret);
+    if (tag) {
+      const q = tag.query.toLowerCase();
+      const items = allTags.filter((t) => t.toLowerCase().includes(q)).slice(0, 8);
+      if (items.length && !(items.length === 1 && items[0].toLowerCase() === q)) {
+        return setPopup({ kind: "tag", from: tag.from, to: caret, items, index: 0, ...coordsAt(tag.from) });
+      }
+    }
+
     setPopup(null);
   };
 
@@ -117,28 +142,65 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     if (p.kind === "link") {
       const title = p.items[i].title;
       apply(p.from, p.to, `[[${title}]]`, title.length + 4);
+    } else if (p.kind === "tag") {
+      const tag = p.items[i];
+      apply(p.from, p.to, `#${tag} `, tag.length + 2);
     } else {
       const cmd = p.items[i];
       apply(p.from, p.to, cmd.insert, cmd.caret);
     }
   };
 
+  const autoPair = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const ta = ref.current;
+    if (!ta) return;
+    const { selectionStart: a, selectionEnd: b, value } = ta;
+    const close = PAIRS[e.key];
+    if (close) {
+      e.preventDefault();
+      if (a !== b) {
+        const sel = value.slice(a, b);
+        onChange(value.slice(0, a) + e.key + sel + close + value.slice(b));
+        requestAnimationFrame(() => {
+          ta.focus();
+          ta.setSelectionRange(a + 1, a + 1 + sel.length);
+        });
+      } else {
+        apply(a, b, e.key + close, 1);
+      }
+    } else if (CLOSERS.has(e.key) && value[a] === e.key && a === b) {
+      // type over an auto-inserted closer
+      e.preventDefault();
+      requestAnimationFrame(() => ta.setSelectionRange(a + 1, a + 1));
+    }
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!popup) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setPopup({ ...popup, index: Math.min(popup.index + 1, popup.items.length - 1) });
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setPopup({ ...popup, index: Math.max(popup.index - 1, 0) });
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      accept(popup, popup.index);
-    } else if (e.key === "Escape") {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && (e.key === "b" || e.key === "i")) {
       e.preventDefault();
       e.stopPropagation();
-      setPopup(null);
+      surround(e.key === "b" ? "**" : "_");
+      return;
     }
+    if (popup) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPopup({ ...popup, index: Math.min(popup.index + 1, popup.items.length - 1) });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPopup({ ...popup, index: Math.max(popup.index - 1, 0) });
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        accept(popup, popup.index);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setPopup(null);
+      }
+      return;
+    }
+    if (!mod && !e.altKey) autoPair(e);
   };
 
   return (
@@ -166,7 +228,7 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
         <button title="Wiki link" onClick={() => surround("[[", "]]", "Note Title")}>
           <Link size={15} />
         </button>
-        <span className="tb-hint">type / for commands · [[ to link</span>
+        <span className="tb-hint">/ commands · [[ link · # tag · ⌘B/⌘I</span>
       </div>
 
       <div className="md-editor-scroll">
@@ -193,29 +255,41 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
           style={{ top: popup.top, left: popup.left }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          {popup.kind === "link"
-            ? popup.items.map((it, i) => (
-                <button
-                  key={it.id}
-                  className={"ac-item" + (i === popup.index ? " active" : "")}
-                  onMouseEnter={() => setPopup({ ...popup, index: i })}
-                  onClick={() => accept(popup, i)}
-                >
-                  <Link size={13} />
-                  <span>{it.title}</span>
-                </button>
-              ))
-            : popup.items.map((it, i) => (
-                <button
-                  key={it.label}
-                  className={"ac-item" + (i === popup.index ? " active" : "")}
-                  onMouseEnter={() => setPopup({ ...popup, index: i })}
-                  onClick={() => accept(popup, i)}
-                >
-                  <span>{it.label}</span>
-                  <span className="ac-hint">{it.hint}</span>
-                </button>
-              ))}
+          {popup.kind === "link" &&
+            popup.items.map((it, i) => (
+              <button
+                key={it.id}
+                className={"ac-item" + (i === popup.index ? " active" : "")}
+                onMouseEnter={() => setPopup({ ...popup, index: i })}
+                onClick={() => accept(popup, i)}
+              >
+                <Link size={13} />
+                <span>{it.title}</span>
+              </button>
+            ))}
+          {popup.kind === "slash" &&
+            popup.items.map((it, i) => (
+              <button
+                key={it.label}
+                className={"ac-item" + (i === popup.index ? " active" : "")}
+                onMouseEnter={() => setPopup({ ...popup, index: i })}
+                onClick={() => accept(popup, i)}
+              >
+                <span>{it.label}</span>
+                <span className="ac-hint">{it.hint}</span>
+              </button>
+            ))}
+          {popup.kind === "tag" &&
+            popup.items.map((it, i) => (
+              <button
+                key={it}
+                className={"ac-item" + (i === popup.index ? " active" : "")}
+                onMouseEnter={() => setPopup({ ...popup, index: i })}
+                onClick={() => accept(popup, i)}
+              >
+                <span className="ac-tag">#{it}</span>
+              </button>
+            ))}
         </div>
       )}
     </div>

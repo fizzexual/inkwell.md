@@ -112,3 +112,7 @@
   color: var(--tx-muted);
   flex-shrink: 0;
 }
+.ac-tag {
+  color: var(--accent);
+  font-weight: 500;
+}
