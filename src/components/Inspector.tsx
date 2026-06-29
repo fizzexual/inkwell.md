@@ -1,9 +1,12 @@
+import { useMemo } from "react";
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
 import { parseTags, parseHeadings, parseCitations } from "../markdown";
 import { toBibtex, aliasesOf } from "../data/derive";
-import { ArrowRight, OpenExternal, Copy } from "../icons";
+import { ArrowRight, OpenExternal, Copy, Link } from "../icons";
 import "./Inspector.css";
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function kindLabel(n: Note) {
   return n.kind === "source" ? "Source" : "Article";
@@ -28,18 +31,38 @@ function LinkRow({ note, index }: { note: Note; index: number }) {
 
 export default function Inspector() {
   const selectedId = useVault((s) => s.selectedId);
+  const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const linksOf = useVault((s) => s.linksOf);
   const backlinksOf = useVault((s) => s.backlinksOf);
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
+  const updateContent = useVault((s) => s.updateContent);
   const scrollToHeading = useVault((s) => s.scrollToHeading);
   const citeMap = useVault((s) => s.citeMap);
   const toast = useVault((s) => s.toast);
 
   const width = useVault((s) => s.inspectorWidth);
   const note = notesById.get(selectedId);
+
+  // unlinked mentions: other note titles that appear as plain text but aren't linked yet
+  const mentions = useMemo(() => {
+    if (!note) return [];
+    const stripped = (note.content ?? "").replace(/\[\[[^\]]+\]\]/g, "");
+    return notes
+      .filter((n) => n.id !== note.id && n.title.length >= 4)
+      .filter((n) => new RegExp(`(^|[^\\w[])${escapeRe(n.title)}(?![\\w\\]])`, "i").test(stripped))
+      .slice(0, 8);
+  }, [note, notes]);
+
   if (!note) return <aside className="inspector" style={{ width, minWidth: width }} />;
+
+  const linkMention = (title: string) => {
+    const re = new RegExp(`(^|[^\\w[])(${escapeRe(title)})(?![\\w\\]])`, "i");
+    const next = (note.content ?? "").replace(re, (_m, pre: string) => `${pre}[[${title}]]`);
+    updateContent(note.id, next);
+    toast(`Linked “${title}”`);
+  };
 
   const links = linksOf(note.id);
   const backlinks = backlinksOf(note.id);
@@ -155,6 +178,34 @@ export default function Inspector() {
             )}
           </div>
         </section>
+
+        {mentions.length > 0 && (
+          <section className="link-section">
+            <div className="section-label spread">
+              <span>Unlinked mentions ({mentions.length})</span>
+              <button
+                className="mini-btn"
+                title="Link all mentions"
+                onClick={() => mentions.forEach((m) => linkMention(m.title))}
+              >
+                <Link size={13} />
+                Link all
+              </button>
+            </div>
+            <div className="link-list">
+              {mentions.map((m) => (
+                <div key={m.id} className="mention-row">
+                  <button className="mention-open" onClick={() => openArticle(m.id)} title={m.title}>
+                    {m.title}
+                  </button>
+                  <button className="mention-link" onClick={() => linkMention(m.title)} title="Insert [[link]]">
+                    <Link size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </aside>
   );
