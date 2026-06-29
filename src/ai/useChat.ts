@@ -196,8 +196,3 @@ export const useChat = create<ChatState>((set, get) => ({
     persist(get());
   },
 }));
-
-// dev-only handle for debugging / preview verification
-if (import.meta.env.DEV) {
-  (window as unknown as { inkwellChat?: typeof useChat }).inkwellChat = useChat;
-}
