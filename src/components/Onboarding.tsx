@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useVault } from "../store/useVault";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import "./Onboarding.css";
 
 type Placement = "bottom" | "right" | "left" | "top" | "center";
@@ -18,7 +18,7 @@ const STEPS: Step[] = [
   {
     placement: "center",
     title: "Welcome to Inkwell",
-    body: "A quick 30-second tour. Tap the arrow to move through it — or skip any time.",
+    body: "A quick tour of the essentials — it takes about 30 seconds. Tap the arrow to begin.",
   },
   {
     selector: ".view-tabs",
@@ -36,7 +36,7 @@ const STEPS: Step[] = [
     placement: "center",
     accent: true,
     eyebrow: "Tip",
-    body: "Press Ctrl/Cmd+P anytime to jump to any note instantly, and Ctrl/Cmd+Shift+K to capture a quick thought.",
+    body: "Press Ctrl/Cmd+P to jump to any note instantly, and Ctrl/Cmd+Shift+K to capture a quick thought from anywhere.",
   },
   {
     selector: '[aria-label="Toggle assistant"]',
@@ -47,7 +47,7 @@ const STEPS: Step[] = [
   {
     placement: "center",
     title: "You're all set",
-    body: "Everything lives on your machine. Explore the handbook to learn any feature by using it.",
+    body: "Everything lives on your machine. Explore the handbook to learn any feature simply by using it.",
   },
 ];
 
@@ -114,17 +114,14 @@ export default function Onboarding() {
     tip = { left: clamp(rect.left + rect.width / 2 - TIP_W / 2, 12, vw - TIP_W - 12), top: rect.top - PAD - 170 };
     pointer = { bottom: -6, left: clamp(rect.left + rect.width / 2 - tip.left, 16, TIP_W - 16) };
   } else {
-    // bottom
-    tip = {
-      left: clamp(rect.left + rect.width / 2 - TIP_W / 2, 12, vw - TIP_W - 12),
-      top: rect.bottom + PAD + 14,
-    };
+    tip = { left: clamp(rect.left + rect.width / 2 - TIP_W / 2, 12, vw - TIP_W - 12), top: rect.bottom + PAD + 14 };
     pointer = { top: -6, left: clamp(rect.left + rect.width / 2 - tip.left, 16, TIP_W - 16) };
   }
 
   return (
     <div className="tour">
-      <button className="tour-catch" aria-label="tour overlay" onClick={() => {}} />
+      {/* click-catcher so the app underneath isn't interactable during the required tour */}
+      <div className="tour-catch" />
       {rect ? (
         <div
           className="tour-spot"
@@ -134,32 +131,36 @@ export default function Onboarding() {
             width: rect.width + PAD * 2,
             height: rect.height + PAD * 2,
           }}
-        />
+        >
+          <span className="tour-pulse" />
+        </div>
       ) : (
         <div className="tour-dim" />
       )}
 
-      <div className={"tour-tip" + (step.accent ? " accent" : "")} style={{ left: tip.left, top: tip.top, width: TIP_W }}>
+      <div
+        className={"tour-tip" + (step.accent ? " accent" : "")}
+        style={{ left: tip.left, top: tip.top, width: TIP_W }}
+      >
         {pointer && <span className={"tour-arrow " + placement} style={pointer} />}
-        <button className="tour-skip" onClick={() => setOnboarding(false)}>
-          Skip
-        </button>
-        {step.eyebrow && <div className="tour-eyebrow">{step.eyebrow}</div>}
-        {step.title && <div className="tour-h">{step.title}</div>}
-        <p className="tour-body">{step.body}</p>
+        <div className="tour-content" key={i}>
+          {step.eyebrow && <div className="tour-eyebrow">{step.eyebrow}</div>}
+          {step.title && <div className="tour-h">{step.title}</div>}
+          <p className="tour-body">{step.body}</p>
+        </div>
         <div className="tour-foot">
           <div className="tour-dots">
             {STEPS.map((_, k) => (
               <button
                 key={k}
-                className={"tour-dot" + (k === i ? " on" : "")}
+                className={"tour-dot" + (k === i ? " on" : k < i ? " done" : "")}
                 aria-label={`Step ${k + 1}`}
                 onClick={() => setI(k)}
               />
             ))}
           </div>
           <button className="tour-next" onClick={next} aria-label={last ? "Finish" : "Next"}>
-            <ArrowRight size={16} strokeWidth={2.4} />
+            {last ? <Check size={16} strokeWidth={2.6} /> : <ArrowRight size={16} strokeWidth={2.4} />}
           </button>
         </div>
       </div>

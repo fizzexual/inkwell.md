@@ -2,14 +2,14 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  animation: tour-fade 0.2s ease;
+  animation: tour-fade 0.28s ease;
 }
 @keyframes tour-fade {
   from {
     opacity: 0;
   }
 }
-/* transparent click-catcher so the app underneath isn't interactable during the tour */
+/* transparent click-catcher so the app underneath isn't interactable during the required tour */
 .tour-catch {
   position: absolute;
   inset: 0;
@@ -20,18 +20,39 @@
 .tour-dim {
   position: absolute;
   inset: 0;
-  background: rgba(18, 18, 26, 0.62);
-  backdrop-filter: blur(1px);
+  background: rgba(18, 18, 26, 0.64);
+  backdrop-filter: blur(1.5px);
+  animation: tour-fade 0.3s ease;
 }
-/* spotlight ring around the highlighted element; the huge box-shadow dims everything else */
+/* spotlight: the huge box-shadow dims everything else; glides smoothly between targets */
 .tour-spot {
   position: fixed;
   border-radius: 12px;
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent),
-    0 0 0 9999px rgba(18, 18, 26, 0.62);
+    0 0 0 2px color-mix(in srgb, var(--accent) 75%, transparent),
+    0 0 0 9999px rgba(18, 18, 26, 0.64);
   pointer-events: none;
-  transition: all 0.25s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1));
+  transition:
+    left 0.42s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    top 0.42s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    width 0.42s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    height 0.42s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+/* attention pulse emanating from the highlighted element */
+.tour-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  animation: tour-pulse 1.9s ease-out infinite;
+}
+@keyframes tour-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 16px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
 }
 
 /* ---- tooltip card ---- */
@@ -42,13 +63,18 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 16px 18px 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  animation: tour-pop 0.24s var(--ease-out, ease);
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.5);
+  /* glide to the next position between steps */
+  transition:
+    left 0.4s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    top 0.4s var(--ease-out, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    width 0.3s var(--ease-out, ease);
+  animation: tour-pop 0.34s var(--ease-out, ease);
 }
 @keyframes tour-pop {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.985);
+    transform: translateY(8px) scale(0.97);
   }
 }
 .tour-tip.accent {
@@ -83,19 +109,15 @@
   border-left: none;
 }
 
-.tour-skip {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
-  padding: 2px 4px;
+/* content cross-fades when the step changes (keyed) */
+.tour-content {
+  animation: tour-content-in 0.4s var(--ease-out, ease);
 }
-.tour-tip.accent .tour-skip {
-  color: rgba(0, 0, 0, 0.45);
-}
-.tour-skip:hover {
-  color: currentColor;
+@keyframes tour-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 .tour-eyebrow {
   font-size: 10.5px;
@@ -110,7 +132,6 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-bottom: 5px;
-  padding-right: 34px;
 }
 .tour-body {
   font-size: 13px;
@@ -133,34 +154,86 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
-  transition: width 0.2s var(--ease), background 0.2s var(--ease);
+  background: rgba(255, 255, 255, 0.26);
+  transition: width 0.3s var(--ease-out, ease), background 0.3s var(--ease);
+}
+.tour-dot.done {
+  background: rgba(255, 255, 255, 0.55);
 }
 .tour-dot.on {
-  width: 18px;
+  width: 20px;
   border-radius: 3px;
   background: #fff;
 }
 .tour-tip.accent .tour-dot {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.22);
+}
+.tour-tip.accent .tour-dot.done {
+  background: rgba(0, 0, 0, 0.45);
 }
 .tour-tip.accent .tour-dot.on {
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.78);
 }
+
 .tour-next {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #fff;
   color: #1a1a1a;
-  transition: transform 0.15s var(--ease), background 0.15s var(--ease);
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.16s var(--ease), box-shadow 0.3s var(--ease);
+  animation: tour-glow 2s ease-in-out infinite;
 }
 .tour-next:hover {
-  transform: translateX(1px);
+  transform: scale(1.06);
+}
+.tour-next svg {
+  animation: tour-nudge 1.5s ease-in-out infinite;
 }
 .tour-tip.accent .tour-next {
   background: #1a1a1a;
   color: #fff;
+  animation: tour-glow-dark 2s ease-in-out infinite;
+}
+@keyframes tour-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+}
+@keyframes tour-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+  }
+}
+@keyframes tour-glow-dark {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(20, 20, 20, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(20, 20, 20, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-pulse,
+  .tour-next,
+  .tour-next svg {
+    animation: none !important;
+  }
+  .tour-spot,
+  .tour-tip {
+    transition: none;
+  }
 }
