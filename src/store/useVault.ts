@@ -293,6 +293,8 @@ interface VaultState extends Derived {
   importOpen: boolean;
   setImportOpen: (v: boolean) => void;
   importNotes: (items: { title: string; content: string; folder?: string; kind?: Note["kind"] }[]) => number;
+  historyOpen: boolean;
+  setHistoryOpen: (v: boolean) => void;
   shortcutsOpen: boolean;
   setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
@@ -520,6 +522,8 @@ export const useVault = create<VaultState>((set, get) => ({
   setClipOpen: (v) => set({ clipOpen: v }),
   importOpen: false,
   setImportOpen: (v) => set({ importOpen: v }),
+  historyOpen: false,
+  setHistoryOpen: (v) => set({ historyOpen: v }),
   importNotes: (items) => {
     if (!items.length) return 0;
     set((s) => {

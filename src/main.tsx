@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { startDiskSync, autoloadVault } from "./vault/sync";
+import { startHistory } from "./useHistory";
 import "@fontsource/inter/300.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
@@ -14,6 +15,8 @@ import "./styles/global.css";
 // on-disk vaults (desktop only; both no-op in the browser)
 startDiskSync();
 autoloadVault();
+// per-note version history (auto-snapshots as you edit)
+startHistory();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

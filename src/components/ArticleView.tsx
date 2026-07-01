@@ -7,6 +7,7 @@ import { renderMarkdown, parseFrontmatter } from "../markdown";
 import MarkdownEditor from "./MarkdownEditor";
 import PropertiesPanel from "./PropertiesPanel";
 import { useChat } from "../ai/useChat";
+import { History } from "lucide-react";
 import { Graph, Pencil, Doc, Sparkles } from "../icons";
 import "./ArticleView.css";
 
@@ -202,6 +203,13 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
           >
             <Sparkles size={14} />
             <span>Ask AI</span>
+          </button>
+          <button
+            className="seg-btn"
+            title="Version history"
+            onClick={() => useVault.setState({ historyOpen: true })}
+          >
+            <History size={14} />
           </button>
         </div>
       </header>
