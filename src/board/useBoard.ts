@@ -55,12 +55,18 @@ interface BoardState {
   clear: () => void;
 }
 
+// Debounced: dragging / erasing / panning fires this on every pointermove, so coalesce the
+// (potentially large) full-board serialization into one write ~350ms after activity settles.
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
 function persist(s: BoardState) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ camera: s.camera, strokes: s.strokes, notes: s.notes }));
-  } catch {
-    /* ignore */
-  }
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ camera: s.camera, strokes: s.strokes, notes: s.notes }));
+    } catch {
+      /* ignore */
+    }
+  }, 350);
 }
 
 export const useBoard = create<BoardState>((set, get) => ({

@@ -127,5 +127,10 @@ export const vault: VaultData = {
     n("ex-flashcards", "Example — Flashcard Deck", EXAMPLES, ["flashcards"]),
     n("ex-daily", "Example — A Daily Note", EXAMPLES, ["daily-notes"]),
     n("ex-decision", "Example — Decision Log", EXAMPLES, ["properties"]),
+    n("ex-project", "Example — Project Plan", EXAMPLES, ["kanban", "tasks", "ex-diagrams"]),
+    n("ex-course", "Example — Course Notes", EXAMPLES, ["ex-flashcards", "math-in-notes"]),
+    n("ex-budget", "Example — Monthly Budget", EXAMPLES, ["math-engine", "table-view"]),
+    n("ex-crm", "Example — Contacts & CRM", EXAMPLES, ["table-view", "properties"]),
+    n("ex-habits", "Example — Habit Tracker", EXAMPLES, ["tasks", "daily-notes"]),
   ],
 };

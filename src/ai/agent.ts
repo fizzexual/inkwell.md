@@ -270,10 +270,11 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 /** How long to wait before retrying a 429 — from the retry-after header or the "try again in Ns" message. */
 async function retryDelayMs(res: Response): Promise<number> {
   const h = res.headers.get("retry-after");
-  if (h && !Number.isNaN(Number(h))) return Math.min(Number(h) * 1000 + 300, 65000);
+  // return the true wait (uncapped) so postWithRetry can bail on very long limits instead of clamping+retrying
+  if (h && !Number.isNaN(Number(h))) return Number(h) * 1000 + 300;
   try {
     const m = (await res.clone().text()).match(/try again in ([\d.]+)\s*s/i);
-    if (m) return Math.min(parseFloat(m[1]) * 1000 + 300, 65000);
+    if (m) return parseFloat(m[1]) * 1000 + 300;
   } catch {
     /* ignore */
   }
@@ -420,8 +421,9 @@ async function answerWithContext(o: LoopOpts, headers: Record<string, string>, p
 }
 
 const FN_FAIL = /failed.*function|tool[_ ]?use[_ ]?failed|failed_generation|function.*call/i;
-// small/cheap models: skip the multi-call tool loop, do one-shot RAG (far fewer tokens, no tool-call flakiness)
-const LEAN_MODEL = /(\b\d+b\b|mini|flash-lite|instant|haiku|gemma|1\.5-flash)/i;
+// Only genuinely small models skip the tool loop for one-shot RAG. Match single-digit "Nb" sizes
+// (1b–9b) plus mini/nano/lite tiers — NOT 32b/70b/120b/405b, which handle the agentic loop fine.
+const LEAN_MODEL = /(\b[1-9]b\b|mini|nano|flash-lite|instant|gemma|1\.5-flash)/i;
 
 /** OpenAI-compatible Chat Completions loop — covers Groq, OpenRouter, OpenAI, etc. */
 async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {

@@ -226,9 +226,16 @@ export default function ConstellationView() {
       draw(performance.now());
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onLeave = () => {
+      // clear hover so a mouseup that lands off-canvas can't open the last-hovered star
+      hover = null;
+      canvas.style.cursor = "grab";
+      draw(performance.now());
+    };
 
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("mousedown", onDown);
+    canvas.addEventListener("mouseleave", onLeave);
     window.addEventListener("mouseup", onUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onKey);
@@ -239,6 +246,7 @@ export default function ConstellationView() {
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("mousemove", onMove);
       canvas.removeEventListener("mousedown", onDown);
+      canvas.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("mouseup", onUp);
       canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKey);

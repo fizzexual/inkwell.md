@@ -45,10 +45,15 @@ export default function Inspector() {
   const width = useVault((s) => s.inspectorWidth);
   const note = notesById.get(selectedId);
 
-  // unlinked mentions: other note titles that appear as plain text but aren't linked yet
+  // unlinked mentions: other note titles that appear as plain prose but aren't linked yet.
+  // Ignore code blocks, inline code, frontmatter and existing links when detecting.
   const mentions = useMemo(() => {
     if (!note) return [];
-    const stripped = (note.content ?? "").replace(/\[\[[^\]]+\]\]/g, "");
+    const stripped = (note.content ?? "")
+      .replace(/^---\n[\s\S]*?\n---\n/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`\n]+`/g, "")
+      .replace(/\[\[[^\]]+\]\]/g, "");
     return notes
       .filter((n) => n.id !== note.id && n.title.length >= 4)
       .filter((n) => new RegExp(`(^|[^\\w[])${escapeRe(n.title)}(?![\\w\\]])`, "i").test(stripped))
@@ -57,11 +62,28 @@ export default function Inspector() {
 
   if (!note) return <aside className="inspector" style={{ width, minWidth: width }} />;
 
+  // apply [[link]] to the first prose occurrence of each title — code segments are left untouched
+  const applyLinks = (titles: string[]) => {
+    const parts = (note.content ?? "").split(/(```[\s\S]*?```|`[^`\n]+`)/);
+    const done = new Set<string>();
+    for (let i = 0; i < parts.length; i += 2) {
+      for (const title of titles) {
+        if (done.has(title)) continue;
+        const re = new RegExp(`(^|[^\\w[])(${escapeRe(title)})(?![\\w\\]])`, "i");
+        const before = parts[i];
+        parts[i] = before.replace(re, (_m, pre: string) => `${pre}[[${title}]]`);
+        if (parts[i] !== before) done.add(title);
+      }
+    }
+    return parts.join("");
+  };
   const linkMention = (title: string) => {
-    const re = new RegExp(`(^|[^\\w[])(${escapeRe(title)})(?![\\w\\]])`, "i");
-    const next = (note.content ?? "").replace(re, (_m, pre: string) => `${pre}[[${title}]]`);
-    updateContent(note.id, next);
+    updateContent(note.id, applyLinks([title]));
     toast(`Linked “${title}”`);
+  };
+  const linkAll = () => {
+    updateContent(note.id, applyLinks(mentions.map((m) => m.title)));
+    toast(`Linked ${mentions.length} mention${mentions.length === 1 ? "" : "s"}`);
   };
 
   const links = linksOf(note.id);
@@ -186,7 +208,7 @@ export default function Inspector() {
               <button
                 className="mini-btn"
                 title="Link all mentions"
-                onClick={() => mentions.forEach((m) => linkMention(m.title))}
+                onClick={linkAll}
               >
                 <Link size={13} />
                 Link all

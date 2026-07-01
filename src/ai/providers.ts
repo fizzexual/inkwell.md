@@ -285,9 +285,11 @@ export async function fetchModels(p: Provider, apiKey: string): Promise<{ id: st
   if (!res.ok) throw new Error(`${p.label} models ${res.status}`);
   const data = (await res.json()) as { data?: RawModel[]; models?: RawModel[] };
   const raw = data.data ?? data.models ?? [];
+  // drop non-chat endpoints (embeddings / audio / image / moderation) the agent can't use
+  const NON_CHAT = /embed|whisper|tts|dall-?e|moderation|rerank|stable-diffusion|flux|text-to|image-gen/i;
   const ids = raw
     .map((m) => (m.id ?? m.name ?? "").replace(/^models\//, "")) // Gemini prefixes ids with "models/"
-    .filter(Boolean);
+    .filter((id) => id && !NON_CHAT.test(id));
   const uniq = [...new Set(ids)].sort((a, b) => a.localeCompare(b));
   return uniq.map((id) => ({ id, label: id }));
 }

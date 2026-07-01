@@ -50,9 +50,10 @@ export const useFlashcards = create<CardState>((set, get) => ({
       } else if (rating === "good") {
         interval = interval === 0 ? 1 : interval * ease;
       } else {
-        ease += 0.15;
+        ease = Math.min(3, ease + 0.15); // clamp ease so repeated "Easy" can't run away
         interval = (interval || 1) * ease * 1.3;
       }
+      interval = Math.min(Math.round(interval), 1825); // whole days, capped at ~5 years
       return { reviews: { ...s.reviews, [id]: { ease, interval, due: isoIn(interval) } } };
     }),
 }));

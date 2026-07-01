@@ -70,6 +70,18 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     return [...s].sort();
   }, [notes]);
 
+  const insertImage = (dataUrl: string) => {
+    const ta = ref.current;
+    if (!ta) return;
+    const md = `\n![pasted image](${dataUrl})\n`;
+    const at = ta.selectionStart;
+    onChange(ta.value.slice(0, at) + md + ta.value.slice(ta.selectionEnd));
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(at + md.length, at + md.length);
+    });
+  };
+
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const item = [...e.clipboardData.items].find((i) => i.type.startsWith("image/"));
     const file = item?.getAsFile();
@@ -77,15 +89,30 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     e.preventDefault();
     const reader = new FileReader();
     reader.onload = () => {
-      const ta = ref.current;
-      if (!ta) return;
-      const md = `\n![pasted image](${reader.result})\n`;
-      const at = ta.selectionStart;
-      onChange(ta.value.slice(0, at) + md + ta.value.slice(ta.selectionEnd));
-      requestAnimationFrame(() => {
-        ta.focus();
-        ta.setSelectionRange(at + md.length, at + md.length);
-      });
+      const src = String(reader.result);
+      // downscale + re-encode so a screenshot paste doesn't bloat the note (and localStorage quota)
+      const img = new Image();
+      img.onload = () => {
+        const max = 1400;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return insertImage(src);
+        ctx.drawImage(img, 0, 0, w, h);
+        let out = src;
+        try {
+          out = canvas.toDataURL("image/jpeg", 0.85);
+        } catch {
+          /* tainted / unsupported — keep original */
+        }
+        insertImage(out.length < src.length ? out : src);
+      };
+      img.onerror = () => insertImage(src);
+      img.src = src;
     };
     reader.readAsDataURL(file);
   };

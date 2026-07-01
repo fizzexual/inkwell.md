@@ -68,10 +68,16 @@ export default function SketchView() {
   const saveToNote = () => {
     if (!strokes.length) return toast("Draw something first");
     const all = [...strokes];
-    const xs = all.flatMap((s) => s.pts.map((p) => p[0]));
-    const ys = all.flatMap((s) => s.pts.map((p) => p[1]));
-    const w = Math.max(...xs) + 20;
-    const h = Math.max(...ys) + 20;
+    // reduce, don't spread — Math.max(...bigArray) throws RangeError on a dense sketch
+    let maxX = 0;
+    let maxY = 0;
+    for (const s of all)
+      for (const [px, py] of s.pts) {
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      }
+    const w = maxX + 20;
+    const h = maxY + 20;
     const paths = all
       .map((s) => `<path d="${strokePath(s.pts)}" fill="none" stroke="${s.color}" stroke-width="${s.width}" stroke-linecap="round" stroke-linejoin="round"/>`)
       .join("");

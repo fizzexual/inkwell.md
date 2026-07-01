@@ -65,11 +65,21 @@ interface ChatState {
   clear: () => void;
 }
 
+// debounce handle for live model fetching triggered by key edits
+let keyFetchTimer: ReturnType<typeof setTimeout> | undefined;
+
 function persist(s: ChatState) {
   try {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ keys: s.keys, provider: s.provider, model: s.model, messages: s.messages, canWrite: s.canWrite }),
+      JSON.stringify({
+        keys: s.keys,
+        provider: s.provider,
+        model: s.model,
+        // cap the stored transcript so a long chat never blows the localStorage quota
+        messages: s.messages.slice(-60),
+        canWrite: s.canWrite,
+      }),
     );
   } catch {
     /* ignore */
@@ -122,17 +132,25 @@ export const useChat = create<ChatState>((set, get) => ({
     const p = get().proposals.find((x) => x.id === id);
     if (!p) return;
     const v = useVault.getState();
-    if (p.kind === "create") v.createNoteWith(p.title, p.content, p.folder || "");
-    else if (p.targetId) v.updateContent(p.targetId, p.content);
     set((s) => ({ proposals: s.proposals.filter((x) => x.id !== id) }));
-    v.toast(p.kind === "create" ? `Created “${p.title}”` : `Updated “${p.title}”`);
+    if (p.kind === "create") {
+      v.createNoteWith(p.title, p.content, p.folder || "");
+      v.toast(`Created “${p.title}”`);
+    } else if (p.targetId && v.notesById.get(p.targetId)) {
+      v.updateContent(p.targetId, p.content);
+      v.toast(`Updated “${p.title}”`);
+    } else {
+      v.toast(`“${p.title}” no longer exists — skipped`);
+    }
   },
   rejectProposal: (id) => set((s) => ({ proposals: s.proposals.filter((x) => x.id !== id) })),
 
   setKey: (providerId, key) => {
     set((s) => ({ keys: { ...s.keys, [providerId]: key }, error: null }));
     persist(get());
-    if (key.trim()) get().loadModels(providerId, true); // refetch the full list with the new key
+    // debounce the live model fetch so typing/pasting a key doesn't hammer the /models endpoint
+    if (keyFetchTimer) clearTimeout(keyFetchTimer);
+    if (key.trim()) keyFetchTimer = setTimeout(() => get().loadModels(providerId, true), 700);
   },
   setProvider: (id) => {
     const p = getProvider(id);
@@ -218,7 +236,8 @@ export const useChat = create<ChatState>((set, get) => ({
 
   stop: () => {
     get().controller?.abort();
-    set({ status: "idle", controller: null });
+    // drop any write proposals queued by the run the user just cancelled
+    set({ status: "idle", controller: null, proposals: [] });
   },
 
   clear: () => {

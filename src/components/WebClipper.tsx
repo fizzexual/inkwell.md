@@ -11,6 +11,12 @@ export default function WebClipper() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const close = () => {
+    abortRef.current?.abort();
+    setOpen(false);
+  };
 
   useEffect(() => {
     if (open) {
@@ -29,9 +35,15 @@ export default function WebClipper() {
     if (!/^https?:\/\//i.test(target)) target = "https://" + target;
     setBusy(true);
     setError(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
       // r.jina.ai returns clean, readable Markdown and is CORS-friendly
-      const res = await fetch("https://r.jina.ai/" + target, { headers: { Accept: "text/markdown" } });
+      const res = await fetch("https://r.jina.ai/" + target, {
+        headers: { Accept: "text/markdown" },
+        signal: controller.signal,
+      });
       if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
       const md = await res.text();
       const titleMatch = md.match(/^Title:\s*(.+)$/m) || md.match(/^#\s+(.+)$/m);
@@ -41,14 +53,17 @@ export default function WebClipper() {
       toast("Page clipped to Clippings");
       setOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not fetch that page.");
+      if (controller.signal.aborted) setError("Timed out — the page took too long. Try again.");
+      else setError(e instanceof Error ? e.message : "Could not fetch that page.");
     } finally {
+      clearTimeout(timeout);
+      abortRef.current = null;
       setBusy(false);
     }
   };
 
   return (
-    <div className="clip-backdrop" onMouseDown={() => !busy && setOpen(false)}>
+    <div className="clip-backdrop" onMouseDown={close}>
       <div className="clip" onMouseDown={(e) => e.stopPropagation()}>
         <div className="clip-head">Clip a web page</div>
         <input
@@ -60,7 +75,7 @@ export default function WebClipper() {
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") clip();
-            else if (e.key === "Escape") setOpen(false);
+            else if (e.key === "Escape") close();
           }}
         />
         {error && <div className="clip-error">{error}</div>}

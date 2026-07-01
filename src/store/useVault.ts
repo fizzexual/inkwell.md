@@ -93,6 +93,14 @@ const defaultCanvas: CanvasState = {
   ],
 };
 
+/** A note id guaranteed unique against the current vault — never collides after deletions. */
+function freshId(base: string, notes: Note[]): string {
+  const taken = new Set(notes.map((n) => n.id));
+  const s = base || "note";
+  if (!taken.has(s)) return s;
+  for (let i = 1; ; i++) if (!taken.has(`${s}-${i}`)) return `${s}-${i}`;
+}
+
 function withTab(panes: Pane[], paneIdx: number, id: string): Pane[] {
   return panes.map((p, i) =>
     i === paneIdx ? { tabs: p.tabs.includes(id) ? p.tabs : [...p.tabs, id], active: id } : p,
@@ -621,8 +629,8 @@ export const useVault = create<VaultState>((set, get) => ({
       const titles = new Set(s.notes.map((n) => n.title));
       let title = "Untitled Note";
       for (let i = 2; titles.has(title); i++) title = `Untitled Note ${i}`;
-      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const id = `${slug}-${s.notes.length}`;
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const id = freshId(slug, s.notes);
       const note: Note = { id, title, folder, kind: "note", links: [], content: `# ${title}\n\n` };
       const notes = [...s.notes, note];
       return {
@@ -648,7 +656,7 @@ export const useVault = create<VaultState>((set, get) => ({
   createNoteWith: (title, content, folder = "") =>
     set((s) => {
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const id = `${slug || "note"}-${s.notes.length}`;
+      const id = freshId(slug || "note", s.notes);
       const note: Note = { id, title, folder, kind: "note", links: [], content };
       const notes = [...s.notes, note];
       return {
@@ -684,7 +692,7 @@ export const useVault = create<VaultState>((set, get) => ({
         );
       } else {
         const note: Note = {
-          id: `inbox-${s.notes.length}`,
+          id: freshId("inbox", s.notes),
           title: "Inbox",
           folder: "",
           kind: "note",
