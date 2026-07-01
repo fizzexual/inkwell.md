@@ -77,11 +77,6 @@
     transform: translateY(8px) scale(0.97);
   }
 }
-.tour-tip.accent {
-  background: var(--accent);
-  color: var(--accent-ink, #1a1a1a);
-  border-color: transparent;
-}
 
 /* pointer triangle */
 .tour-arrow {
@@ -109,16 +104,7 @@
   border-left: none;
 }
 
-/* content cross-fades when the step changes (keyed) */
-.tour-content {
-  animation: tour-content-in 0.4s var(--ease-out, ease);
-}
-@keyframes tour-content-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
+/* content transition on step change is driven by the Web Animations API (see Onboarding.tsx) */
 .tour-eyebrow {
   font-size: 10.5px;
   font-weight: 700;
@@ -165,15 +151,6 @@
   border-radius: 3px;
   background: #fff;
 }
-.tour-tip.accent .tour-dot {
-  background: rgba(0, 0, 0, 0.22);
-}
-.tour-tip.accent .tour-dot.done {
-  background: rgba(0, 0, 0, 0.45);
-}
-.tour-tip.accent .tour-dot.on {
-  background: rgba(0, 0, 0, 0.78);
-}
 
 .tour-next {
   width: 36px;
@@ -193,11 +170,6 @@
 .tour-next svg {
   animation: tour-nudge 1.5s ease-in-out infinite;
 }
-.tour-tip.accent .tour-next {
-  background: #1a1a1a;
-  color: #fff;
-  animation: tour-glow-dark 2s ease-in-out infinite;
-}
 @keyframes tour-nudge {
   0%,
   100% {
@@ -216,24 +188,13 @@
     box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
   }
 }
-@keyframes tour-glow-dark {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(20, 20, 20, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(20, 20, 20, 0);
-  }
-}
 
+/* Under reduced motion, drop the looping decoration but KEEP the glide between steps,
+   since that step-to-step movement is what orients the user. */
 @media (prefers-reduced-motion: reduce) {
   .tour-pulse,
   .tour-next,
   .tour-next svg {
     animation: none !important;
-  }
-  .tour-spot,
-  .tour-tip {
-    transition: none;
   }
 }

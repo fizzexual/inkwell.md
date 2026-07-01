@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { ArrowRight, Check } from "lucide-react";
 import "./Onboarding.css";
@@ -11,7 +11,6 @@ interface Step {
   eyebrow?: string;
   title?: string;
   body: string;
-  accent?: boolean;
 }
 
 const STEPS: Step[] = [
@@ -34,7 +33,6 @@ const STEPS: Step[] = [
   },
   {
     placement: "center",
-    accent: true,
     eyebrow: "Tip",
     body: "Press Ctrl/Cmd+P to jump to any note instantly, and Ctrl/Cmd+Shift+K to capture a quick thought from anywhere.",
   },
@@ -60,6 +58,22 @@ export default function Onboarding() {
   const openArticle = useVault((s) => s.openArticle);
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+
+  // JS-driven step transition (bypasses any CSS transition-disabling for a guaranteed glide)
+  useEffect(() => {
+    if (!open) return;
+    const ease = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+    const c = contentRef.current;
+    const t = tipRef.current;
+    // clear any in-flight animations first so nothing stacks
+    c?.getAnimations().forEach((a) => a.cancel());
+    t?.getAnimations().forEach((a) => a.cancel());
+    // animate TRANSFORM only — opacity stays 1 in CSS so the tooltip can never end up hidden
+    c?.animate([{ transform: "translateX(16px)" }, { transform: "translateX(0)" }], { duration: 380, easing: ease });
+    t?.animate([{ transform: "scale(0.985)" }, { transform: "scale(1)" }], { duration: 300, easing: ease });
+  }, [i, open]);
 
   const step = STEPS[i];
   const last = i === STEPS.length - 1;
@@ -138,12 +152,9 @@ export default function Onboarding() {
         <div className="tour-dim" />
       )}
 
-      <div
-        className={"tour-tip" + (step.accent ? " accent" : "")}
-        style={{ left: tip.left, top: tip.top, width: TIP_W }}
-      >
+      <div ref={tipRef} className="tour-tip" style={{ left: tip.left, top: tip.top, width: TIP_W }}>
         {pointer && <span className={"tour-arrow " + placement} style={pointer} />}
-        <div className="tour-content" key={i}>
+        <div className="tour-content" ref={contentRef}>
           {step.eyebrow && <div className="tour-eyebrow">{step.eyebrow}</div>}
           {step.title && <div className="tour-h">{step.title}</div>}
           <p className="tour-body">{step.body}</p>
