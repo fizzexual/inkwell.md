@@ -178,6 +178,7 @@ interface Persisted {
   mapView?: MapView;
   theme?: Theme;
   accent?: string;
+  vaultPath?: string | null;
   sidebarWidth?: number;
   inspectorWidth?: number;
   canvas?: CanvasState;
@@ -244,6 +245,9 @@ interface VaultState extends Derived {
   setAccent: (hex: string) => void;
   zen: boolean;
   toggleZen: () => void;
+  vaultPath: string | null;
+  loadDiskVault: (path: string, notes: Note[]) => void;
+  closeVault: () => void;
   sidebarWidth: number;
   inspectorWidth: number;
   setSidebarWidth: (w: number) => void;
@@ -358,6 +362,21 @@ export const useVault = create<VaultState>((set, get) => ({
   setAccent: (hex) => set({ accent: hex }),
   zen: false,
   toggleZen: () => set((s) => ({ zen: !s.zen })),
+  vaultPath: persisted.vaultPath ?? null,
+  loadDiskVault: (path, notes) => {
+    set(() => ({ notes, ...derive(notes), vaultPath: path, deleted: new Set<string>() }));
+    const first = notes[0];
+    if (first) get().openArticle(first.id);
+  },
+  closeVault: () => {
+    set({ vaultPath: null });
+    // reload to re-init the built-in demo vault cleanly
+    try {
+      window.location.reload();
+    } catch {
+      /* ignore */
+    }
+  },
   sidebarWidth: persisted.sidebarWidth ?? 256,
   inspectorWidth: persisted.inspectorWidth ?? 296,
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(200, Math.min(420, w)) }),
@@ -792,6 +811,7 @@ useVault.subscribe(() => {
       mapView: s.mapView,
       theme: s.theme,
       accent: s.accent,
+      vaultPath: s.vaultPath,
       sidebarWidth: s.sidebarWidth,
       inspectorWidth: s.inspectorWidth,
       canvas: s.canvas,

@@ -5,6 +5,8 @@ import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
 import { NoteIcon } from "../noteIcons";
+import { openVaultFolderFlow } from "../vault/sync";
+import { FolderOpen, X as CloseX } from "lucide-react";
 import { useSmoothScroll } from "../useSmoothScroll";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
@@ -26,7 +28,6 @@ import {
   Import,
   FolderPlus,
   Plus,
-  Pencil,
   OpenExternal,
   ChevronDown,
   ChevronRight,
@@ -174,6 +175,8 @@ export default function Sidebar() {
   const createNoteWith = useVault((s) => s.createNoteWith);
   const setAllFolders = useVault((s) => s.setAllFolders);
   const setClipOpen = useVault((s) => s.setClipOpen);
+  const vaultPath = useVault((s) => s.vaultPath);
+  const closeVault = useVault((s) => s.closeVault);
   const anyExpanded = useVault((s) => s.expanded.size > 0);
   const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
@@ -190,14 +193,25 @@ export default function Sidebar() {
   return (
     <aside className="sidebar" style={{ width, minWidth: width }}>
       <div className="vault-header">
-        <button className="vault-name">
-          <span>{tree.name}</span>
+        <button className="vault-name" onClick={openVaultFolderFlow} title="Open a folder as your vault">
+          <span>{vaultPath ? vaultPath.split(/[\\/]/).filter(Boolean).pop() : tree.name}</span>
           <ChevronDown size={14} className="vault-caret" />
         </button>
         <div className="vault-actions">
-          <button className="ghost-btn" aria-label="Edit vault">
-            <Pencil size={15} />
-          </button>
+          {vaultPath ? (
+            <button className="ghost-btn" aria-label="Close vault" title="Back to the demo vault" onClick={closeVault}>
+              <CloseX size={15} />
+            </button>
+          ) : (
+            <button
+              className="ghost-btn"
+              aria-label="Open vault folder"
+              title="Open a folder of .md files as your vault"
+              onClick={openVaultFolderFlow}
+            >
+              <FolderOpen size={15} />
+            </button>
+          )}
           <button className="ghost-btn" aria-label="New note" onClick={() => createNote()}>
             <Plus size={16} />
           </button>
