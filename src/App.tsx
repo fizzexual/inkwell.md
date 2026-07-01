@@ -20,6 +20,7 @@ import KeyManager from "./components/KeyManager";
 import Onboarding from "./components/Onboarding";
 import ImportModal from "./components/ImportModal";
 import HistoryModal from "./components/HistoryModal";
+import SemanticSearch from "./components/SemanticSearch";
 
 // pdf.js is heavy — only load the reader when it's actually opened
 const PdfView = lazy(() => import("./components/PdfView"));
@@ -113,6 +114,9 @@ export default function App() {
       } else if (mod && e.key === "j") {
         e.preventDefault();
         s.toggleAi();
+      } else if (mod && e.shiftKey && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        s.openSemantic();
       } else if (mod && (e.key === "z" || e.key === "Z")) {
         // let native undo win inside other text fields (math sheet, search…)
         const t = e.target as HTMLElement | null;
@@ -206,6 +210,7 @@ export default function App() {
       <KeyManager />
       <ImportModal />
       <HistoryModal />
+      <SemanticSearch />
       {constellationOpen && <ConstellationView />}
       <Onboarding />
       <Toaster />

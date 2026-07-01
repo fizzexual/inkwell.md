@@ -297,6 +297,12 @@ interface VaultState extends Derived {
   importNotes: (items: { title: string; content: string; folder?: string; kind?: Note["kind"] }[]) => number;
   historyOpen: boolean;
   setHistoryOpen: (v: boolean) => void;
+
+  semanticOpen: boolean;
+  setSemanticOpen: (v: boolean) => void;
+  /** query to pre-fill the semantic search with (e.g. handed over from the command palette). */
+  semanticSeed: string;
+  openSemantic: (seed?: string) => void;
   shortcutsOpen: boolean;
   setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
@@ -532,6 +538,10 @@ export const useVault = create<VaultState>((set, get) => ({
   setImportOpen: (v) => set({ importOpen: v }),
   historyOpen: false,
   setHistoryOpen: (v) => set({ historyOpen: v }),
+  semanticOpen: false,
+  setSemanticOpen: (v) => set({ semanticOpen: v }),
+  semanticSeed: "",
+  openSemantic: (seed = "") => set({ semanticOpen: true, semanticSeed: seed, paletteOpen: false }),
   importNotes: (items) => {
     if (!items.length) return 0;
     set((s) => {

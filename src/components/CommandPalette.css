@@ -122,3 +122,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* "search by meaning" action row */
+.palette-semantic svg {
+  color: var(--accent);
+}
+.palette-semantic {
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.palette-semantic kbd {
+  margin-left: auto;
+}

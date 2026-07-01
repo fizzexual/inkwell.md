@@ -1,0 +1,160 @@
+.sem-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(20, 20, 28, 0.42);
+  backdrop-filter: blur(2px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 24px 24px;
+  animation: km-fade var(--dur-1, 0.14s) var(--ease, ease);
+}
+.sem {
+  width: 620px;
+  max-width: 100%;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  animation: km-pop var(--dur-2, 0.2s) var(--ease-out, ease);
+}
+.sem-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--line);
+}
+.sem-search > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.sem-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--tx-1);
+}
+.sem-input::placeholder {
+  color: var(--tx-muted);
+}
+.sem-x {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+  flex-shrink: 0;
+}
+.sem-x:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.sem-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--tx-2);
+  flex-wrap: wrap;
+}
+.sem-note {
+  font-size: 11.5px;
+  color: var(--tx-muted);
+}
+.sem-spin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-weak);
+  border-top-color: var(--accent);
+  animation: sem-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes sem-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.sem-hint,
+.sem-empty {
+  padding: 18px 16px 22px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--tx-3);
+}
+.sem-hint b {
+  color: var(--tx-1);
+}
+.sem-results {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+.sem-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-1) var(--ease);
+}
+.sem-item:hover {
+  background: var(--bg-hover);
+}
+.sem-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sem-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sem-folder {
+  font-size: 11px;
+  color: var(--tx-muted);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg-soft, var(--bg-hover));
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sem-score {
+  margin-left: auto;
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sem-score-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.sem-snippet {
+  font-size: 12px;
+  color: var(--tx-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

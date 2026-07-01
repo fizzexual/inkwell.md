@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { fuzzyMatch } from "../fuzzy";
 import { aliasesOf } from "../data/derive";
-import { Search, Doc, Sources } from "../icons";
+import { Search, Doc, Sources, Sparkles } from "../icons";
 import "./CommandPalette.css";
 
 function Highlight({ text, ranges }: { text: string; ranges: [number, number][] }) {
@@ -24,6 +24,7 @@ export default function CommandPalette() {
   const notes = useVault((s) => s.notes);
   const history = useVault((s) => s.history);
   const openArticle = useVault((s) => s.openArticle);
+  const openSemantic = useVault((s) => s.openSemantic);
 
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -115,6 +116,15 @@ export default function CommandPalette() {
           <kbd>esc</kbd>
         </div>
         <div className="palette-results">
+          {!recentEmpty && (
+            <button className="palette-item palette-semantic" onClick={() => openSemantic(query)}>
+              <Sparkles size={15} />
+              <span className="palette-title">
+                Search “{query}” <span className="palette-alias">by meaning</span>
+              </span>
+              <kbd>⇧⌘F</kbd>
+            </button>
+          )}
           {recentEmpty && results.length > 0 && <div className="palette-section">Recent</div>}
           {results.length === 0 && <div className="palette-empty">No matching notes.</div>}
           {results.map((r, i) => (
