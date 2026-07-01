@@ -115,6 +115,28 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
     };
   }, [html, showEditor]);
 
+  // add a "Copy" button to each rendered code block
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (showEditor || !root) return;
+    root.querySelectorAll<HTMLElement>("pre:not([data-copy])").forEach((pre) => {
+      if (pre.querySelector(".mermaid-src")) return;
+      pre.setAttribute("data-copy", "");
+      pre.style.position = "relative";
+      const btn = document.createElement("button");
+      btn.className = "code-copy";
+      btn.type = "button";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", () => {
+        const code = pre.querySelector("code")?.textContent ?? pre.textContent ?? "";
+        navigator.clipboard?.writeText(code);
+        btn.textContent = "Copied";
+        window.setTimeout(() => (btn.textContent = "Copy"), 1200);
+      });
+      pre.appendChild(btn);
+    });
+  }, [html, showEditor]);
+
   if (!note) return <main className="article" />;
 
   const crumbs = note.folder ? note.folder.split("/") : [];

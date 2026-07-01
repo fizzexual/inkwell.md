@@ -1,0 +1,72 @@
+.eb {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg-app, #fff);
+}
+.eb-card {
+  max-width: 460px;
+  text-align: center;
+  border: 1px solid var(--line-card, #e6e6e6);
+  border-radius: var(--radius-lg, 16px);
+  padding: 36px 32px;
+  box-shadow: var(--shadow-pop, 0 20px 50px rgba(0, 0, 0, 0.12));
+  background: var(--bg-app, #fff);
+}
+.eb-mark {
+  font-size: 34px;
+  margin-bottom: 10px;
+}
+.eb-card h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--tx-1, #1a1a1a);
+  margin: 0 0 10px;
+}
+.eb-card p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--tx-3, #666);
+  margin: 0 0 16px;
+}
+.eb-msg {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--danger, #d6453d);
+  background: var(--bg-hover, #f5f5f5);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 20px;
+  overflow-x: auto;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.eb-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.eb-btn {
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--line-card, #e6e6e6);
+  color: var(--tx-1, #1a1a1a);
+  background: var(--bg-app, #fff);
+  cursor: pointer;
+}
+.eb-btn:hover {
+  background: var(--bg-hover, #f5f5f5);
+}
+.eb-btn.primary {
+  background: var(--accent, #6d4bd0);
+  color: #fff;
+  border-color: transparent;
+}
+.eb-btn.primary:hover {
+  opacity: 0.92;
+}
