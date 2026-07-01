@@ -17,6 +17,7 @@ import ConstellationView from "./components/ConstellationView";
 import Inspector from "./components/Inspector";
 import AiPanel from "./components/AiPanel";
 import KeyManager from "./components/KeyManager";
+import Onboarding from "./components/Onboarding";
 
 // pdf.js is heavy — only load the reader when it's actually opened
 const PdfView = lazy(() => import("./components/PdfView"));
@@ -198,6 +199,7 @@ export default function App() {
       <ShortcutsModal />
       <KeyManager />
       {constellationOpen && <ConstellationView />}
+      <Onboarding />
       <Toaster />
     </div>
   );

@@ -48,6 +48,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
 export default function ShortcutsModal() {
   const open = useVault((s) => s.shortcutsOpen);
   const setOpen = useVault((s) => s.setShortcutsOpen);
+  const setOnboarding = useVault((s) => s.setOnboarding);
 
   useEffect(() => {
     if (!open) return;
@@ -80,6 +81,17 @@ export default function ShortcutsModal() {
               ))}
             </div>
           ))}
+        </div>
+        <div className="sc-foot">
+          <button
+            className="sc-tour"
+            onClick={() => {
+              setOpen(false);
+              setOnboarding(true);
+            }}
+          >
+            Replay welcome tour
+          </button>
         </div>
       </div>
     </div>

@@ -282,6 +282,8 @@ interface VaultState extends Derived {
   setPaletteOpen: (v: boolean) => void;
   quickOpen: boolean;
   setQuickOpen: (v: boolean) => void;
+  onboardingOpen: boolean;
+  setOnboarding: (v: boolean) => void;
   clipOpen: boolean;
   setClipOpen: (v: boolean) => void;
   shortcutsOpen: boolean;
@@ -475,6 +477,23 @@ export const useVault = create<VaultState>((set, get) => ({
   setPaletteOpen: (v) => set({ paletteOpen: v }),
   quickOpen: false,
   setQuickOpen: (v) => set({ quickOpen: v }),
+  onboardingOpen: (() => {
+    try {
+      return !localStorage.getItem("inkwell.onboarded.v1");
+    } catch {
+      return false;
+    }
+  })(),
+  setOnboarding: (v) => {
+    if (!v) {
+      try {
+        localStorage.setItem("inkwell.onboarded.v1", "1");
+      } catch {
+        /* ignore */
+      }
+    }
+    set({ onboardingOpen: v });
+  },
   clipOpen: false,
   setClipOpen: (v) => set({ clipOpen: v }),
   shortcutsOpen: false,
