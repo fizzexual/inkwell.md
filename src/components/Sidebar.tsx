@@ -6,7 +6,7 @@ import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
 import { NoteIcon } from "../noteIcons";
 import { openVaultFolderFlow } from "../vault/sync";
-import { FolderOpen, X as CloseX } from "lucide-react";
+import { FolderOpen, Download, X as CloseX } from "lucide-react";
 import { useSmoothScroll } from "../useSmoothScroll";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
@@ -175,6 +175,7 @@ export default function Sidebar() {
   const createNoteWith = useVault((s) => s.createNoteWith);
   const setAllFolders = useVault((s) => s.setAllFolders);
   const setClipOpen = useVault((s) => s.setClipOpen);
+  const setImportOpen = useVault((s) => s.setImportOpen);
   const vaultPath = useVault((s) => s.vaultPath);
   const closeVault = useVault((s) => s.closeVault);
   const anyExpanded = useVault((s) => s.expanded.size > 0);
@@ -261,6 +262,14 @@ export default function Sidebar() {
               onClick={() => setClipOpen(true)}
             >
               <OpenExternal size={15} />
+            </button>
+            <button
+              className="ghost-btn sm"
+              aria-label="Import notes or sources"
+              title="Import Markdown / Obsidian / Notion / BibTeX / DOI"
+              onClick={() => setImportOpen(true)}
+            >
+              <Download size={15} />
             </button>
             <div className="tpl-wrap">
               <button

@@ -290,6 +290,9 @@ interface VaultState extends Derived {
   setOnboarding: (v: boolean) => void;
   clipOpen: boolean;
   setClipOpen: (v: boolean) => void;
+  importOpen: boolean;
+  setImportOpen: (v: boolean) => void;
+  importNotes: (items: { title: string; content: string; folder?: string; kind?: Note["kind"] }[]) => number;
   shortcutsOpen: boolean;
   setShortcutsOpen: (v: boolean) => void;
   searchQuery: string;
@@ -515,6 +518,25 @@ export const useVault = create<VaultState>((set, get) => ({
   },
   clipOpen: false,
   setClipOpen: (v) => set({ clipOpen: v }),
+  importOpen: false,
+  setImportOpen: (v) => set({ importOpen: v }),
+  importNotes: (items) => {
+    if (!items.length) return 0;
+    set((s) => {
+      let notes = [...s.notes];
+      for (const it of items) {
+        const slug = it.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const id = freshId(slug || "note", notes);
+        notes = [
+          ...notes,
+          { id, title: it.title, folder: it.folder ?? "", kind: it.kind ?? "note", links: [], content: it.content },
+        ];
+      }
+      return { notes, ...derive(notes) };
+    });
+    get().toast(`Imported ${items.length} note${items.length === 1 ? "" : "s"}`);
+    return items.length;
+  },
   shortcutsOpen: false,
   setShortcutsOpen: (v) => set({ shortcutsOpen: v }),
   searchQuery: "",

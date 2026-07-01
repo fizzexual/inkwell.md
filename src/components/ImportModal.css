@@ -1,0 +1,135 @@
+.imp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(20, 20, 28, 0.42);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: km-fade var(--dur-1, 0.14s) var(--ease, ease);
+}
+.imp {
+  width: 540px;
+  max-width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-app);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-pop);
+  padding: 18px;
+  animation: km-pop var(--dur-2, 0.2s) var(--ease-out, ease);
+}
+.imp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.imp-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tx-1);
+  margin: 0;
+}
+.imp-x {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+  font-size: 13px;
+}
+.imp-x:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.imp-card {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+.imp-ico {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--accent-text, var(--accent));
+  background: var(--accent-weak);
+}
+.imp-text {
+  flex: 1;
+  min-width: 0;
+}
+.imp-text h3 {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--tx-1);
+  margin: 0 0 4px;
+}
+.imp-text p {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tx-3);
+  margin: 0 0 12px;
+}
+.imp-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.imp-actions button {
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--accent-text, #fff);
+  background: var(--accent);
+  transition: opacity var(--dur-1) var(--ease);
+}
+.imp-actions button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.imp-actions button:disabled {
+  opacity: 0.45;
+}
+.imp-actions button.ghost {
+  color: var(--tx-2, var(--tx-1));
+  background: transparent;
+  border: 1px solid var(--line-card);
+}
+.imp-actions button.ghost:hover {
+  background: var(--bg-hover);
+}
+.imp-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--tx-1);
+  outline: none;
+}
+.imp-input:focus {
+  border-color: var(--accent);
+}
+.imp-error {
+  margin-top: 9px;
+  font-size: 12px;
+  color: var(--danger, #d6453d);
+}
+.imp-note {
+  font-size: 11.5px;
+  color: var(--tx-4);
+  text-align: center;
+  margin: 4px 0 2px;
+}
