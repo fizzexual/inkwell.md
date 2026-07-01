@@ -4,6 +4,7 @@ import type { SidebarView } from "../store/useVault";
 import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
+import { NoteIcon } from "../noteIcons";
 import { useSmoothScroll } from "../useSmoothScroll";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
@@ -73,7 +74,7 @@ function NoteRow({ note }: { note: Note }) {
       }}
       title={note.title}
     >
-      {icon ? <span className="tree-emoji">{icon}</span> : <Doc className="tree-icon doc" size={15} />}
+      {icon ? <NoteIcon name={icon} size={15} className="tree-icon note-ico" /> : <Doc className="tree-icon doc" size={15} />}
       <span className="tree-label">{note.title}</span>
     </button>
   );
