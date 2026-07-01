@@ -1300,6 +1300,210 @@ We need a way to organise notes that scales past a few hundred.
 Tracked from the [[Example — Meeting Notes]].
 
 #example`,
+
+  "ex-project": `---
+type: project
+area: Examples
+status: in progress
+owner: You
+due: 2026-09-30
+progress: 45%
+---
+
+# Example — Project Plan
+
+A full project hub. The \`status\` property makes this a card on the [[Kanban Board]]; the checklist feeds the [[Tasks]] view.
+
+## Goal
+
+Ship v1 of the mobile app to the app stores by the end of Q3.
+
+## Phases
+
+\`\`\`mermaid
+graph LR
+  D[Discovery] --> B[Build]
+  B --> T[Test]
+  T --> L[Launch]
+  L --> M[Measure]
+  M -->|iterate| B
+\`\`\`
+
+## Milestones
+
+- [x] Discovery & specs signed off
+- [x] Design system in Figma
+- [ ] Core screens built
+- [ ] Beta with 20 testers
+- [ ] Store submission
+
+## Risks
+
+> [!warning] Watch the review queue
+> App-store review can take a week — submit the beta build early to de-risk launch.
+
+> [!tip]
+> Break each milestone into its own note and \`[[link]]\` it back here.
+
+## Links
+
+- Team notes → [[Example — Meeting Notes]]
+- Decisions → [[Example — Decision Log]]
+
+#project #example`,
+
+  "ex-course": `---
+type: course
+area: Examples
+course: Linear Algebra
+term: Autumn 2026
+---
+
+# Example — Course Notes
+
+A **Cornell**-style study note. Cues on the left in your head, notes in the middle, summary at the bottom — plus formulas and review cards.
+
+## Notes
+
+A **matrix** is a rectangular array of numbers. Multiplying a vector by a matrix is a *linear transformation*.
+
+Key identity — the determinant of a 2×2:
+
+$$\\det\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix} = ad - bc$$
+
+A transformation is **invertible** exactly when its determinant is non-zero.
+
+> [!info] Cue
+> When does a system $Ax = b$ have a unique solution? → when $\\det A \\neq 0$.
+
+## Worked value
+
+A quick numeric check with the [[The Math Engine|Math Engine]]:
+
+\`\`\`math
+a = 3
+b = 2
+c = 1
+d = 4
+det = a*d - b*c
+\`\`\`
+
+## Review cards
+
+What does a determinant of zero mean :: the matrix is singular (not invertible)
+Determinant of a 2×2 [[a,b],[c,d]] :: ad − bc
+A matrix times a vector is a :: linear transformation
+
+## Summary
+
+Determinants tell you whether a transformation collapses space (0) or is reversible (≠0). Deck lives in [[Example — Flashcard Deck]].
+
+#course #example`,
+
+  "ex-budget": `---
+type: budget
+area: Examples
+month: 2026-07
+---
+
+# Example — Monthly Budget
+
+Live numbers with the [[The Math Engine|Math Engine]]. Edit a figure in the \`math\` block and the totals recompute.
+
+## The maths
+
+\`\`\`math
+income = 4200
+rent = 1350
+groceries = 480
+transport = 120
+utilities = 160
+subscriptions = 65
+fun = 250
+spending = rent + groceries + transport + utilities + subscriptions + fun
+savings = income - spending
+savings_rate = savings / income * 100
+\`\`\`
+
+## Breakdown
+
+| Category | Amount |
+| --- | --- |
+| Rent | 1,350 |
+| Groceries | 480 |
+| Transport | 120 |
+| Utilities | 160 |
+| Subscriptions | 65 |
+| Fun | 250 |
+| **Saved** | **the rest** |
+
+> [!success] Rule of thumb
+> Aim to keep \`savings_rate\` above 20%. Above, it's ~30% — comfortable.
+
+> [!tip]
+> Duplicate this note each month (right-click → Duplicate) to keep a running history.
+
+#budget #example`,
+
+  "ex-crm": `---
+type: crm
+area: Examples
+---
+
+# Example — Contacts & CRM
+
+A lightweight CRM as a table. Give each contact its own note and link it, or track them all here. Open the [[Table View]] to sort every note by property.
+
+## Pipeline
+
+| Contact | Company | Stage | Next step |
+| --- | --- | --- | --- |
+| Ada Nwosu | Vellum | Demo booked | Send deck |
+| Ravi Patel | Northpeak | Negotiating | Follow up Fri |
+| Lena Ortiz | Quanta | Won 🎉 | Kickoff call |
+| Sam Cho | Brightline | Cold | Intro email |
+
+## Follow-ups
+
+- [ ] Send Ada the pricing deck
+- [ ] Chase Ravi's signature
+- [x] Schedule Lena's kickoff
+- [ ] Warm intro to Sam via [[Example — Meeting Notes|the team]]
+
+> [!note]
+> For a richer record, make one note per contact with \`type: contact\` properties — the [[Table View]] then becomes your CRM board.
+
+#crm #example`,
+
+  "ex-habits": `---
+type: tracker
+area: Examples
+week: 2026-W27
+---
+
+# Example — Habit Tracker
+
+Track a week at a glance. Pair it with [[Daily Notes]] to reflect each evening.
+
+## This week
+
+| Habit | M | T | W | T | F | S | S |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| Read 20 min | ✅ | ✅ | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| Exercise | ✅ | ⬜ | ✅ | ✅ | ⬜ | ✅ | ✅ |
+| No phone AM | ✅ | ✅ | ⬜ | ✅ | ✅ | ⬜ | ✅ |
+| Journal | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ |
+
+## Today's checklist
+
+- [x] Read 20 minutes
+- [x] Morning walk
+- [ ] Journal before bed
+
+> [!tip] Streaks stick
+> Don't break the chain two days running. A single miss is fine — two starts a new habit.
+
+#habits #example`,
 };
 
 const lead = (title: string, area: string) =>
