@@ -29,6 +29,17 @@ export const writeNoteFile = (path: string, rel: string, content: string) =>
   invoke<void>("write_note", { path, rel, content });
 export const deleteNoteFile = (path: string, rel: string) => invoke<void>("delete_note", { path, rel });
 
+/** Start the native filesystem watcher on a vault folder (replaces any previous watch). */
+export const watchVault = (path: string) => invoke<void>("watch_vault", { path });
+/** Stop watching the current vault folder. */
+export const unwatchVault = () => invoke<void>("unwatch_vault", {});
+
+/** Subscribe to native "a .md file changed on disk" events. Returns an unlisten function. */
+export async function onFsChange(cb: (paths: string[]) => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<string[]>("vault-fs-change", (e) => cb(e.payload ?? []));
+}
+
 function slugify(s: string): string {
   return (
     s

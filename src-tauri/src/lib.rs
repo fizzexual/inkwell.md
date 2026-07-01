@@ -1,7 +1,13 @@
 // Inkwell — Rust backend: on-disk vault filesystem commands.
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, State};
+
+/// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
+struct WatcherState(Mutex<Option<RecommendedWatcher>>);
 
 #[derive(Serialize)]
 struct DiskNote {
@@ -79,16 +85,56 @@ fn rename_note(path: String, from: String, to: String) -> Result<(), String> {
     fs::rename(&src, &dst).map_err(|e| e.to_string())
 }
 
+/// Start watching a vault folder recursively; emits `vault-fs-change` with the changed `.md`
+/// paths whenever files are created, edited, or removed by anything on the system.
+#[tauri::command]
+fn watch_vault(path: String, app: AppHandle, state: State<WatcherState>) -> Result<(), String> {
+    let root = PathBuf::from(&path);
+    if !root.is_dir() {
+        return Err("Not a folder".into());
+    }
+    let handle = app.clone();
+    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        if let Ok(event) = res {
+            let touched: Vec<String> = event
+                .paths
+                .iter()
+                .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            if !touched.is_empty() {
+                let _ = handle.emit("vault-fs-change", touched);
+            }
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    watcher
+        .watch(&root, RecursiveMode::Recursive)
+        .map_err(|e| e.to_string())?;
+    *state.0.lock().map_err(|e| e.to_string())? = Some(watcher);
+    Ok(())
+}
+
+/// Stop watching the current vault folder (dropping the watcher ends the OS-level watch).
+#[tauri::command]
+fn unwatch_vault(state: State<WatcherState>) -> Result<(), String> {
+    *state.0.lock().map_err(|e| e.to_string())? = None;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(WatcherState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             read_vault,
             write_note,
             delete_note,
-            rename_note
+            rename_note,
+            watch_vault,
+            unwatch_vault
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -247,6 +247,8 @@ interface VaultState extends Derived {
   toggleZen: () => void;
   vaultPath: string | null;
   loadDiskVault: (path: string, notes: Note[]) => void;
+  /** apply an externally-changed note set from disk, keeping the user's current note & scroll. */
+  reconcileDisk: (notes: Note[]) => void;
   closeVault: () => void;
   sidebarWidth: number;
   inspectorWidth: number;
@@ -373,6 +375,12 @@ export const useVault = create<VaultState>((set, get) => ({
     const first = notes[0];
     if (first) get().openArticle(first.id);
   },
+  reconcileDisk: (notes) =>
+    set((s) => {
+      // external edit landed: swap the note set in place but stay on the note the user is reading
+      const keep = notes.some((n) => n.id === s.selectedId) ? s.selectedId : notes[0]?.id ?? s.selectedId;
+      return { notes, ...derive(notes), selectedId: keep };
+    }),
   closeVault: () => {
     set({ vaultPath: null });
     // reload to re-init the built-in demo vault cleanly
