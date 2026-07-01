@@ -4,7 +4,8 @@ import { detectWikiTrigger } from "../autocomplete";
 import { getCaretCoordinates } from "../caret";
 import { fuzzyMatch } from "../fuzzy";
 import { parseTags } from "../markdown";
-import { Bold, Italic, Heading, ListIcon, Quote, Code, Link } from "../icons";
+import { Bold, Italic, Heading, ListIcon, Quote, Code, Link, Sparkles } from "../icons";
+import { INLINE_ACTIONS, completeText, type ActionSpec } from "../ai/complete";
 import "./MarkdownEditor.css";
 
 interface Props {
@@ -40,6 +41,18 @@ type Popup =
   | { kind: "slash"; from: number; to: number; items: SlashCmd[]; index: number; top: number; left: number }
   | { kind: "tag"; from: number; to: number; items: string[]; index: number; top: number; left: number };
 
+/** Floating inline-AI toolbar anchored to the current text selection. */
+interface AiState {
+  from: number;
+  to: number;
+  text: string;
+  top: number;
+  left: number;
+  stage: "pill" | "menu" | "custom" | "busy";
+  custom: string;
+  error?: string;
+}
+
 function detectSlash(value: string, caret: number): { query: string; from: number } | null {
   const m = value.slice(0, caret).match(/(?:^|\s)\/([a-zA-Z]*)$/);
   if (!m) return null;
@@ -58,7 +71,9 @@ const CLOSERS = new Set(Object.values(PAIRS));
 export default function MarkdownEditor({ value, onChange, notes, selfId }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const frInputRef = useRef<HTMLInputElement>(null);
+  const aiCtrl = useRef<AbortController | null>(null);
   const [popup, setPopup] = useState<Popup | null>(null);
+  const [ai, setAi] = useState<AiState | null>(null);
   const [fr, setFr] = useState<{ open: boolean; find: string; replace: string }>({
     open: false,
     find: "",
@@ -150,6 +165,69 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     const c = getCaretCoordinates(ta, pos);
     const rect = ta.getBoundingClientRect();
     return { top: rect.top + c.top + c.height + 4, left: rect.left + c.left };
+  };
+
+  // ---- inline AI on a text selection ----
+  const closeAi = () => {
+    aiCtrl.current?.abort();
+    aiCtrl.current = null;
+    setAi(null);
+  };
+
+  /** Show the "Ask AI" pill when a non-trivial run of text is selected (unless a menu is already open). */
+  const checkSel = () => {
+    const ta = ref.current;
+    if (!ta) return;
+    const { selectionStart: a, selectionEnd: b } = ta;
+    if (b - a < 2) {
+      // selection collapsed — dismiss only the passive pill, never an open menu/request
+      setAi((cur) => (cur && cur.stage === "pill" ? null : cur));
+      return;
+    }
+    const text = ta.value.slice(a, b);
+    const anchor = coordsAt(a);
+    setAi((cur) => {
+      if (cur && cur.stage !== "pill") return cur; // keep an in-progress menu anchored where it opened
+      return { from: a, to: b, text, top: anchor.top, left: anchor.left, stage: "pill", custom: "" };
+    });
+  };
+
+  const openAiMenu = () => {
+    const ta = ref.current;
+    if (!ta) return;
+    const { selectionStart: a, selectionEnd: b } = ta;
+    if (b - a < 2) return;
+    const anchor = coordsAt(a);
+    setAi({ from: a, to: b, text: ta.value.slice(a, b), top: anchor.top, left: anchor.left, stage: "menu", custom: "" });
+  };
+
+  const runInline = async (spec: ActionSpec, custom?: string) => {
+    const cur = ai;
+    if (!cur) return;
+    aiCtrl.current?.abort();
+    const ctrl = new AbortController();
+    aiCtrl.current = ctrl;
+    setAi({ ...cur, stage: "busy", error: undefined });
+    try {
+      const result = await completeText(spec.instruction(custom), cur.text, ctrl.signal);
+      if (ctrl.signal.aborted) return;
+      const ta = ref.current;
+      if (!ta) return;
+      if (spec.mode === "after") {
+        // drop the continuation right after the selection (with a separating space if needed), caret at its end
+        const needsSpace = !/\s$/.test(cur.text) && !/^\s/.test(result);
+        const ins = (needsSpace ? " " : "") + result;
+        apply(cur.to, cur.to, ins, ins.length);
+      } else {
+        apply(cur.from, cur.to, result, result.length);
+      }
+      aiCtrl.current = null;
+      setAi(null);
+    } catch (e) {
+      if (ctrl.signal.aborted) return;
+      setAi((c) => (c ? { ...c, stage: "menu", error: e instanceof Error ? e.message : "Request failed" } : c));
+      aiCtrl.current = null;
+    }
   };
 
   const refresh = () => {
@@ -271,6 +349,22 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
       requestAnimationFrame(() => frInputRef.current?.focus());
       return;
     }
+    // ⌘K / Ctrl-K opens the inline AI menu — but only with a selection, else let the palette shortcut through
+    if (mod && (e.key === "k" || e.key === "K")) {
+      const ta = ref.current;
+      if (ta && ta.selectionEnd - ta.selectionStart >= 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        openAiMenu();
+      }
+      return;
+    }
+    if (ai && e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeAi();
+      return;
+    }
     if (popup) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -316,7 +410,7 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
         <button title="Wiki link" onClick={() => surround("[[", "]]", "Note Title")}>
           <Link size={15} />
         </button>
-        <span className="tb-hint">/ commands · [[ link · # tag · ⌘B/⌘I</span>
+        <span className="tb-hint">/ commands · [[ link · # tag · ⌘B/⌘I · select + ⌘K for AI</span>
         <span className="tb-count">{(value.trim().match(/\S+/g) || []).length} words</span>
       </div>
 
@@ -368,10 +462,15 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
           spellCheck={false}
           onChange={(e) => {
             onChange(e.target.value);
+            if (ai) closeAi();
             requestAnimationFrame(refresh);
           }}
-          onKeyUp={refresh}
+          onKeyUp={() => {
+            refresh();
+            checkSel();
+          }}
           onClick={refresh}
+          onMouseUp={checkSel}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
           onBlur={() => window.setTimeout(() => setPopup(null), 150)}
@@ -420,6 +519,77 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
                 <span className="ac-tag">#{it}</span>
               </button>
             ))}
+        </div>
+      )}
+
+      {ai && !popup && (
+        // onMouseDown preventDefault keeps the textarea focused so the selection (from/to) survives the click
+        <div className="ai-inline" style={{ top: ai.top, left: ai.left }} onMouseDown={(e) => e.preventDefault()}>
+          {ai.stage === "pill" && (
+            <button className="ai-pill" onClick={() => setAi({ ...ai, stage: "menu" })}>
+              <Sparkles size={13} />
+              <span>Ask AI</span>
+              <kbd>⌘K</kbd>
+            </button>
+          )}
+
+          {ai.stage === "busy" && (
+            <div className="ai-busy">
+              <span className="ai-spin" />
+              <span>Thinking…</span>
+              <button className="ai-cancel" onClick={closeAi}>
+                Stop
+              </button>
+            </div>
+          )}
+
+          {(ai.stage === "menu" || ai.stage === "custom") && (
+            <div className="ai-menu">
+              {ai.error && <div className="ai-err">{ai.error}</div>}
+              {ai.stage === "menu" ? (
+                <>
+                  {INLINE_ACTIONS.map((spec) =>
+                    spec.id === "custom" ? (
+                      <button key={spec.id} className="ai-act ai-act-custom" onClick={() => setAi({ ...ai, stage: "custom" })}>
+                        <Sparkles size={13} />
+                        <span>{spec.label}</span>
+                      </button>
+                    ) : (
+                      <button key={spec.id} className="ai-act" onClick={() => runInline(spec)}>
+                        <span>{spec.label}</span>
+                      </button>
+                    ),
+                  )}
+                </>
+              ) : (
+                <div className="ai-custom">
+                  <input
+                    autoFocus
+                    className="ai-custom-input"
+                    placeholder="Tell the AI what to do with the selection…"
+                    value={ai.custom}
+                    onChange={(e) => setAi({ ...ai, custom: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && ai.custom.trim()) {
+                        e.preventDefault();
+                        runInline(INLINE_ACTIONS.find((a) => a.id === "custom")!, ai.custom);
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setAi({ ...ai, stage: "menu" });
+                      }
+                    }}
+                  />
+                  <button
+                    className="ai-custom-go"
+                    disabled={!ai.custom.trim()}
+                    onClick={() => runInline(INLINE_ACTIONS.find((a) => a.id === "custom")!, ai.custom)}
+                  >
+                    <Sparkles size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
