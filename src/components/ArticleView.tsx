@@ -5,6 +5,7 @@ import { buildMathCtx } from "../math/render";
 import { useSmoothScroll } from "../useSmoothScroll";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
 import MarkdownEditor from "./MarkdownEditor";
+import LiveEditor from "./LiveEditor";
 import PropertiesPanel from "./PropertiesPanel";
 import { useChat } from "../ai/useChat";
 import { History } from "lucide-react";
@@ -23,6 +24,8 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const citeMap = useVault((s) => s.citeMap);
   const editing = useVault((s) => s.editing);
   const setEditing = useVault((s) => s.setEditing);
+  const editorMode = useVault((s) => s.editorMode);
+  const setEditorMode = useVault((s) => s.setEditorMode);
   const setCenterView = useVault((s) => s.setCenterView);
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
@@ -187,6 +190,24 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
             {showEditor ? <Doc size={14} /> : <Pencil size={14} />}
             <span>{showEditor ? "Read" : "Edit"}</span>
           </button>
+          {showEditor && (
+            <div className="mode-toggle" role="group" aria-label="Editor mode">
+              <button
+                className={"mode-btn" + (editorMode === "source" ? " on" : "")}
+                onClick={() => setEditorMode("source")}
+                title="Edit raw markdown"
+              >
+                Source
+              </button>
+              <button
+                className={"mode-btn" + (editorMode === "live" ? " on" : "")}
+                onClick={() => setEditorMode("live")}
+                title="Live preview — formatted as you go, edit any block inline"
+              >
+                Live
+              </button>
+            </div>
+          )}
           <button className="seg-btn" onClick={() => setCenterView("graph")}>
             <Graph size={14} />
             <span>Map</span>
@@ -215,12 +236,16 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
       </header>
 
       {showEditor ? (
-        <MarkdownEditor
-          value={md}
-          onChange={(v) => updateContent(noteId, v)}
-          notes={notes}
-          selfId={noteId}
-        />
+        editorMode === "live" ? (
+          <LiveEditor value={md} onChange={(v) => updateContent(noteId, v)} noteId={noteId} />
+        ) : (
+          <MarkdownEditor
+            value={md}
+            onChange={(v) => updateContent(noteId, v)}
+            notes={notes}
+            selfId={noteId}
+          />
+        )
       ) : (
         <div className="article-body" ref={bodyRef}>
           <div key={noteId} className="article-doc">

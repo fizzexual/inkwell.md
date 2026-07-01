@@ -189,6 +189,7 @@ interface Persisted {
   folderColors?: Record<string, string>;
   noteIcons?: Record<string, string>;
   savedSearches?: { id: string; name: string; query: string }[];
+  editorMode?: "source" | "live";
 }
 function loadPersisted(): Persisted {
   try {
@@ -245,6 +246,9 @@ interface VaultState extends Derived {
   setAccent: (hex: string) => void;
   zen: boolean;
   toggleZen: () => void;
+  /** how the editor renders while editing: raw markdown textarea vs live block hybrid. */
+  editorMode: "source" | "live";
+  setEditorMode: (m: "source" | "live") => void;
   vaultPath: string | null;
   loadDiskVault: (path: string, notes: Note[]) => void;
   /** apply an externally-changed note set from disk, keeping the user's current note & scroll. */
@@ -375,6 +379,8 @@ export const useVault = create<VaultState>((set, get) => ({
   setAccent: (hex) => set({ accent: hex }),
   zen: false,
   toggleZen: () => set((s) => ({ zen: !s.zen })),
+  editorMode: persisted.editorMode ?? "source",
+  setEditorMode: (m) => set({ editorMode: m }),
   vaultPath: persisted.vaultPath ?? null,
   loadDiskVault: (path, notes) => {
     set(() => ({ notes, ...derive(notes), vaultPath: path, deleted: new Set<string>() }));
@@ -866,6 +872,7 @@ useVault.subscribe(() => {
       folderColors: s.folderColors,
       noteIcons: s.noteIcons,
       savedSearches: s.savedSearches,
+      editorMode: s.editorMode,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

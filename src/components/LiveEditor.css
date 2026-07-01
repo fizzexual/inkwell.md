@@ -1,0 +1,92 @@
+.live-root {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+.live-doc {
+  width: 100%;
+  max-width: 760px;
+  padding: 26px 40px 40vh;
+}
+
+/* a rendered (inactive) block — click to edit */
+.live-block {
+  border-radius: 6px;
+  cursor: text;
+  transition: background var(--dur-1, 0.12s) var(--ease, ease);
+  scroll-margin-top: 20px;
+}
+.live-block:hover {
+  background: var(--bg-hover, rgba(130, 130, 150, 0.06));
+}
+/* the rendered markdown inside a block keeps normal article spacing… */
+.live-block > :first-child {
+  margin-top: 0;
+}
+.live-block > :last-child {
+  margin-bottom: 0;
+}
+.live-empty {
+  min-height: 1.7em;
+}
+.live-empty::after {
+  content: "Empty paragraph — click to edit";
+  color: var(--tx-muted);
+  font-size: 14px;
+}
+.live-empty > p:empty {
+  display: none;
+}
+
+/* the one block you're editing: raw markdown in a seamless textarea */
+.live-active {
+  display: block;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 2px 0;
+  margin: 0;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  box-shadow: -12px 0 0 color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 2px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--tx-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+}
+.live-active::placeholder {
+  color: var(--tx-muted);
+}
+
+/* frontmatter shows as a small "Properties" affordance (its markdown renders to nothing) */
+.live-frontmatter {
+  padding: 4px 0 8px;
+}
+.live-fm-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--tx-3);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  cursor: pointer;
+}
+.live-fm-chip:hover {
+  color: var(--tx-1);
+}
+
+.live-hint {
+  max-width: 760px;
+  margin: -30vh auto 0;
+  padding: 14px 40px;
+  color: var(--tx-muted);
+  font-size: 14px;
+  cursor: text;
+}
