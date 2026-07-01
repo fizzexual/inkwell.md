@@ -179,17 +179,21 @@ export default function App() {
         ) : (
           <NotesWorkspace />
         )}
-        {!inspectorCollapsed && (
-          <>
-            <Resizer
-              dir={-1}
-              getStart={() => useVault.getState().inspectorWidth}
-              onChange={setInspectorWidth}
-            />
-            <Inspector />
-          </>
+        {/* right panel: the assistant and the inspector share one slot so the note area is never squeezed */}
+        {aiOpen ? (
+          <AiPanel />
+        ) : (
+          !inspectorCollapsed && (
+            <>
+              <Resizer
+                dir={-1}
+                getStart={() => useVault.getState().inspectorWidth}
+                onChange={setInspectorWidth}
+              />
+              <Inspector />
+            </>
+          )
         )}
-        {aiOpen && <AiPanel />}
       </div>
       <CommandPalette />
       <QuickCapture />
