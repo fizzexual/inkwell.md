@@ -182,13 +182,15 @@ async function main() {
 
     if (req.method === "OPTIONS") return send(res, 204, "");
 
-    // everything under /api needs the token
+    // /api/health is open (no data, just liveness) so a client can detect it's served by a sync server
+    if (p === "/api/health") return json(res, 200, { ok: true, vault: path.basename(VAULT) });
+
+    // everything else under /api needs the token
     if (p.startsWith("/api/")) {
       if (tokenOf(req, url) !== TOKEN) return json(res, 401, { error: "bad or missing token" });
     }
 
     try {
-      if (p === "/api/health") return json(res, 200, { ok: true, vault: path.basename(VAULT) });
 
       if (p === "/api/vault" && req.method === "GET") {
         return json(res, 200, { notes: await readVault() });
@@ -225,7 +227,8 @@ async function main() {
         clients.add(res);
         const ping = setInterval(() => {
           try {
-            res.write(`: ping\n\n`);
+            // a real data event (not an SSE comment) so the client's heartbeat/watchdog sees it
+            res.write(`data: ${JSON.stringify({ type: "ping" })}\n\n`);
           } catch {
             /* ignore */
           }

@@ -25,10 +25,21 @@ export default function SyncModal() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setUrl(savedUrl || "");
-      setToken(savedToken || "");
-      setErr(null);
+    if (!open) return;
+    setUrl(savedUrl || "");
+    setToken(savedToken || "");
+    setErr(null);
+    // if this page is itself served by a sync server (e.g. opened on the phone from the server URL),
+    // pre-fill the address so the user only has to enter the token
+    if (!savedUrl && typeof location !== "undefined" && /^https?:/.test(location.origin)) {
+      fetch(`${location.origin}/api/health`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((h) => {
+          if (h?.ok) setUrl((u) => u || location.origin);
+        })
+        .catch(() => {
+          /* not a sync server — leave it blank */
+        });
     }
   }, [open, savedUrl, savedToken]);
 

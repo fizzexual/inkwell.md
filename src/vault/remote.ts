@@ -11,7 +11,7 @@ interface DiskNote {
   content: string;
 }
 interface RemoteEvent {
-  type: "hello" | "upsert" | "delete";
+  type: "hello" | "ping" | "upsert" | "delete";
   rel?: string;
   content?: string;
   origin?: string | null;
@@ -28,6 +28,12 @@ let pushTimer: ReturnType<typeof setTimeout> | undefined;
 let lastNotes: Note[] | null = null;
 // what the server currently has, keyed by local note id → so we only push real changes
 let baseline = new Map<string, { rel: string; content: string }>();
+
+// ---- connection resilience (keep the link alive across sleeps, drops, server restarts) ----
+let lastBeat = 0; // ms of the last SSE message/ping — the server pings every 25s
+let hadConnection = false; // have we ever been online? → a reopen is a *reconnect* and must catch up
+let watchdog: ReturnType<typeof setInterval> | null = null;
+const STALE_MS = 45000; // no beat for this long ⇒ the (possibly half-dead) stream is force-reconnected
 
 function headers(): Record<string, string> {
   return { "content-type": "application/json", "x-inkwell-token": token };
@@ -118,40 +124,107 @@ function applyRemote(msg: RemoteEvent) {
   }
 }
 
+/** Pull the whole vault from the server: `initial` load, or a live catch-up after reconnecting. */
+async function fetchVault(initial: boolean): Promise<void> {
+  const { notes } = (await (await apiGet("/api/vault")).json()) as { notes: DiskNote[] };
+  baseline = new Map(notes.map((n) => [n.rel, { rel: n.rel, content: n.content }]));
+  const mapped = notes.map((n) => diskNoteToNote(n));
+  const v = useVault.getState();
+  if (initial) v.loadRemoteVault(baseUrl, token, mapped);
+  else v.reconcileDisk(mapped); // keep the user on their current note
+  lastNotes = useVault.getState().notes; // don't let this programmatic change trigger a push
+}
+
+/** After a reconnect: flush edits we made during the outage, then catch up on what we missed. */
+async function catchUp(): Promise<void> {
+  try {
+    await pushNow(); // send local changes first (SSE has no replay, so re-fetch can't see them)
+    await fetchVault(false);
+  } catch (e) {
+    console.error("Inkwell sync: catch-up failed", e);
+  }
+}
+
 function openEvents() {
+  events?.close();
   // EventSource can't set headers, so the token rides in the query string (server accepts ?token=)
   events = new EventSource(`${baseUrl}/api/events?token=${encodeURIComponent(token)}`);
-  events.onopen = () => useVault.getState().setRemoteStatus("online");
+  events.onopen = () => {
+    lastBeat = Date.now();
+    useVault.getState().setRemoteStatus("online");
+    if (hadConnection) catchUp(); // this is a *re*connection — reconcile whatever changed while gone
+    hadConnection = true;
+  };
   events.onmessage = (e) => {
+    lastBeat = Date.now(); // any message (incl. the server's keepalive ping) proves the link is alive
     let msg: RemoteEvent;
     try {
       msg = JSON.parse(e.data);
     } catch {
       return;
     }
-    if (msg.type === "hello") return;
+    if (msg.type === "hello" || msg.type === "ping") return;
     if (msg.origin === clientId) return; // our own write echoing back — ignore
     applyRemote(msg);
   };
   events.onerror = () => {
-    // EventSource reconnects on its own; reflect the blip in the UI
+    // EventSource retries on its own; the watchdog forces a fresh stream if it stays dead
     if (useVault.getState().remoteStatus === "online") useVault.getState().setRemoteStatus("connecting");
   };
 }
 
-/** Connect to a sync server: load its vault, go live, and start pushing local edits. */
+/** Reopen the stream if it looks dead — the phone woke, the network flapped, or pings stopped. */
+function resume() {
+  if (!baseUrl) return;
+  const stale = Date.now() - lastBeat > STALE_MS;
+  const dead = !events || events.readyState === 2; // 2 = CLOSED
+  if (stale || dead) openEvents();
+}
+
+let onlineHandler: (() => void) | null = null;
+let visHandler: (() => void) | null = null;
+
+function startWatchdog() {
+  stopWatchdog();
+  // periodically make sure the stream is really alive; mobile connections die silently after sleep
+  watchdog = setInterval(() => {
+    if (!baseUrl) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      useVault.getState().setRemoteStatus("connecting");
+      return; // no point reopening with no network; `online` will fire when it's back
+    }
+    if (Date.now() - lastBeat > STALE_MS || !events || events.readyState === 2) openEvents();
+  }, 15000);
+
+  if (typeof window !== "undefined") {
+    onlineHandler = () => resume();
+    visHandler = () => document.visibilityState === "visible" && resume();
+    window.addEventListener("online", onlineHandler);
+    document.addEventListener("visibilitychange", visHandler);
+  }
+}
+
+function stopWatchdog() {
+  if (watchdog) clearInterval(watchdog);
+  watchdog = null;
+  if (typeof window !== "undefined") {
+    if (onlineHandler) window.removeEventListener("online", onlineHandler);
+    if (visHandler) document.removeEventListener("visibilitychange", visHandler);
+  }
+  onlineHandler = null;
+  visHandler = null;
+}
+
+/** Connect to a sync server: load its vault, go live, push local edits, and stay connected. */
 export async function connectRemote(url: string, tok: string): Promise<void> {
   disconnectRemote(false);
   baseUrl = url.replace(/\/+$/, "");
   token = tok;
+  hadConnection = false;
   const v = useVault.getState();
   v.setRemoteStatus("connecting");
   try {
-    const { notes } = (await (await apiGet("/api/vault")).json()) as { notes: DiskNote[] };
-    baseline = new Map(notes.map((n) => [n.rel, { rel: n.rel, content: n.content }]));
-    const mapped = notes.map((n) => diskNoteToNote(n));
-    v.loadRemoteVault(baseUrl, token, mapped);
-    lastNotes = useVault.getState().notes; // baseline the subscriber so the load itself isn't pushed
+    await fetchVault(true);
     openEvents();
     unsub = useVault.subscribe((s) => {
       if (!baseUrl || s.notes === lastNotes) return;
@@ -159,6 +232,7 @@ export async function connectRemote(url: string, tok: string): Promise<void> {
       if (pushTimer) clearTimeout(pushTimer);
       pushTimer = setTimeout(pushNow, 500);
     });
+    startWatchdog();
     v.setRemoteStatus("online");
   } catch (e) {
     v.setRemoteStatus("error");
@@ -173,11 +247,13 @@ export function disconnectRemote(reset = true) {
   events = null;
   unsub?.();
   unsub = null;
+  stopWatchdog();
   if (pushTimer) clearTimeout(pushTimer);
   baseUrl = "";
   token = "";
   baseline = new Map();
   lastNotes = null;
+  hadConnection = false;
   if (reset) useVault.getState().clearRemote();
 }
 

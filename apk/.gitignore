@@ -1,0 +1,10 @@
+# Android build outputs & local config
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+!releases/*.apk
+.idea/
+*.iml
+captures/
