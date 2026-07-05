@@ -266,3 +266,28 @@
   font-weight: 500;
   color: var(--tx-2);
 }
+
+/* device-sync button + connection status dot */
+.sync-btn {
+  position: relative;
+}
+.sync-btn-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tx-muted);
+  border: 1.5px solid var(--bg-app);
+}
+.sync-btn.online .sync-btn-dot {
+  background: var(--ok, #1a7f55);
+}
+.sync-btn.connecting .sync-btn-dot {
+  background: #d9a441;
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+.sync-btn.error .sync-btn-dot {
+  background: var(--danger, #d94a4a);
+}
