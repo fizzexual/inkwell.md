@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
 import { parseTags, parseHeadings, parseCitations } from "../markdown";
 import { toBibtex, aliasesOf } from "../data/derive";
-import { ArrowRight, OpenExternal, Copy, Link } from "../icons";
+import { relatedNotes, isIndexWarm, type SemanticHit, type LoadProgress } from "../search/semantic";
+import { ArrowRight, OpenExternal, Copy, Link, Sparkles } from "../icons";
 import "./Inspector.css";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -26,6 +27,102 @@ function LinkRow({ note, index }: { note: Note; index: number }) {
       </span>
       <ArrowRight size={15} className="link-arrow" />
     </button>
+  );
+}
+
+/** Notes most similar in MEANING to the current one, via the on-device embedding index. */
+function RelatedNotes({ noteId }: { noteId: string }) {
+  const notes = useVault((s) => s.notes);
+  const notesById = useVault((s) => s.notesById);
+  const openArticle = useVault((s) => s.openArticle);
+  const [hits, setHits] = useState<SemanticHit[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [progress, setProgress] = useState<LoadProgress | null>(null);
+  const runId = useRef(0);
+
+  const compute = async () => {
+    const my = ++runId.current;
+    setStatus("loading");
+    setProgress(null);
+    try {
+      const results = await relatedNotes(noteId, notes, 6, (p) => {
+        if (my === runId.current) setProgress(p);
+      });
+      if (my !== runId.current) return;
+      setHits(results.filter((h) => h.score >= 0.25)); // drop weak matches
+      setStatus("ready");
+      setProgress(null);
+    } catch {
+      if (my === runId.current) setStatus("error");
+    }
+  };
+
+  // once the model + index are warm, auto-refresh as you move between notes (cheap: just cosine ranking)
+  useEffect(() => {
+    runId.current++; // cancel any in-flight compute for the previous note
+    if (isIndexWarm()) compute();
+    else {
+      setStatus("idle");
+      setHits([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId]);
+
+  const pct = progress?.ratio != null ? Math.round(progress.ratio * 100) : null;
+
+  return (
+    <section className="link-section">
+      <div className="section-label">Related</div>
+      {status === "idle" && (
+        <button className="related-cta" onClick={compute}>
+          <Sparkles size={14} />
+          <span>Find related notes</span>
+        </button>
+      )}
+      {status === "loading" && (
+        <div className="related-status">
+          <span className="related-spin" />
+          <span>
+            {progress?.stage === "download"
+              ? `Loading model… ${pct ?? 0}%`
+              : progress?.stage === "embedding"
+                ? `Indexing notes… ${pct ?? 0}%`
+                : "Finding connections…"}
+          </span>
+        </div>
+      )}
+      {status === "error" && (
+        <button className="related-cta" onClick={compute}>
+          <span>Couldn't load — retry</span>
+        </button>
+      )}
+      {status === "ready" &&
+        (hits.length ? (
+          <div className="link-list">
+            {hits.map((h, i) => {
+              const n = notesById.get(h.id);
+              if (!n) return null;
+              return (
+                <button
+                  key={h.id}
+                  className="link-row"
+                  style={{ animationDelay: `${Math.min(i * 18, 260)}ms` }}
+                  onClick={() => openArticle(h.id)}
+                  title={`${Math.round(h.score * 100)}% similar`}
+                >
+                  <span className="link-text">
+                    <span className="link-title">{n.title}</span>
+                    <span className="link-kind">{Math.round(h.score * 100)}% similar</span>
+                  </span>
+                  <ArrowRight size={15} className="link-arrow" />
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty">No strongly related notes.</div>
+        ))}
+    </section>
   );
 }
 
@@ -200,6 +297,8 @@ export default function Inspector() {
             )}
           </div>
         </section>
+
+        <RelatedNotes noteId={note.id} />
 
         {mentions.length > 0 && (
           <section className="link-section">

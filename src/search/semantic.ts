@@ -110,6 +110,16 @@ export interface SemanticHit {
   score: number;
 }
 
+/** Make sure every note is embedded (new/changed ones only). Public wrapper around the index build. */
+export async function ensureIndexed(notes: Note[], onProgress?: (p: LoadProgress) => void): Promise<void> {
+  await buildIndex(notes, onProgress);
+}
+
+/** True once at least one note has an embedding cached — so the UI can show related notes instantly. */
+export function isIndexWarm(): boolean {
+  return index.size > 0;
+}
+
 /**
  * Rank notes by semantic similarity to the query. Builds/refreshes the on-device index first
  * (only new/changed notes are re-embedded), then cosine-ranks against the query embedding.
@@ -126,6 +136,23 @@ export async function semanticSearch(
   const qv = await embed(q);
   return [...index.entries()]
     .map(([id, e]) => ({ id, score: dot(qv, e.vec) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
+}
+
+/** The notes most similar in MEANING to one note — associative "related notes" beyond explicit links. */
+export async function relatedNotes(
+  id: string,
+  notes: Note[],
+  k = 6,
+  onProgress?: (p: LoadProgress) => void,
+): Promise<SemanticHit[]> {
+  await buildIndex(notes, onProgress);
+  const self = index.get(id);
+  if (!self) return [];
+  return [...index.entries()]
+    .filter(([nid]) => nid !== id)
+    .map(([nid, e]) => ({ id: nid, score: dot(self.vec, e.vec) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
 }
