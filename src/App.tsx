@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { useVault } from "./store/useVault";
+import { useIsMobile } from "./useIsMobile";
 import TitleBar from "./components/TitleBar";
 import Sidebar from "./components/Sidebar";
 import KnowledgeMap from "./components/KnowledgeMap";
@@ -58,10 +59,22 @@ export default function App() {
   const constellationOpen = useVault((s) => s.constellationOpen);
   const accent = useVault((s) => s.accent);
   const zen = useVault((s) => s.zen);
+  const selectedId = useVault((s) => s.selectedId);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // on a phone, the side panels overlay the note as drawers — start closed so the note is front & centre
+  useEffect(() => {
+    if (isMobile) useVault.setState({ sidebarCollapsed: true, inspectorCollapsed: true, aiOpen: false });
+  }, [isMobile]);
+
+  // tapping a note on a phone should reveal it (close the sidebar drawer)
+  useEffect(() => {
+    if (isMobile) useVault.setState({ sidebarCollapsed: true });
+  }, [selectedId, isMobile]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -148,7 +161,25 @@ export default function App() {
         </button>
       )}
       <TitleBar />
-      <div className="app-body">
+      <div
+        className="app-body"
+        onClick={
+          isMobile
+            ? (e) => {
+                // tapping any note/leaf in the sidebar drawer reveals it (closes the drawer)
+                if ((e.target as HTMLElement).closest(".tree-item.note, .tree-item.leaf, a.wikilink")) {
+                  useVault.setState({ sidebarCollapsed: true });
+                }
+              }
+            : undefined
+        }
+      >
+        {isMobile && (!sidebarCollapsed || !inspectorCollapsed || aiOpen) && (
+          <div
+            className="mobile-scrim"
+            onClick={() => useVault.setState({ sidebarCollapsed: true, inspectorCollapsed: true, aiOpen: false })}
+          />
+        )}
         {!sidebarCollapsed && (
           <>
             <Sidebar />
