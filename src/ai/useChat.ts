@@ -2,6 +2,14 @@ import { create } from "zustand";
 import { useVault } from "../store/useVault";
 import { runVaultAgent, type ChatMsg, type AgentStep, type VaultAccess, type Proposal } from "./agent";
 import { PROVIDERS, getProvider, fetchModels } from "./providers";
+import { semanticSearch, isIndexWarm } from "../search/semantic";
+
+const stripMd = (md: string) =>
+  md
+    .replace(/^---\n[\s\S]*?\n---\n/, "")
+    .replace(/[#>*`_[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const KEY = "inkwell.ai.v2";
 const OLD_KEY = "inkwell.ai.v1";
@@ -198,6 +206,24 @@ export const useChat = create<ChatState>((set, get) => ({
           }
         : undefined,
     };
+
+    // local RAG: if the on-device embedding index is already warm, retrieve the notes most relevant
+    // to the question by MEANING and hand them to the agent (no model download / added latency here)
+    if (isIndexWarm()) {
+      try {
+        const hits = await semanticSearch(t, st.notes, 6);
+        vault.semanticHits = hits
+          .map((h) => {
+            const n = st.notesById.get(h.id);
+            return n
+              ? { id: n.id, title: n.title, folder: n.folder ?? "", snippet: stripMd(n.content ?? "").slice(0, 160) }
+              : null;
+          })
+          .filter((x): x is NonNullable<typeof x> => !!x);
+      } catch {
+        /* semantic retrieval failed — the agent still has keyword search + the map */
+      }
+    }
 
     const startedAt = performance.now();
     try {

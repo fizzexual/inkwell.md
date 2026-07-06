@@ -21,6 +21,8 @@ export interface VaultAccess {
   backlinksOf: (id: string) => Note[];
   /** record a pending write for user approval; returns a status string for the model. */
   propose?: (p: Omit<Proposal, "id">) => string;
+  /** notes most relevant to the question by MEANING (on-device embeddings), when the index is warm. */
+  semanticHits?: { id: string; title: string; folder: string; snippet: string }[];
 }
 
 export interface ChatMsg {
@@ -69,6 +71,14 @@ function systemPrompt(v: VaultAccess, canWrite: boolean): string {
   const writeNote = canWrite
     ? `\n\nYou may also PROPOSE changes with create_note(title, content, folder?) and edit_note(title, content). These do NOT save directly — the user reviews and approves each one. Only propose a write when the user clearly asks you to create or change a note; otherwise just answer.`
     : "";
+  // when the on-device embedding index is warm, the app pre-retrieves the notes most relevant to the
+  // question by MEANING — a strong starting point that beats keyword matching
+  const semantic =
+    v.semanticHits && v.semanticHits.length
+      ? `\n\nMOST RELEVANT NOTES for this question (found by meaning, on-device):\n${v.semanticHits
+          .map((h) => `- ${h.title} [${h.folder || "/"}] — ${h.snippet}`)
+          .join("\n")}\nStart from these — read_notes() the ones that look useful before searching further.`
+      : "";
   return `You are the research assistant built into Inkwell, a personal knowledge vault. Answer the user's questions using ONLY the contents of their vault.${writeNote}
 
 You are given a MAP of every note below: its title, folder, #tags and the notes it links to (→). Treat that link graph as your index. To stay fast and cheap you must NOT read the whole vault — use the map to decide which few notes are relevant, then read only those.
@@ -78,7 +88,7 @@ Tools:
 - explore_links(title): returns the notes a given note links to and the notes that link back to it. Use it to walk the graph outward from a relevant note.
 - read_notes(titles): returns the full text of the named notes. Read only what you genuinely need to answer.
 
-Work in small steps: locate the few relevant notes from the map / search / links, read just those, then answer concisely. Cite every note you used as a [[Note Title]] wikilink so the user can click it. If the vault doesn't contain the answer, say so plainly — never invent facts that aren't in the notes.
+Work in small steps: locate the few relevant notes from the map / search / links, read just those, then answer concisely. Cite every note you used as a [[Note Title]] wikilink so the user can click it. If the vault doesn't contain the answer, say so plainly — never invent facts that aren't in the notes.${semantic}
 
 VAULT MAP (${v.notes.length} notes):
 ${buildMap(v)}`;
@@ -390,7 +400,12 @@ interface OAIUsage {
  */
 async function answerWithContext(o: LoopOpts, headers: Record<string, string>, priorTokens: number): Promise<AgentResult> {
   const question = [...o.messages].reverse().find((m) => m.role === "user")?.content ?? "";
-  const hits = rankNotes(o.vault, question, 5);
+  // prefer the on-device semantic shortlist (retrieval by meaning); fall back to keyword ranking
+  const semantic = (o.vault.semanticHits ?? [])
+    .map((h) => o.vault.getNote(h.id))
+    .filter((n): n is Note => !!n)
+    .slice(0, 5);
+  const hits = semantic.length ? semantic : rankNotes(o.vault, question, 5);
   if (hits.length) o.onStep({ kind: "read", detail: hits.map((n) => n.title).join(", ") });
   const context = hits.length
     ? hits.map((n) => `### ${n.title} [${n.folder || "/"}]\n${(n.content ?? "").slice(0, 2000)}`).join("\n\n---\n\n")
