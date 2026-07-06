@@ -24,4 +24,14 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    // the whole Inkwell web app is bundled under assets/ — don't let AAPT compress it
+    aaptOptions {
+        noCompress 'js', 'css', 'wasm', 'woff2', 'data'
+    }
+}
+
+dependencies {
+    // serves the bundled web app from a secure in-app origin (local-first, works offline)
+    implementation 'androidx.webkit:webkit:1.11.0'
 }

@@ -109,6 +109,8 @@ function send(res, status, body, headers = {}) {
     "access-control-allow-origin": "*",
     "access-control-allow-headers": "content-type, authorization, x-inkwell-token",
     "access-control-allow-methods": "GET, POST, OPTIONS",
+    // let a secure app origin (the bundled Android app) reach this private-network server
+    "access-control-allow-private-network": "true",
     ...headers,
   });
   res.end(body);

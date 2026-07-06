@@ -8,3 +8,6 @@ local.properties
 .idea/
 *.iml
 captures/
+
+# the bundled web app is generated from ../dist by bundle-web.mjs — don't commit it
+app/src/main/assets/
