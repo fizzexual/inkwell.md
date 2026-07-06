@@ -1,13 +1,43 @@
 // Inkwell — Rust backend: on-disk vault filesystem commands.
+mod sync_server;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
+
+/// Holds the embedded sync server while it's running (device sharing).
+struct SyncState(Mutex<Option<sync_server::SyncServer>>);
+
+#[derive(Serialize)]
+struct SyncInfo {
+    running: bool,
+    port: u16,
+    token: String,
+    /// full URLs a device can connect to, e.g. http://192.168.1.20:8787
+    urls: Vec<String>,
+}
+
+/// A stable per-vault token: read `.inkwell-sync-token` if present, else make one and save it.
+fn vault_token(vault: &Path) -> String {
+    let file = vault.join(".inkwell-sync-token");
+    if let Ok(saved) = fs::read_to_string(&file) {
+        let t = saved.trim().to_string();
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let token = format!("{:016x}", (nanos as u64) ^ (std::process::id() as u64).rotate_left(21));
+    let _ = fs::create_dir_all(vault);
+    let _ = fs::write(&file, &token);
+    token
+}
 
 #[derive(Serialize)]
 struct DiskNote {
@@ -122,19 +152,73 @@ fn unwatch_vault(state: State<WatcherState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Start sharing a vault folder over the local network so other devices can sync to it.
+#[tauri::command]
+fn start_sync(vault: String, port: Option<u16>, state: State<SyncState>) -> Result<SyncInfo, String> {
+    let vault_path = PathBuf::from(&vault);
+    if !vault_path.is_dir() {
+        fs::create_dir_all(&vault_path).map_err(|e| e.to_string())?;
+    }
+    let port = port.unwrap_or(8787);
+    let token = vault_token(&vault_path);
+    let server = sync_server::SyncServer::start(vault_path, port, token.clone())
+        .map_err(|e| format!("Couldn't start on port {port}: {e}"))?;
+    let info = SyncInfo {
+        running: true,
+        port,
+        token,
+        urls: sync_server::local_ips()
+            .iter()
+            .map(|ip| format!("http://{ip}:{port}"))
+            .collect(),
+    };
+    *state.0.lock().map_err(|e| e.to_string())? = Some(server);
+    Ok(info)
+}
+
+/// Stop sharing (dropping the server ends its background threads).
+#[tauri::command]
+fn stop_sync(state: State<SyncState>) -> Result<(), String> {
+    *state.0.lock().map_err(|e| e.to_string())? = None;
+    Ok(())
+}
+
+/// Current sharing state + connect info for the UI.
+#[tauri::command]
+fn sync_status(state: State<SyncState>) -> SyncInfo {
+    if let Ok(guard) = state.0.lock() {
+        if let Some(s) = guard.as_ref() {
+            return SyncInfo {
+                running: true,
+                port: s.port,
+                token: s.token.clone(),
+                urls: sync_server::local_ips()
+                    .iter()
+                    .map(|ip| format!("http://{ip}:{}", s.port))
+                    .collect(),
+            };
+        }
+    }
+    SyncInfo { running: false, port: 0, token: String::new(), urls: vec![] }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(WatcherState(Mutex::new(None)))
+        .manage(SyncState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             read_vault,
             write_note,
             delete_note,
             rename_note,
             watch_vault,
-            unwatch_vault
+            unwatch_vault,
+            start_sync,
+            stop_sync,
+            sync_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

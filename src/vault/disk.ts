@@ -29,6 +29,18 @@ export const writeNoteFile = (path: string, rel: string, content: string) =>
   invoke<void>("write_note", { path, rel, content });
 export const deleteNoteFile = (path: string, rel: string) => invoke<void>("delete_note", { path, rel });
 
+/** Connect info for the embedded sync server (device sharing) running in the desktop app. */
+export interface SyncInfo {
+  running: boolean;
+  port: number;
+  token: string;
+  urls: string[];
+}
+/** Start sharing a vault folder over the local network (desktop app only). */
+export const startSync = (vault: string, port?: number) => invoke<SyncInfo>("start_sync", { vault, port });
+export const stopSync = () => invoke<void>("stop_sync", {});
+export const syncStatus = () => invoke<SyncInfo>("sync_status", {});
+
 /** Start the native filesystem watcher on a vault folder (replaces any previous watch). */
 export const watchVault = (path: string) => invoke<void>("watch_vault", { path });
 /** Stop watching the current vault folder. */
