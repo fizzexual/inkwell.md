@@ -546,3 +546,80 @@
   color: var(--tx-1);
   box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
 }
+
+/* ```query results (Dataview-style) */
+.inkql {
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  background: var(--bg-soft, var(--bg-app));
+}
+.inkql-count {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-hover);
+}
+.inkql-empty,
+.inkql-error {
+  padding: 14px 12px;
+  font-size: 13px;
+  color: var(--tx-3);
+}
+.inkql-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.inkql-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--tx-3);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-transform: capitalize;
+}
+.inkql-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-2);
+  vertical-align: top;
+}
+.inkql-table tr:last-child td {
+  border-bottom: none;
+}
+.inkql-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+}
+.inkql-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+}
+.inkql-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+.inkql-card {
+  padding: 10px 12px;
+  border: 1px solid var(--line-card);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inkql-folder {
+  font-size: 11px;
+  color: var(--tx-muted);
+}

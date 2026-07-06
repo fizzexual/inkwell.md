@@ -4,6 +4,7 @@ import { useMath } from "../math/useMath";
 import { buildMathCtx } from "../math/render";
 import { useSmoothScroll } from "../useSmoothScroll";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
+import { runQuery } from "../dataview";
 import MarkdownEditor from "./MarkdownEditor";
 import LiveEditor from "./LiveEditor";
 import PropertiesPanel from "./PropertiesPanel";
@@ -57,8 +58,9 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
           return c ? { id: c.id, label: c.label } : undefined;
         },
         math: buildMathCtx(mathResult),
+        query: (src) => runQuery(src, notes, noteId),
       }),
-    [md, resolve, notesById, citeMap, mathResult],
+    [md, resolve, notesById, citeMap, mathResult, notes, noteId],
   );
 
   useEffect(() => {

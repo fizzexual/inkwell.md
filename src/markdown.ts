@@ -212,6 +212,8 @@ export interface RenderCtx {
   getNote?: NoteGetter;
   cite?: CiteResolver;
   math?: MathCtx;
+  /** evaluate a ```query block against the vault → HTML table/list/cards. */
+  query?: (source: string) => string;
 }
 
 function escapeHtml(s: string): string {
@@ -360,6 +362,14 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
     html = html.replace(
       /<pre><code class="language-(math|plot)">([\s\S]*?)<\/code><\/pre>/g,
       (_m, lang: "math" | "plot", code: string) => math.block(lang, decodeEntities(code)),
+    );
+  }
+
+  // live ```query blocks → a table/list/cards of matching notes (Dataview-style)
+  if (ctx.query) {
+    html = html.replace(
+      /<pre><code class="language-(?:query|inkql)">([\s\S]*?)<\/code><\/pre>/g,
+      (_m, code: string) => ctx.query!(decodeEntities(code)),
     );
   }
 
