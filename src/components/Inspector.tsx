@@ -4,6 +4,7 @@ import type { Note } from "../data/vault";
 import { parseTags, parseHeadings, parseCitations } from "../markdown";
 import { toBibtex, aliasesOf } from "../data/derive";
 import { relatedNotes, isIndexWarm, type SemanticHit, type LoadProgress } from "../search/semantic";
+import { suggestTags, suggestTitle } from "../ai/suggest";
 import { ArrowRight, OpenExternal, Copy, Link, Sparkles } from "../icons";
 import "./Inspector.css";
 
@@ -122,6 +123,96 @@ function RelatedNotes({ noteId }: { noteId: string }) {
         ) : (
           <div className="empty">No strongly related notes.</div>
         ))}
+    </section>
+  );
+}
+
+/** One-click AI suggestions for the current note: topical tags and a better title. */
+function AiSuggest({ note }: { note: Note }) {
+  const notes = useVault((s) => s.notes);
+  const updateContent = useVault((s) => s.updateContent);
+  const toast = useVault((s) => s.toast);
+  const [tags, setTags] = useState<string[] | null>(null);
+  const [titleSug, setTitleSug] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"" | "tags" | "title">("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const existingTags = useMemo(() => {
+    const s = new Set<string>();
+    for (const n of notes) for (const t of parseTags(n.content ?? "")) s.add(t);
+    return [...s];
+  }, [notes]);
+  const noteTags = new Set(parseTags(note.content ?? ""));
+
+  const runTags = async () => {
+    setBusy("tags");
+    setErr(null);
+    try {
+      setTags(await suggestTags(note.content ?? "", existingTags));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Suggestion failed");
+    } finally {
+      setBusy("");
+    }
+  };
+  const runTitle = async () => {
+    setBusy("title");
+    setErr(null);
+    try {
+      setTitleSug(await suggestTitle(note.content ?? ""));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Suggestion failed");
+    } finally {
+      setBusy("");
+    }
+  };
+  const addTag = (t: string) => {
+    if (!noteTags.has(t)) {
+      updateContent(note.id, (note.content ?? "").replace(/\s*$/, "") + ` #${t}\n`);
+      toast(`Added #${t}`);
+    }
+    setTags((cur) => cur?.filter((x) => x !== t) ?? null);
+  };
+  const applyTitle = () => {
+    if (!titleSug) return;
+    const c = note.content ?? "";
+    const next = /^#\s+.+$/m.test(c) ? c.replace(/^#\s+.+$/m, `# ${titleSug}`) : `# ${titleSug}\n\n${c}`;
+    updateContent(note.id, next);
+    toast("Title updated");
+    setTitleSug(null);
+  };
+
+  return (
+    <section className="link-section">
+      <div className="section-label">AI suggestions</div>
+      <div className="ai-suggest-actions">
+        <button className="mini-btn" onClick={runTags} disabled={!!busy}>
+          {busy === "tags" ? <span className="related-spin" /> : <Sparkles size={13} />} Tags
+        </button>
+        <button className="mini-btn" onClick={runTitle} disabled={!!busy}>
+          {busy === "title" ? <span className="related-spin" /> : <Sparkles size={13} />} Title
+        </button>
+      </div>
+      {err && <div className="ai-suggest-err">{err}</div>}
+      {tags && (tags.length ? (
+        <div className="insp-tags">
+          {tags.map((t) => (
+            <button key={t} className="tag-pill add" onClick={() => addTag(t)} title="Add this tag">
+              + #{t}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">No tag ideas.</div>
+      ))}
+      {titleSug && (
+        <div className="ai-title-sug">
+          <span className="ai-title-text">{titleSug}</span>
+          <button className="mini-btn" onClick={applyTitle}>
+            Apply
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -299,6 +390,8 @@ export default function Inspector() {
         </section>
 
         <RelatedNotes noteId={note.id} />
+
+        <AiSuggest note={note} />
 
         {mentions.length > 0 && (
           <section className="link-section">
