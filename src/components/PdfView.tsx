@@ -9,6 +9,10 @@ export default function PdfView() {
   const pdf = useVault((s) => s.pdf);
   const openPdf = useVault((s) => s.openPdf);
   const createNoteWith = useVault((s) => s.createNoteWith);
+  const resolve = useVault((s) => s.resolve);
+  const notesById = useVault((s) => s.notesById);
+  const updateContent = useVault((s) => s.updateContent);
+  const openArticle = useVault((s) => s.openArticle);
   const toast = useVault((s) => s.toast);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,6 +25,8 @@ export default function PdfView() {
   const [scale, setScale] = useState(1.3);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // floating "add highlight" button anchored to the current text selection
+  const [sel, setSel] = useState<{ x: number; y: number } | null>(null);
 
   // load the document
   useEffect(() => {
@@ -84,18 +90,47 @@ export default function PdfView() {
     file.arrayBuffer().then((buf) => openPdf(file.name, buf));
   };
 
+  // append the current selection to ONE running "<pdf> — Highlights" note (create it the first time)
   const saveHighlight = () => {
     const quote = window.getSelection()?.toString().trim();
     if (!quote || !pdf) {
       toast("Select some text in the PDF first");
       return;
     }
-    const title = `Highlight — ${pdf.name.replace(/\.pdf$/i, "")} p.${page}`;
-    const body = `# ${title}\n\n> ${quote.replace(/\n+/g, " ")}\n\n— *${pdf.name}*, page ${page}\n`;
-    createNoteWith(title, body, "Highlights");
-    toast("Highlight saved to Highlights/");
+    setSel(null);
+    window.getSelection()?.removeAllRanges();
+    const base = pdf.name.replace(/\.pdf$/i, "");
+    const title = `${base} — Highlights`;
+    const entry = `> ${quote.replace(/\s*\n\s*/g, " ")}\n>\n> — page ${page}\n`;
+    const existingId = resolve(title);
+    if (existingId && notesById.get(existingId)) {
+      const prev = notesById.get(existingId)!.content ?? "";
+      updateContent(existingId, `${prev.replace(/\s*$/, "")}\n\n${entry}`);
+    } else {
+      createNoteWith(title, `# ${title}\n\n_Source: ${pdf.name}_\n\n${entry}`, "Highlights");
+    }
+    toast(`Highlight added to “${title}”`);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1600);
+  };
+
+  // show the floating button when text is selected inside the PDF
+  const onSelect = () => {
+    const s = window.getSelection();
+    const text = s?.toString().trim();
+    if (!text || !s || s.rangeCount === 0 || !textRef.current) return setSel(null);
+    const range = s.getRangeAt(0);
+    if (!textRef.current.contains(range.commonAncestorContainer)) return setSel(null);
+    const r = range.getBoundingClientRect();
+    if (!r.width) return setSel(null);
+    setSel({ x: r.left + r.width / 2, y: r.top - 8 });
+  };
+
+  const openHighlights = () => {
+    if (!pdf) return;
+    const id = resolve(`${pdf.name.replace(/\.pdf$/i, "")} — Highlights`);
+    if (id) openArticle(id);
+    else toast("No highlights yet — select text and add one");
   };
 
   if (!pdf) {
@@ -139,16 +174,30 @@ export default function PdfView() {
             <NoteEdit size={14} />
             {saved ? "Saved!" : "Save highlight"}
           </button>
+          <button className="pdf-hl-open" onClick={openHighlights} title="Open this PDF's highlights note">
+            Highlights
+          </button>
         </div>
       </header>
 
-      <div className="pdf-scroll">
+      <div className="pdf-scroll" onMouseUp={onSelect}>
         {error && <div className="pdf-error">Could not render PDF: {error}</div>}
         <div className="pdf-page-wrap">
           <canvas ref={canvasRef} className="pdf-canvas" />
           <div ref={textRef} className="textLayer" />
         </div>
       </div>
+
+      {sel && (
+        <button
+          className="pdf-sel-btn"
+          style={{ left: sel.x, top: sel.y }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={saveHighlight}
+        >
+          <NoteEdit size={13} /> Add highlight
+        </button>
+      )}
     </main>
   );
 }

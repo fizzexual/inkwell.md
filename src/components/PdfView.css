@@ -143,3 +143,35 @@
   font-size: 13px;
   padding: 12px;
 }
+
+/* floating "add highlight" button on text selection */
+.pdf-sel-btn {
+  position: fixed;
+  z-index: 120;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pop);
+  animation: pop-in var(--dur-1, 0.14s) var(--ease-out, ease);
+}
+.pdf-sel-btn:hover {
+  filter: brightness(1.05);
+}
+.pdf-hl-open {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-2, var(--tx-1));
+  border: 1px solid var(--line-card);
+}
+.pdf-hl-open:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
