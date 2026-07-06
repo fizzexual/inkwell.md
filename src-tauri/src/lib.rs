@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
@@ -128,6 +128,29 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(WatcherState(Mutex::new(None)))
+        .setup(|app| {
+            // system-wide hotkey: bring Inkwell to the front and open Quick Capture from anywhere
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(|app, _shortcut, event| {
+                            if event.state == ShortcutState::Pressed {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.show();
+                                    let _ = w.unminimize();
+                                    let _ = w.set_focus();
+                                }
+                                let _ = app.emit("global-quick-capture", ());
+                            }
+                        })
+                        .build(),
+                )?;
+                let _ = app.global_shortcut().register("CmdOrCtrl+Shift+Space");
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             read_vault,
             write_note,

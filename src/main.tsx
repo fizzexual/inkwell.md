@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { startDiskSync, autoloadVault, startVaultWatch } from "./vault/sync";
+import { isTauri } from "./vault/disk";
+import { useVault } from "./store/useVault";
 import { startHistory } from "./useHistory";
 import "@fontsource/inter/300.css";
 import "@fontsource/inter/400.css";
@@ -26,6 +28,13 @@ startVaultWatch();
 autoloadVault();
 // per-note version history (auto-snapshots as you edit)
 startHistory();
+
+// desktop only: the system-wide hotkey (Cmd/Ctrl+Shift+Space) fires this to open Quick Capture
+if (isTauri()) {
+  import("@tauri-apps/api/event")
+    .then(({ listen }) => listen("global-quick-capture", () => useVault.getState().setQuickOpen(true)))
+    .catch(() => {});
+}
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
