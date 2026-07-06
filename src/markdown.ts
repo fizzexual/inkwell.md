@@ -214,6 +214,8 @@ export interface RenderCtx {
   math?: MathCtx;
   /** evaluate a ```query block against the vault → HTML table/list/cards. */
   query?: (source: string) => string;
+  /** render a ```bibliography block → the note's cited works, formatted. */
+  bibliography?: () => string;
 }
 
 function escapeHtml(s: string): string {
@@ -370,6 +372,14 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
     html = html.replace(
       /<pre><code class="language-(?:query|inkql)">([\s\S]*?)<\/code><\/pre>/g,
       (_m, code: string) => ctx.query!(decodeEntities(code)),
+    );
+  }
+
+  // ```bibliography block → the note's cited works, formatted
+  if (ctx.bibliography) {
+    html = html.replace(
+      /<pre><code class="language-bibliography">[\s\S]*?<\/code><\/pre>/g,
+      () => ctx.bibliography!(),
     );
   }
 

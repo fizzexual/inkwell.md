@@ -623,3 +623,30 @@
   font-size: 11px;
   color: var(--tx-muted);
 }
+
+/* ```bibliography block */
+.bib {
+  margin: 14px 0;
+}
+.bib-list {
+  margin: 0;
+  padding-left: 26px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.bib-list li {
+  margin: 6px 0;
+  color: var(--tx-2);
+}
+.bib-who {
+  font-weight: 600;
+  color: var(--tx-1);
+}
+.bib-empty {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--tx-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md, 10px);
+}
+/* the `[@` citation autocomplete row already reuses .ac-item / .ac-hint */

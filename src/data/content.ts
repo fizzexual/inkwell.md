@@ -11,6 +11,9 @@ of knowledge — without juggling five different apps.
 This whole vault *is* the manual. Every note here was written **in Inkwell**, so
 reading it also shows the features working.
 
+> [!tip] New here
+> See **[[New: AI, Search & Queries]]** for the latest — live queries, on-device semantic search, related notes, AI tag/title suggestions and audio transcription.
+
 ## Start here
 
 - 🚀 [[Quick Start]] — the two-minute tour
@@ -501,10 +504,19 @@ link to the source note:
 - Markdown was created by Gruber [@gruber2004].
 - Math rendering uses KaTeX [@katex2014]; computation uses math.js [@mathjs2013].
 
+Tip: start typing \`[@\` in the editor and pick a source by name — no need to
+remember citekeys.
+
 ## Bibliography
 
-The **References** section in the inspector lists every source this note cites,
-with a **Copy BibTeX** button for your reference manager.
+Drop a \`bibliography\` block anywhere and it lists every source this note cites,
+alphabetized and formatted:
+
+\`\`\`bibliography
+\`\`\`
+
+The **References** section in the inspector also lists them, with a **Copy BibTeX**
+button for your reference manager.
 
 See also the [[PDF Reader & Highlights]] for capturing quotes.`,
 

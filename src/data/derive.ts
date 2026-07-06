@@ -1,5 +1,8 @@
 import type { Note } from "./vault";
-import { parseWikilinkIds, parseFrontmatter, type Resolver } from "../markdown";
+import { parseWikilinkIds, parseFrontmatter, parseCitations, type Resolver } from "../markdown";
+
+const escBib = (s: string) =>
+  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 export interface Citation {
   id: string;
@@ -41,6 +44,25 @@ export function toBibtex(c: Citation): string {
     c.venue && `  booktitle = {${c.venue}}`,
   ].filter(Boolean);
   return `@inproceedings{${c.key},\n${fields.join(",\n")}\n}`;
+}
+
+/** Render a note's cited works ([@key]) as a formatted, alphabetized reference list (HTML). */
+export function buildBibliography(md: string, citeMap: Map<string, Citation>): string {
+  const cites = parseCitations(md)
+    .map((k) => citeMap.get(k))
+    .filter((c): c is Citation => !!c)
+    .sort((a, b) => (a.authors || a.title).localeCompare(b.authors || b.title));
+  if (!cites.length)
+    return `<div class="bib bib-empty">No citations yet — reference a source with <code>[@citekey]</code> and it appears here.</div>`;
+  const items = cites
+    .map((c) => {
+      const who = escBib(c.authors || c.title);
+      const yr = c.year ? ` (${escBib(c.year)})` : "";
+      const venue = c.venue ? ` <em>${escBib(c.venue)}</em>.` : "";
+      return `<li><span class="bib-who">${who}</span>${yr}. <a class="wikilink" data-note="${c.id}" href="#/note/${c.id}">${escBib(c.title)}</a>.${venue}</li>`;
+    })
+    .join("");
+  return `<div class="bib"><ol class="bib-list">${items}</ol></div>`;
 }
 
 export interface TreeFolder {

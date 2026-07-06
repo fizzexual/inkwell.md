@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Note } from "../data/vault";
+import { useVault } from "../store/useVault";
 import { detectWikiTrigger } from "../autocomplete";
 import { getCaretCoordinates } from "../caret";
 import { fuzzyMatch } from "../fuzzy";
@@ -36,10 +37,17 @@ const SLASH_COMMANDS: SlashCmd[] = [
   { label: "Embed note", hint: "![[ ]]", insert: "![[]]", caret: 3 },
 ];
 
+interface CiteItem {
+  key: string;
+  label: string;
+  title: string;
+}
+
 type Popup =
   | { kind: "link"; from: number; to: number; items: { id: string; title: string }[]; index: number; top: number; left: number }
   | { kind: "slash"; from: number; to: number; items: SlashCmd[]; index: number; top: number; left: number }
-  | { kind: "tag"; from: number; to: number; items: string[]; index: number; top: number; left: number };
+  | { kind: "tag"; from: number; to: number; items: string[]; index: number; top: number; left: number }
+  | { kind: "cite"; from: number; to: number; items: CiteItem[]; index: number; top: number; left: number };
 
 /** Floating inline-AI toolbar anchored to the current text selection. */
 interface AiState {
@@ -65,6 +73,13 @@ function detectTag(value: string, caret: number): { query: string; from: number 
   return { query: m[1], from: caret - m[1].length - 1 };
 }
 
+/** `[@partial` → a citation trigger, matching a source's citekey / author / title. */
+function detectCite(value: string, caret: number): { query: string; from: number } | null {
+  const m = value.slice(0, caret).match(/\[@([\w:-]*)$/);
+  if (!m) return null;
+  return { query: m[1], from: caret - m[1].length - 2 };
+}
+
 const PAIRS: Record<string, string> = { "(": ")", "[": "]", "{": "}", '"': '"', "`": "`" };
 const CLOSERS = new Set(Object.values(PAIRS));
 
@@ -79,6 +94,11 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     find: "",
     replace: "",
   });
+  const citeMap = useVault((s) => s.citeMap);
+  const citations = useMemo(
+    () => [...citeMap.values()].map((c) => ({ key: c.key, label: c.label, title: c.title })),
+    [citeMap],
+  );
   const allTags = useMemo(() => {
     const s = new Set<string>();
     for (const n of notes) for (const t of parseTags(n.content ?? "")) s.add(t);
@@ -266,6 +286,17 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
       }
     }
 
+    const cite = detectCite(ta.value, caret);
+    if (cite && citations.length) {
+      const q = cite.query.toLowerCase();
+      const items = citations
+        .filter((c) => !q || c.key.toLowerCase().includes(q) || c.title.toLowerCase().includes(q) || c.label.toLowerCase().includes(q))
+        .slice(0, 8);
+      if (items.length) {
+        return setPopup({ kind: "cite", from: cite.from, to: caret, items, index: 0, ...coordsAt(cite.from) });
+      }
+    }
+
     setPopup(null);
   };
 
@@ -276,6 +307,11 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     } else if (p.kind === "tag") {
       const tag = p.items[i];
       apply(p.from, p.to, `#${tag} `, tag.length + 2);
+    } else if (p.kind === "cite") {
+      const key = p.items[i].key;
+      // absorb the bracket-pair's auto-inserted "]" so we don't end up with "[@key]]"
+      const to = ref.current?.value[p.to] === "]" ? p.to + 1 : p.to;
+      apply(p.from, to, `[@${key}]`, key.length + 3);
     } else {
       const cmd = p.items[i];
       apply(p.from, p.to, cmd.insert, cmd.caret);
@@ -517,6 +553,18 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
                 onClick={() => accept(popup, i)}
               >
                 <span className="ac-tag">#{it}</span>
+              </button>
+            ))}
+          {popup.kind === "cite" &&
+            popup.items.map((it, i) => (
+              <button
+                key={it.key}
+                className={"ac-item" + (i === popup.index ? " active" : "")}
+                onMouseEnter={() => setPopup({ ...popup, index: i })}
+                onClick={() => accept(popup, i)}
+              >
+                <span>{it.title}</span>
+                <span className="ac-hint">@{it.key}</span>
               </button>
             ))}
         </div>

@@ -5,6 +5,7 @@ import { buildMathCtx } from "../math/render";
 import { useSmoothScroll } from "../useSmoothScroll";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
 import { runQuery } from "../dataview";
+import { buildBibliography } from "../data/derive";
 import MarkdownEditor from "./MarkdownEditor";
 import LiveEditor from "./LiveEditor";
 import PropertiesPanel from "./PropertiesPanel";
@@ -59,6 +60,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
         },
         math: buildMathCtx(mathResult),
         query: (src) => runQuery(src, notes, noteId),
+        bibliography: () => buildBibliography(md, citeMap),
       }),
     [md, resolve, notesById, citeMap, mathResult, notes, noteId],
   );
