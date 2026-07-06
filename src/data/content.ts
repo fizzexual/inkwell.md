@@ -1504,6 +1504,181 @@ Track a week at a glance. Pair it with [[Daily Notes]] to reflect each evening.
 > Don't break the chain two days running. A single miss is fine — two starts a new habit.
 
 #habits #example`,
+
+  "new-overview": `# New: AI, Search & Queries
+
+Six recent additions — all **local**, all **private**. Nothing leaves your machine.
+
+## 🔎 Find things by meaning
+
+- **Related notes** — open any note and look at the **Related** section in the right-hand inspector. It surfaces notes that are *about the same thing*, even when there's no \`[[link]]\` between them. The first click loads a small on-device model; after that it's instant.
+- **Semantic search** — press **Shift + Ctrl/Cmd + F** (or pick *Search "…" by meaning* in the command palette) to search by concept instead of exact words.
+
+See [[Related Notes & Local AI Search]].
+
+## 🤖 A smarter assistant
+
+- **Local RAG** — once the embedding index is warm, the [[The AI Assistant]] automatically pulls the *most relevant* notes into its context, so its answers cite the right ones.
+- **Note suggestions** — the inspector's **AI suggestions** proposes **tags** and a **title** for the current note in one click. See [[AI Note Suggestions]].
+
+## 📊 Live queries
+
+A fenced **\`query\`** block turns your vault into a live table, list, or cards. See [[Live Query Examples]].
+
+## 📄 PDF highlights
+
+In the [[PDF Reader & Highlights]], select text and click **Add highlight** — every highlight collects into one running *"&lt;pdf&gt; — Highlights"* note with page numbers.
+
+## 🎙️ Audio to notes
+
+The **microphone** button in the sidebar transcribes an audio file to a note, on-device. See [[Transcribe Audio to Notes]].
+
+> [!tip]
+> The AI-model features (related notes, semantic search, transcription) download a small model once, then keep working offline.`,
+
+  "ex-queries": `# Live Query Examples
+
+A **query block** runs against your whole vault and renders **live**. Switch to **Edit** to see the syntax behind each one, then tweak it.
+
+## Tasks, as a table
+
+\`\`\`query
+from: 09 - New in Inkwell/Tasks
+as: table
+fields: title, status, due
+sort: due
+\`\`\`
+
+## Only what's still open (cards)
+
+\`\`\`query
+from: 09 - New in Inkwell/Tasks
+where: status = todo
+as: cards
+\`\`\`
+
+## A few notes from the Examples folder (list)
+
+\`\`\`query
+from: 08 - Examples
+as: list
+limit: 8
+\`\`\`
+
+## Everything tagged #writing
+
+\`\`\`query
+tag: writing
+as: list
+\`\`\`
+
+## The syntax
+
+Each line is \`key: value\`:
+
+- \`from: Folder\` — notes in a folder (prefix match; repeat for several)
+- \`tag: name\` — must have this tag (repeat lines for AND)
+- \`where: field op value\` — a frontmatter field, where \`op\` is \`=\`, \`!=\`, \`contains\`, \`<\`, \`>\`, \`<=\` or \`>=\`
+- \`sort: field asc|desc\`
+- \`limit: N\`
+- \`as: table | list | cards\`
+- \`fields: title, status, …\` — the columns for a table
+
+> [!tip]
+> The demo tasks in **09 - New in Inkwell/Tasks** carry \`status\`, \`priority\` and \`due\` in their frontmatter — exactly what these queries filter and sort on. Change one and watch the tables update.`,
+
+  "ex-related": `# Related Notes & Local AI Search
+
+Two ways to find notes by **meaning**, not just keywords — both running entirely on your device.
+
+## Related notes
+
+Open any note and look at the **Related** panel on the right (the inspector). It lists the notes most *semantically similar* to the one you're reading — connections you might never have linked by hand.
+
+- The **first** time, it loads a tiny embedding model (~23 MB, cached after that).
+- Then it's instant, and refreshes as you move between notes.
+- Try it on [[Linking Notes]] or the [[Knowledge Graph]].
+
+## Semantic search
+
+Press **Shift + Ctrl/Cmd + F**, or start typing in the command palette and choose *Search "…" by meaning*. Ask in plain language — "how do I stay organized" — and it finds the right notes even if they don't contain those words.
+
+## The assistant uses it too
+
+Once the index is warm, the [[The AI Assistant]] automatically pulls the most relevant notes into its context before answering, so it cites the right sources. See [[AI Note Suggestions]] for more AI help.`,
+
+  "ex-ai-suggest": `# AI Note Suggestions
+
+Let the assistant do the tidying. In the **inspector** (right panel), the **AI suggestions** section has two buttons:
+
+- **Tags** — reads the note and proposes a few topical tags, reusing tags already in your vault where they fit. Click a chip to add it.
+- **Title** — proposes a concise, specific title; click **Apply** to rename the note.
+
+Both run through whatever provider you've set up in [[AI Providers & Keys]] (a free key works fine). They only *suggest* — nothing changes until you click.
+
+Pair this with [[Tags]] and the [[Live Query Examples|query blocks]] to keep a large vault organized with almost no effort.`,
+
+  "ex-transcribe": `# Transcribe Audio to Notes
+
+Turn a lecture, meeting, or voice memo into a searchable note — **on your device**, nothing uploaded.
+
+## How
+
+1. Click the **microphone** button in the sidebar toolbar (next to import).
+2. Choose an audio (or video) file.
+3. It transcribes locally with a small Whisper model (~40 MB, cached after first use), then shows the text.
+4. Edit if needed and **Save as note** — it lands in a **Transcripts/** folder.
+
+> [!note]
+> The first run downloads the model; after that it works fully offline. Longer recordings take a little longer to process.
+
+Great with [[Quick Capture]] for turning spoken ideas into written ones.`,
+
+  "task-intro": `---
+type: task
+status: todo
+priority: high
+area: Writing
+due: 2026-07-15
+---
+# Draft the introduction
+
+Open with the problem, then the contribution in two sentences. #writing #task
+
+Part of [[Live Query Examples]].`,
+
+  "task-sources": `---
+type: task
+status: doing
+priority: high
+area: Research
+due: 2026-07-10
+---
+# Review the sources
+
+Skim the three key papers and pull the quotes worth citing. #writing #task`,
+
+  "task-figures": `---
+type: task
+status: todo
+priority: medium
+area: Design
+due: 2026-07-20
+---
+# Make the figures
+
+Two diagrams and one results chart. #writing #task`,
+
+  "task-edit": `---
+type: task
+status: done
+priority: low
+area: Writing
+due: 2026-07-05
+---
+# Copy-edit the draft
+
+Grammar pass, then trim the length by about 10%. #writing #task`,
 };
 
 const lead = (title: string, area: string) =>

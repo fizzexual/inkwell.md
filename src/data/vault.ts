@@ -32,6 +32,8 @@ const SRC = "05 - Research/Sources";
 const REF = "06 - Reference";
 const ASSISTANT = "07 - Assistant";
 const EXAMPLES = "08 - Examples";
+const NEWF = "09 - New in Inkwell";
+const NEWTASKS = "09 - New in Inkwell/Tasks";
 
 export const vault: VaultData = {
   name: "Inkwell Handbook",
@@ -132,5 +134,24 @@ export const vault: VaultData = {
     n("ex-budget", "Example — Monthly Budget", EXAMPLES, ["math-engine", "table-view"]),
     n("ex-crm", "Example — Contacts & CRM", EXAMPLES, ["table-view", "properties"]),
     n("ex-habits", "Example — Habit Tracker", EXAMPLES, ["tasks", "daily-notes"]),
+
+    // 09 - New in Inkwell
+    n("new-overview", "New: AI, Search & Queries", NEWF, [
+      "ex-queries",
+      "ex-related",
+      "ex-ai-suggest",
+      "ex-transcribe",
+      "pdf-reader",
+    ]),
+    n("ex-queries", "Live Query Examples", NEWF, ["new-overview", "table-view", "properties", "task-intro"]),
+    n("ex-related", "Related Notes & Local AI Search", NEWF, ["new-overview", "ai-assistant", "search"]),
+    n("ex-ai-suggest", "AI Note Suggestions", NEWF, ["new-overview", "tags", "ai-assistant"]),
+    n("ex-transcribe", "Transcribe Audio to Notes", NEWF, ["new-overview", "quick-capture"]),
+
+    // 09 - New in Inkwell / Tasks — demo notes with frontmatter for the query examples to run against
+    n("task-intro", "Draft the introduction", NEWTASKS, ["ex-queries"]),
+    n("task-sources", "Review the sources", NEWTASKS, ["ex-queries"]),
+    n("task-figures", "Make the figures", NEWTASKS, ["ex-queries"]),
+    n("task-edit", "Copy-edit the draft", NEWTASKS, ["ex-queries"]),
   ],
 };
