@@ -303,6 +303,9 @@ interface VaultState extends Derived {
   historyOpen: boolean;
   setHistoryOpen: (v: boolean) => void;
 
+  transcribeOpen: boolean;
+  setTranscribeOpen: (v: boolean) => void;
+
   semanticOpen: boolean;
   setSemanticOpen: (v: boolean) => void;
   /** query to pre-fill the semantic search with (e.g. handed over from the command palette). */
@@ -545,6 +548,8 @@ export const useVault = create<VaultState>((set, get) => ({
   setImportOpen: (v) => set({ importOpen: v }),
   historyOpen: false,
   setHistoryOpen: (v) => set({ historyOpen: v }),
+  transcribeOpen: false,
+  setTranscribeOpen: (v) => set({ transcribeOpen: v }),
   semanticOpen: false,
   setSemanticOpen: (v) => set({ semanticOpen: v }),
   semanticSeed: "",

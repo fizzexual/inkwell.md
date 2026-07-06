@@ -21,6 +21,7 @@ import Onboarding from "./components/Onboarding";
 import ImportModal from "./components/ImportModal";
 import HistoryModal from "./components/HistoryModal";
 import SemanticSearch from "./components/SemanticSearch";
+import TranscribeModal from "./components/TranscribeModal";
 
 // pdf.js is heavy — only load the reader when it's actually opened
 const PdfView = lazy(() => import("./components/PdfView"));
@@ -211,6 +212,7 @@ export default function App() {
       <ImportModal />
       <HistoryModal />
       <SemanticSearch />
+      <TranscribeModal />
       {constellationOpen && <ConstellationView />}
       <Onboarding />
       <Toaster />
