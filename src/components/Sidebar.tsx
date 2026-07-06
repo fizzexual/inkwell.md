@@ -6,7 +6,7 @@ import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
 import { NoteIcon } from "../noteIcons";
 import { openVaultFolderFlow } from "../vault/sync";
-import { FolderOpen, Download, X as CloseX, MonitorSmartphone } from "lucide-react";
+import { FolderOpen, Download, X as CloseX } from "lucide-react";
 import { useSmoothScroll } from "../useSmoothScroll";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
@@ -176,8 +176,6 @@ export default function Sidebar() {
   const setAllFolders = useVault((s) => s.setAllFolders);
   const setClipOpen = useVault((s) => s.setClipOpen);
   const setImportOpen = useVault((s) => s.setImportOpen);
-  const setSyncOpen = useVault((s) => s.setSyncOpen);
-  const remoteStatus = useVault((s) => s.remoteStatus);
   const vaultPath = useVault((s) => s.vaultPath);
   const closeVault = useVault((s) => s.closeVault);
   const anyExpanded = useVault((s) => s.expanded.size > 0);
@@ -215,15 +213,6 @@ export default function Sidebar() {
               <FolderOpen size={15} />
             </button>
           )}
-          <button
-            className={"ghost-btn sync-btn " + remoteStatus}
-            aria-label="Device sync"
-            title="Sync this vault with your phone / other devices"
-            onClick={() => setSyncOpen(true)}
-          >
-            <MonitorSmartphone size={15} />
-            {remoteStatus !== "off" && <span className="sync-btn-dot" />}
-          </button>
           <button className="ghost-btn" aria-label="New note" onClick={() => createNote()}>
             <Plus size={16} />
           </button>

@@ -190,8 +190,6 @@ interface Persisted {
   noteIcons?: Record<string, string>;
   savedSearches?: { id: string; name: string; query: string }[];
   editorMode?: "source" | "live";
-  remoteUrl?: string | null;
-  remoteToken?: string;
 }
 function loadPersisted(): Persisted {
   try {
@@ -257,14 +255,6 @@ interface VaultState extends Derived {
   reconcileDisk: (notes: Note[]) => void;
   closeVault: () => void;
   // ---- self-hosted remote sync (connect to an Inkwell sync server) ----
-  remoteUrl: string | null;
-  remoteToken: string;
-  remoteStatus: "off" | "connecting" | "online" | "error";
-  setRemoteStatus: (s: "off" | "connecting" | "online" | "error") => void;
-  loadRemoteVault: (url: string, token: string, notes: Note[]) => void;
-  clearRemote: () => void;
-  syncOpen: boolean;
-  setSyncOpen: (v: boolean) => void;
   sidebarWidth: number;
   inspectorWidth: number;
   setSidebarWidth: (w: number) => void;
@@ -404,26 +394,6 @@ export const useVault = create<VaultState>((set, get) => ({
       const keep = notes.some((n) => n.id === s.selectedId) ? s.selectedId : notes[0]?.id ?? s.selectedId;
       return { notes, ...derive(notes), selectedId: keep };
     }),
-  remoteUrl: persisted.remoteUrl ?? null,
-  remoteToken: persisted.remoteToken ?? "",
-  remoteStatus: "off",
-  setRemoteStatus: (rs) => set({ remoteStatus: rs }),
-  loadRemoteVault: (url, token, notes) => {
-    set(() => ({ notes, ...derive(notes), remoteUrl: url, remoteToken: token, deleted: new Set<string>() }));
-    const first = notes[0];
-    if (first) get().openArticle(first.id);
-  },
-  clearRemote: () => {
-    set({ remoteUrl: null, remoteStatus: "off" });
-    // reload to re-init the local (built-in / disk) vault cleanly
-    try {
-      window.location.reload();
-    } catch {
-      /* ignore */
-    }
-  },
-  syncOpen: false,
-  setSyncOpen: (v) => set({ syncOpen: v }),
   closeVault: () => {
     set({ vaultPath: null });
     // reload to re-init the built-in demo vault cleanly
@@ -904,8 +874,6 @@ useVault.subscribe(() => {
       noteIcons: s.noteIcons,
       savedSearches: s.savedSearches,
       editorMode: s.editorMode,
-      remoteUrl: s.remoteUrl,
-      remoteToken: s.remoteToken,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
