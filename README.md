@@ -1,6 +1,6 @@
 <div align="center">
 
-# Inkwell
+# Inkwell 🌱
 
 **A local-first research workspace for Windows.**
 
@@ -13,6 +13,10 @@ Obsidian, a PDF reader and a writing app.
 </div>
 
 ---
+
+## About
+
+Inkwell is a desktop app for researchers and students who read papers and write notes about them. Notes are plain markdown linked with `[[wikilinks]]`, and the app turns them into a knowledge graph, backlinks, tags and search. It is in active development as a Windows Tauri app; opening a real folder as a vault, a full PDF reader with highlights and citation import are still on the roadmap.
 
 ## Why
 
