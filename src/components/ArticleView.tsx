@@ -14,6 +14,9 @@ import { History } from "lucide-react";
 import { Graph, Pencil, Doc, Sparkles } from "../icons";
 import "./ArticleView.css";
 
+// unique mermaid render ids across effect runs and panes (time-based ids could collide)
+let mermaidSeq = 0;
+
 function wordCount(md: string): number {
   const text = md.replace(/[#>*`_\-[\]|]/g, " ");
   return text.split(/\s+/).filter(Boolean).length;
@@ -64,6 +67,12 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
       }),
     [md, resolve, notesById, citeMap, mathResult, notes, noteId],
   );
+  // React 19 diffs dangerouslySetInnerHTML by object identity, so a fresh {__html} on every
+  // render rewrites innerHTML on ANY re-render (re-opening this note, hovering a link…) and
+  // wipes the diagrams / highlighting / copy buttons the effects below added. Keep one object
+  // per real content change; the effects key on it so they re-run whenever the DOM is reset.
+  // theme is included so diagrams re-render in the new theme from their source.
+  const preview = useMemo(() => ({ __html: html }), [html, theme, noteId]);
 
   useEffect(() => {
     if (!scrollTarget || showEditor || !isActive) return;
@@ -87,10 +96,10 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
         securityLevel: "loose",
         fontFamily: "Inter, sans-serif",
       });
-      blocks.forEach((el, i) => {
+      blocks.forEach((el) => {
         const src = (el.textContent || "").trim();
         mermaid
-          .render(`mmd-${i}-${src.length}-${Math.floor(performance.now())}`, src)
+          .render(`mmd-${++mermaidSeq}`, src)
           .then(({ svg }) => {
             if (cancelled) return;
             el.innerHTML = svg;
@@ -105,7 +114,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
     return () => {
       cancelled = true;
     };
-  }, [html, showEditor, theme]);
+  }, [preview, showEditor, theme]);
 
   // syntax-highlight ```code blocks (highlight.js lazy-loaded, only when a block exists)
   useEffect(() => {
@@ -121,7 +130,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
     return () => {
       cancelled = true;
     };
-  }, [html, showEditor]);
+  }, [preview, showEditor]);
 
   // add a "Copy" button to each rendered code block
   useEffect(() => {
@@ -143,7 +152,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
       });
       pre.appendChild(btn);
     });
-  }, [html, showEditor]);
+  }, [preview, showEditor]);
 
   if (!note) return <main className="article" />;
 
@@ -260,7 +269,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
               onMouseOver={onPreviewOver}
               onMouseOut={onPreviewOut}
               onMouseLeave={() => setHover(null)}
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={preview}
             />
           </div>
         </div>
