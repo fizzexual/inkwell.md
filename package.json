@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "^4.3.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
@@ -21,7 +21,7 @@
     "d3-transition": "^3.0.1",
     "d3-zoom": "^3.0.0",
     "highlight.js": "^11.11.1",
-    "katex": "^0.17.0",
+    "katex": "^0.18.11",
     "lucide-react": "^1.22.0",
     "marked": "^18.0.5",
     "mathjs": "^15.2.0",
@@ -44,5 +44,10 @@
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
+  },
+  "overrides": {
+    "mermaid": {
+      "katex": "$katex"
+    }
   }
 }
