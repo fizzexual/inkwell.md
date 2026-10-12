@@ -37,7 +37,11 @@ Some features do use the network. Plainly:
   once from Hugging Face, and the ONNX runtime that runs them comes from
   jsDelivr. After that they run on your machine; the note text you search or
   the audio you transcribe is not sent anywhere.
-- **Web clipping** sends the page URL to `r.jina.ai`, which returns it as markdown.
+- **Web clipping** in the desktop app fetches the page directly from its own
+  site and converts it to markdown on your machine — no third party sees the URL.
+  It refuses local and private-network addresses (`localhost`, `192.168.…`, …).
+  The browser build has no native side, so there it falls back to `r.jina.ai`,
+  which receives the URL and returns the page as markdown (labelled in the clipper).
 - **DOI / arXiv lookups** query Crossref and arXiv with the id you typed.
 - **The AI assistant** talks to a cloud provider (Groq, OpenAI, Anthropic, …)
   only if you add an API key for it — and then the notes you ask about are sent
