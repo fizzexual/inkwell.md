@@ -4,6 +4,8 @@
 import type { Note } from "../data/vault";
 import { loadOnce } from "../loadOnce";
 import { ml } from "../ml/host";
+import models from "../ml/models.json";
+import { openVectorStore, type StoredVector } from "./vectorStore";
 
 export interface LoadProgress {
   stage: "download" | "ready" | "embedding";
@@ -55,11 +57,24 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-interface Entry {
-  hash: number;
-  vec: Float32Array;
+// Stored vectors are only valid for the exact model + text recipe that made them; bump
+// TEXT_VERSION when noteText() changes so every stored vector is thrown away.
+const TEXT_VERSION = 1;
+const MODEL_KEY = `${models.embed.id}@${models.embed.revision}/${models.embed.dtype}/text${TEXT_VERSION}`;
+const store = openVectorStore(MODEL_KEY);
+
+const index = new Map<string, StoredVector>();
+
+// On launch, load the vectors from the last session so related notes / search work without
+// re-embedding the vault (only notes whose text changed get embedded again).
+const hydrated: Promise<void> = store.loadAll().then((saved) => {
+  for (const [id, e] of saved) if (!index.has(id)) index.set(id, e);
+});
+
+/** Resolves once the vectors saved by the last session are loaded (or there were none). */
+export function whenIndexLoaded(): Promise<void> {
+  return hydrated;
 }
-const index = new Map<string, Entry>();
 
 function dot(a: Float32Array, b: Float32Array): number {
   let s = 0;
@@ -69,8 +84,14 @@ function dot(a: Float32Array, b: Float32Array): number {
 
 /** Embed every note that's new or changed since the last call (others are reused from cache). */
 async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void): Promise<void> {
-  const live = new Set(notes.map((n) => n.id));
-  for (const id of [...index.keys()]) if (!live.has(id)) index.delete(id); // drop removed notes
+  await hydrated;
+  // drop removed notes — but an empty list is a vault that hasn't loaded yet, not "delete everything"
+  if (notes.length) {
+    const live = new Set(notes.map((n) => n.id));
+    const gone = [...index.keys()].filter((id) => !live.has(id));
+    for (const id of gone) index.delete(id);
+    void store.remove(gone);
+  }
 
   const todo = notes.filter((n) => {
     const text = noteText(n);
@@ -82,8 +103,9 @@ async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void)
   let done = 0;
   for (const n of todo) {
     const text = noteText(n);
-    const vec = await embed(text, onProgress);
-    index.set(n.id, { hash: hash(text), vec });
+    const entry = { hash: hash(text), vec: await embed(text, onProgress) };
+    index.set(n.id, entry);
+    void store.put(n.id, entry);
     done++;
     onProgress?.({ stage: "embedding", ratio: done / todo.length });
   }
