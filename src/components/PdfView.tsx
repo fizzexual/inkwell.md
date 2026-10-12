@@ -3,8 +3,8 @@ import { useVault } from "../store/useVault";
 import { pdfjs } from "../pdf";
 import { ChevronRight, Plus, NoteEdit } from "../icons";
 import { isTauri } from "../vault/disk";
-import { writeAttachment } from "../vault/attachments";
-import { attachmentRel, highlightEntry, highlightsHeader, highlightsTitle } from "../pdfLinks";
+import { openPdfFile } from "../pdfOpen";
+import { highlightEntry, highlightsHeader, highlightsTitle } from "../pdfLinks";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PdfView.css";
 
@@ -13,7 +13,6 @@ export default function PdfView() {
   const pdfTarget = useVault((s) => s.pdfTarget);
   const pdfRel = useVault((s) => s.pdfRel);
   const loadedVault = useVault((s) => s.loadedVault);
-  const openPdf = useVault((s) => s.openPdf);
   const openPdfLink = useVault((s) => s.openPdfLink);
   const createNoteWith = useVault((s) => s.createNoteWith);
   const resolve = useVault((s) => s.resolve);
@@ -124,23 +123,12 @@ export default function PdfView() {
     };
   }, [doc, page, scale]);
 
-  // desktop with a vault folder: the PDF is copied into the vault (Attachments/), so it — and the
-  // page links in its highlights note — still work after a restart
+  // desktop with a vault folder: the PDF is copied into the vault (Attachments/) — see openPdfFile
   const storeInVault = isTauri() && !!loadedVault;
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const buf = await file.arrayBuffer();
-    if (!storeInVault) return openPdf(file.name, buf);
-    try {
-      const rel = await writeAttachment(attachmentRel(file.name), buf.slice(0));
-      openPdf(rel.slice(rel.lastIndexOf("/") + 1), buf, rel);
-    } catch (err) {
-      toast(
-        `Couldn't copy “${file.name}” into the vault (${typeof err === "string" ? err : ((err as Error)?.message ?? String(err))}) — it is open, but won't be there after a restart.`,
-      );
-      openPdf(file.name, buf);
-    }
+    if (file) openPdfFile(file);
+    e.target.value = "";
   };
 
   // append the current selection to ONE running "<pdf> — Highlights" note (create it the first time)

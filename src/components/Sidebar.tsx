@@ -5,6 +5,7 @@ import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
 import { NoteIcon } from "../noteIcons";
+import { openPdfFile } from "../pdfOpen";
 import { openVaultFolderFlow, renameFolderFlow } from "../vault/sync";
 import { backupNowFlow } from "../vault/backup";
 import FolderMenu, { newFolderIn } from "./FolderMenu";
@@ -301,7 +302,6 @@ export default function Sidebar() {
   const vaultPath = useVault((s) => s.vaultPath);
   const closeVault = useVault((s) => s.closeVault);
   const anyExpanded = useVault((s) => s.expanded.size > 0);
-  const openPdf = useVault((s) => s.openPdf);
   const width = useVault((s) => s.sidebarWidth);
   const treeRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(treeRef);
@@ -312,7 +312,7 @@ export default function Sidebar() {
 
   const onImportPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) file.arrayBuffer().then((buf) => openPdf(file.name, buf));
+    if (file) openPdfFile(file); // copies it into the vault's Attachments/ when a folder vault is open
     e.target.value = "";
   };
 
