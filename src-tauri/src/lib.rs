@@ -183,11 +183,17 @@ fn set_root(app: &AppHandle, state: &State<VaultRoot>, dir: Option<PathBuf>) -> 
 
 /// Show the native folder picker and make the chosen folder the vault. Returns its path, or None.
 #[tauri::command]
-async fn pick_vault(app: AppHandle, state: State<'_, VaultRoot>) -> Result<Option<String>, String> {
+async fn pick_vault(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, VaultRoot>,
+) -> Result<Option<String>, String> {
+    // parented to the app window: modal, and opens over Inkwell instead of on the primary monitor
     let picked = app
         .dialog()
         .file()
         .set_title("Open a vault folder")
+        .set_parent(&window)
         .blocking_pick_folder();
     let Some(picked) = picked else { return Ok(None) };
     let dir = picked.into_path().map_err(|e| e.to_string())?;
@@ -195,6 +201,29 @@ async fn pick_vault(app: AppHandle, state: State<'_, VaultRoot>) -> Result<Optio
         return Err("Not a folder".into());
     }
     set_root(&app, &state, Some(dir))
+}
+
+/// An arXiv id (new `1706.03762` or old `hep-th/9901001` style) — nothing that could add query
+/// parameters or change the URL.
+fn arxiv_id_ok(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 40
+        && !id.contains("..")
+        && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '/' | '-'))
+}
+
+/// arXiv's export API sends no CORS headers, so the webview can't read it; fetch it here.
+#[tauri::command]
+fn arxiv_query(id: String) -> Result<String, String> {
+    if !arxiv_id_ok(&id) {
+        return Err(format!("Not an arXiv id: {id}"));
+    }
+    ureq::get(&format!("https://export.arxiv.org/api/query?id_list={id}"))
+        .timeout(std::time::Duration::from_secs(20))
+        .call()
+        .map_err(|e| e.to_string())?
+        .into_string()
+        .map_err(|e| e.to_string())
 }
 
 /// Re-open the vault folder saved by the last `pick_vault`, if it still exists.
@@ -313,7 +342,8 @@ pub fn run() {
             delete_note,
             rename_note,
             watch_vault,
-            unwatch_vault
+            unwatch_vault,
+            arxiv_query
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -450,5 +480,24 @@ mod tests {
         let names: Vec<String> = read_in(&root).unwrap().into_iter().map(|n| n.rel).collect();
         assert!(names.contains(&"C.md".to_string()), "{names:?}");
         assert!(names.contains(&"b.md".to_string()), "{names:?}");
+    }
+}
+
+#[cfg(test)]
+mod arxiv_tests {
+    use super::arxiv_id_ok;
+
+    #[test]
+    fn arxiv_ids_are_accepted() {
+        for ok in ["1706.03762", "2101.00001", "hep-th/9901001", "math.GT/0309136"] {
+            assert!(arxiv_id_ok(ok), "{ok}");
+        }
+    }
+
+    #[test]
+    fn anything_that_could_change_the_request_is_refused() {
+        for bad in ["", "1706.03762&max_results=9999", "x?y", "a#b", "../etc", "a b", "http://evil", &"9".repeat(41)] {
+            assert!(!arxiv_id_ok(bad), "{bad}");
+        }
     }
 }

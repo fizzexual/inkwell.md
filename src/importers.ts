@@ -1,6 +1,8 @@
 // Bring external content into the vault: Markdown/Obsidian/Notion files, Inkwell JSON backups,
 // BibTeX, and DOI/arXiv lookups.
 
+import { isTauri } from "./vault/disk";
+
 export interface ImportItem {
   title: string;
   content: string;
@@ -173,9 +175,17 @@ async function fetchArxiv(id: string): Promise<ImportItem> {
     .replace(/^https?:\/\/arxiv\.org\/(abs|pdf)\//i, "")
     .replace(/\.pdf$/i, "")
     .replace(/v\d+$/i, "");
-  const res = await fetch(`https://export.arxiv.org/api/query?id_list=${encodeURIComponent(clean)}`);
-  if (!res.ok) throw new Error(`arXiv error (${res.status})`);
-  const doc = new DOMParser().parseFromString(await res.text(), "application/xml");
+  let xml: string;
+  if (isTauri()) {
+    // arXiv's API sends no CORS headers, so the webview can't read it — Rust fetches it instead
+    const { invoke } = await import("@tauri-apps/api/core");
+    xml = await invoke<string>("arxiv_query", { id: clean });
+  } else {
+    const res = await fetch(`https://export.arxiv.org/api/query?id_list=${encodeURIComponent(clean)}`);
+    if (!res.ok) throw new Error(`arXiv error (${res.status})`);
+    xml = await res.text();
+  }
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
   const entry = doc.querySelector("entry");
   if (!entry) throw new Error("arXiv paper not found");
   const title = entry.querySelector("title")?.textContent?.replace(/\s+/g, " ").trim() || "Untitled";
