@@ -45,12 +45,36 @@
     "targets": [
       "nsis"
     ],
+    "publisher": "fizzexual",
+    "shortDescription": "Inkwell",
+    "longDescription": "A local-first research workspace: linked markdown notes, PDFs, sources and a knowledge graph.",
+    "copyright": "Copyright (c) fizzexual",
+    "category": "Productivity",
+    "homepage": "https://github.com/fizzexual/inkwell.md",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczMzk2MjNDRTIyN0Y4RDEKUldUUitDZmlQR0k1YzY1YnFoQUxXMnlTd2hYYm9qUlM3WUlkZnVIdHZscmRKQ1FycTdZZ1hpM0oK",
+      "endpoints": [
+        "https://github.com/fizzexual/inkwell.md/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

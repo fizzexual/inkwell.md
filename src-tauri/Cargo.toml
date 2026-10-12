@@ -1,8 +1,8 @@
 [package]
 name = "inkwellmd"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Inkwell — a local-first research workspace for Windows"
+authors = ["fizzexual"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -31,3 +31,6 @@ trash = "5"
 keyring = { version = "3", features = ["windows-native"] }
 zip = { version = "9", default-features = false, features = ["deflate-flate2", "chrono"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+

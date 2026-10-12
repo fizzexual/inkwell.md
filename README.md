@@ -44,6 +44,10 @@ Some features do use the network. Plainly:
   The browser build has no native side, so there it falls back to `r.jina.ai`,
   which receives the URL and returns the page as markdown (labelled in the clipper).
 - **DOI / arXiv lookups** query Crossref and arXiv with the id you typed.
+- **Update checks** (installed app only): about 10 seconds after launch, and when
+  you pick *Check for updates*, Inkwell fetches `latest.json` from this repo's
+  GitHub releases. Nothing is downloaded or installed until you click
+  *Install & restart*.
 - **The AI assistant** talks to a cloud provider (Groq, OpenAI, Anthropic, …)
   only if you add an API key for it — and then the notes you ask about are sent
   to that provider. With Ollama it stays on your machine.
@@ -140,6 +144,33 @@ a release always ships its models. In dev the script only warns; a checkout
 without `public/models/` then loads the same pinned models from the Hugging Face
 hub at runtime (browser-cached). The ONNX runtime `.wasm` comes from
 `node_modules/onnxruntime-web` and is emitted by Vite as a hashed asset.
+
+## Install / Updates / Releasing
+
+**Install.** Download `Inkwell_<version>_x64-setup.exe` from
+[Releases](https://github.com/fizzexual/inkwell.md/releases) and run it. It
+installs for your user only (no admin prompt) and adds a Start-menu shortcut.
+
+**Updates.** The installed app checks for a newer release about 10 seconds after
+launch (silently — you only hear about it if there is one) and whenever you pick
+**Appearance → Check for updates**. When one exists, a banner offers
+**Install & restart**: one click saves your notes, downloads the update with
+progress, installs it and reopens Inkwell. Updates are signed; the app refuses an
+installer whose signature does not match the public key in `tauri.conf.json`.
+
+**Releasing** (maintainer):
+
+1. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and
+   `package.json` (the script refuses if they disagree). Commit.
+2. `npm run release` builds a signed installer into `release/` with its `.sig`,
+   `latest.json` and `notes.md`, and prints the `gh release create` command.
+   Add `-- --notes "What changed"` for release notes.
+3. `npm run release -- --publish` does the same and publishes `v<version>` with
+   `gh`. Installed apps pick it up from `releases/latest/download/latest.json`.
+
+The signing key lives outside the repo in `%USERPROFILE%\.tauri\`
+(`inkwell-updater.key` + `.password`). Back it up: without it no update can ever
+be shipped to existing installs.
 
 ## Roadmap
 

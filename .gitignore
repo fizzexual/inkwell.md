@@ -32,3 +32,6 @@ CLAUDE.md
 
 # on-device AI models fetched by scripts/fetch-models.mjs (bundled into the app, never committed)
 public/models/
+
+# signed release output (npm run release)
+release/

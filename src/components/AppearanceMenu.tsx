@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { Palette, Sun, Moon, Focus } from "../icons";
+import { RefreshCw } from "lucide-react";
+import { inTauri } from "../tauri";
+import { updatesEnabled } from "../updater/logic";
+import { useUpdater } from "../updater/useUpdater";
 import "./AppearanceMenu.css";
 
 const ACCENTS = [
@@ -22,6 +26,7 @@ export default function AppearanceMenu() {
   const accent = useVault((s) => s.accent);
   const setAccent = useVault((s) => s.setAccent);
   const toggleZen = useVault((s) => s.toggleZen);
+  const checking = useUpdater((s) => s.phase === "checking");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -75,6 +80,15 @@ export default function AppearanceMenu() {
               />
             ))}
           </div>
+          {updatesEnabled({ inTauri, prod: import.meta.env.PROD }) && (
+            <button
+              className="appearance-mode appearance-update"
+              onClick={() => void useUpdater.getState().checkForUpdates("manual")}
+            >
+              <RefreshCw size={13} className={checking ? "spinning" : undefined} />
+              {checking ? "Checking…" : "Check for updates"}
+            </button>
+          )}
         </div>
       )}
     </div>

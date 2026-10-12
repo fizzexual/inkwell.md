@@ -66,3 +66,16 @@
 .appearance-swatch[data-default] {
   background: conic-gradient(#6d4bd0, #3b82f6, #10b981, #f59e0b, #ef4444, #6d4bd0);
 }
+.appearance-update {
+  width: 100%;
+  flex: none;
+  margin-top: 10px;
+}
+.appearance-update .spinning {
+  animation: appearance-spin 0.9s linear infinite;
+}
+@keyframes appearance-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
