@@ -33,10 +33,11 @@ never uploaded anywhere, and the app ships as a single native Windows binary.
 
 Some features do use the network. Plainly:
 
-- **On-device AI models** (semantic search, audio transcription) are downloaded
-  once from Hugging Face, and the ONNX runtime that runs them comes from
-  jsDelivr. After that they run on your machine; the note text you search or
-  the audio you transcribe is not sent anywhere.
+- **On-device AI** (semantic search, related notes, audio transcription) does
+  **not** go online. The models (all-MiniLM-L6-v2, whisper-tiny.en) and the ONNX
+  runtime ship inside the app and run in a background worker; the note text you
+  search and the audio you transcribe never leave your machine. The semantic
+  index is saved locally (IndexedDB), so a restart only re-indexes changed notes.
 - **Web clipping** sends the page URL to `r.jina.ai`, which returns it as markdown.
 - **DOI / arXiv lookups** query Crossref and arXiv with the id you typed.
 - **The AI assistant** talks to a cloud provider (Groq, OpenAI, Anthropic, …)
@@ -112,9 +113,18 @@ npm install
 npm run tauri dev      # native window (needs Rust + WebView2)
 npm run dev            # web UI only, in a browser
 npm test               # unit tests (vitest)
-npm run build          # type-check + production bundle
+npm run build          # fetch models + type-check + production bundle
 npm run tauri build    # package the Windows installer
 ```
+
+**On-device models.** `npm run build` and `npm run dev` first run
+`scripts/fetch-models.mjs`, which downloads the pinned model files listed in
+`src/ml/models.json` into `public/models/` (~64 MB, gitignored; size + hash
+checked, skipped when already there). A build fails if it cannot fetch them, so
+a release always ships its models. In dev the script only warns; a checkout
+without `public/models/` then loads the same pinned models from the Hugging Face
+hub at runtime (browser-cached). The ONNX runtime `.wasm` comes from
+`node_modules/onnxruntime-web` and is emitted by Vite as a hashed asset.
 
 ## Roadmap
 

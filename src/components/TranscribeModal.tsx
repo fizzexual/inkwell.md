@@ -68,7 +68,7 @@ export default function TranscribeModal() {
         <div className="tr-body">
           <p className="tr-note">
             Turn a recording (lecture, meeting, voice memo) into a note. Runs entirely on your device —
-            nothing is uploaded. {isAsrReady() ? "" : "First run downloads a small model (~40MB)."}
+            nothing is uploaded. {isAsrReady() ? "" : "The first transcription loads the bundled model (a few seconds)."}
           </p>
 
           {!busy && !text && (
