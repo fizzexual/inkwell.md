@@ -22,3 +22,8 @@ export function buildFolderColors(folders: string[]): Map<string, string> {
   tops.forEach((t, i) => map.set(t, FOLDER_PALETTE[i % FOLDER_PALETTE.length]));
   return map;
 }
+
+/** The vault's display name: the open folder's name, else the built-in vault's name. */
+export function vaultName(vaultPath: string | null | undefined, fallback: string): string {
+  return (vaultPath && vaultPath.split(/[\\/]/).filter(Boolean).pop()) || fallback;
+}

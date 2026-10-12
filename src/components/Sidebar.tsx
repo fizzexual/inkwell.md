@@ -8,6 +8,7 @@ import { NoteIcon } from "../noteIcons";
 import { openVaultFolderFlow } from "../vault/sync";
 import { FolderOpen, Download, X as CloseX, Mic } from "lucide-react";
 import { useSmoothScroll } from "../useSmoothScroll";
+import { vaultName } from "../folders";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
 import {
@@ -196,7 +197,7 @@ export default function Sidebar() {
     <aside className="sidebar" style={{ width, minWidth: width }}>
       <div className="vault-header">
         <button className="vault-name" onClick={openVaultFolderFlow} title="Open a folder as your vault">
-          <span>{vaultPath ? vaultPath.split(/[\\/]/).filter(Boolean).pop() : tree.name}</span>
+          <span>{vaultName(vaultPath, tree.name)}</span>
           <ChevronDown size={14} className="vault-caret" />
         </button>
         <div className="vault-actions">
