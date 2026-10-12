@@ -11,6 +11,7 @@ import {
 import { useVault } from "../store/useVault";
 import type { GraphNode } from "../data/derive";
 import { buildFolderColors, topFolder } from "../folders";
+import { listenEscape } from "../keys";
 import "./ConstellationView.css";
 
 interface SimNode extends GraphNode, SimulationNodeDatum {}
@@ -225,7 +226,6 @@ export default function ConstellationView() {
       cam.y = my - wy * ns;
       draw(performance.now());
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     const onLeave = () => {
       // clear hover so a mouseup that lands off-canvas can't open the last-hovered star
       hover = null;
@@ -238,7 +238,7 @@ export default function ConstellationView() {
     canvas.addEventListener("mouseleave", onLeave);
     window.addEventListener("mouseup", onUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("keydown", onKey);
+    const stopEsc = listenEscape(close);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -249,7 +249,7 @@ export default function ConstellationView() {
       canvas.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("mouseup", onUp);
       canvas.removeEventListener("wheel", onWheel);
-      window.removeEventListener("keydown", onKey);
+      stopEsc();
     };
   }, [graph]);
 

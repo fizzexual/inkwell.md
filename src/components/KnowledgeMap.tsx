@@ -1,6 +1,7 @@
+import { useEffect, useRef } from "react";
 import { useVault } from "../store/useVault";
 import KnowledgeGraph from "./KnowledgeGraph";
-import { buildFolderColors } from "../folders";
+import { buildFolderColors, vaultName } from "../folders";
 import { Focus, Palette, Fit, Search, Sparkles } from "../icons";
 import "./KnowledgeMap.css";
 
@@ -14,8 +15,21 @@ export default function KnowledgeMap() {
   const graphFilter = useVault((s) => s.graphFilter);
   const setGraphFilter = useVault((s) => s.setGraphFilter);
   const setGraphReveal = useVault((s) => s.setGraphReveal);
+  const vaultPath = useVault((s) => s.vaultPath);
+  const treeName = useVault((s) => s.tree.name);
+
+  // the running replay animation frame, so it can be stopped (re-click, or leaving the map)
+  const replayRaf = useRef<number | null>(null);
+  const stopReplay = () => {
+    if (replayRaf.current === null) return;
+    cancelAnimationFrame(replayRaf.current);
+    replayRaf.current = null;
+    setGraphReveal(null); // never leave the graph half-revealed
+  };
+  useEffect(() => stopReplay, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const replay = () => {
+    stopReplay();
     const total = graph.nodes.length;
     const start = performance.now();
     const dur = 3600;
@@ -23,10 +37,13 @@ export default function KnowledgeMap() {
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / dur);
       setGraphReveal(Math.round(t * total));
-      if (t < 1) requestAnimationFrame(tick);
-      else setGraphReveal(null);
+      if (t < 1) replayRaf.current = requestAnimationFrame(tick);
+      else {
+        replayRaf.current = null;
+        setGraphReveal(null);
+      }
     };
-    requestAnimationFrame(tick);
+    replayRaf.current = requestAnimationFrame(tick);
   };
 
   const folderColors = graphColorFolder ? buildFolderColors(graph.nodes.map((n) => n.folder)) : null;
@@ -36,7 +53,7 @@ export default function KnowledgeMap() {
       <header className="map-header">
         <div className="map-title">
           <h1>Knowledge Map</h1>
-          <span className="map-subtitle">{graphLocal ? "Local graph" : "Deep Learning"}</span>
+          <span className="map-subtitle">{graphLocal ? "Local graph" : vaultName(vaultPath, treeName)}</span>
         </div>
         <div className="map-tools">
           <div className="map-filter">

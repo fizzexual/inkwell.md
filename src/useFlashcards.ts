@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { adoptLegacyReviews, type Card } from "./flashcards";
 
 export type Rating = "again" | "hard" | "good" | "easy";
 
@@ -28,10 +29,16 @@ interface CardState {
   reviews: Record<string, Review>;
   grade: (id: string, rating: Rating) => void;
   isDue: (id: string) => boolean;
+  /** move history saved under old line-number card ids to the stable ids (one-time, cheap). */
+  adoptLegacy: (cards: Card[]) => void;
 }
 
 export const useFlashcards = create<CardState>((set, get) => ({
   reviews: load(),
+  adoptLegacy: (cards) => {
+    const next = adoptLegacyReviews(get().reviews, cards);
+    if (next) set({ reviews: next });
+  },
   isDue: (id) => {
     const r = get().reviews[id];
     return !r || r.due <= todayIso();

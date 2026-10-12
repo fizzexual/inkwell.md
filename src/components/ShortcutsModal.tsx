@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useVault } from "../store/useVault";
 import { Keyboard } from "../icons";
+import { listenEscape } from "../keys";
 import "./ShortcutsModal.css";
 
 const GROUPS: { title: string; items: [string, string][] }[] = [
@@ -11,6 +12,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
       ["Ctrl / Cmd + K", "Command palette"],
       ["Alt + ← / →", "Back / forward"],
       ["Ctrl / Cmd + G", "Knowledge map"],
+      ["Ctrl / Cmd + Shift + F", "Semantic search (by meaning)"],
     ],
   },
   {
@@ -18,6 +20,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
     items: [
       ["Ctrl / Cmd + N", "New note"],
       ["Ctrl / Cmd + Shift + K", "Quick capture → Inbox"],
+      ["Ctrl / Cmd + Shift + Space", "Quick capture from anywhere (global)"],
       ["Ctrl / Cmd + E", "Toggle edit / read"],
       ["Ctrl / Cmd + .", "Focus / zen mode"],
       ["Ctrl / Cmd + Z", "Undo"],
@@ -28,6 +31,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
   {
     title: "Editor",
     items: [
+      ["Ctrl / Cmd + F", "Find & replace"],
       ["[[", "Link to a note"],
       ["![[", "Embed a note"],
       ["/", "Slash commands"],
@@ -52,9 +56,7 @@ export default function ShortcutsModal() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return listenEscape(() => setOpen(false));
   }, [open, setOpen]);
 
   if (!open) return null;
@@ -74,7 +76,7 @@ export default function ShortcutsModal() {
             <div className="sc-group" key={g.title}>
               <div className="sc-group-title">{g.title}</div>
               {g.items.map(([keys, label]) => (
-                <div className="sc-row" key={label}>
+                <div className="sc-row" key={keys + label}>
                   <span className="sc-label">{label}</span>
                   <kbd className="sc-keys">{keys}</kbd>
                 </div>

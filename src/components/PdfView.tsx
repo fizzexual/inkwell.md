@@ -17,9 +17,10 @@ export default function PdfView() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
-  const docRef = useRef<Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]> | null>(null);
   const renderToken = useRef(0);
 
+  // the loaded document lives in state so the page render re-runs whenever a new PDF arrives
+  const [doc, setDoc] = useState<Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]> | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(1.3);
@@ -36,23 +37,27 @@ export default function PdfView() {
     setPage(1);
     const task = pdfjs.getDocument({ data: pdf.data.slice(0) });
     task.promise
-      .then((doc) => {
+      .then((d) => {
         if (cancelled) return;
-        docRef.current = doc;
-        setNumPages(doc.numPages);
+        setDoc(d);
+        setNumPages(d.numPages);
       })
       .catch((e) => !cancelled && setError(String(e?.message ?? e)));
     return () => {
       cancelled = true;
-      docRef.current = null;
+      setDoc(null);
+      // frees the document (and its pages) in the pdf.js worker
+      task.destroy().catch(() => {});
     };
   }, [pdf]);
 
   // render the current page + its text layer
   useEffect(() => {
-    const doc = docRef.current;
     if (!doc || !canvasRef.current) return;
     const token = ++renderToken.current;
+    // the in-flight canvas render / text layer, cancelled when a newer render starts
+    let renderTask: { cancel: () => void } | null = null;
+    let textLayer: { cancel: () => void } | null = null;
     (async () => {
       try {
         const p = await doc.getPage(page);
@@ -66,7 +71,9 @@ export default function PdfView() {
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        await p.render({ canvas, canvasContext: ctx, viewport }).promise;
+        const task = p.render({ canvas, canvasContext: ctx, viewport });
+        renderTask = task;
+        await task.promise;
         if (token !== renderToken.current) return;
 
         const textDiv = textRef.current!;
@@ -76,13 +83,20 @@ export default function PdfView() {
         textDiv.style.setProperty("--scale-factor", String(scale));
         const tc = await p.getTextContent();
         if (token !== renderToken.current) return;
-        const textLayer = new pdfjs.TextLayer({ textContentSource: tc, container: textDiv, viewport });
-        await textLayer.render();
+        const layer = new pdfjs.TextLayer({ textContentSource: tc, container: textDiv, viewport });
+        textLayer = layer;
+        await layer.render();
       } catch (e) {
         if (token === renderToken.current) setError(String((e as Error)?.message ?? e));
       }
     })();
-  }, [page, scale, numPages]);
+    return () => {
+      // a newer page/zoom/document (or unmount): stop drawing the old one on the shared canvas
+      if (token === renderToken.current) renderToken.current++;
+      renderTask?.cancel();
+      textLayer?.cancel();
+    };
+  }, [doc, page, scale]);
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

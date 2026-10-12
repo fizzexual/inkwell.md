@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { useVault } from "../store/useVault";
 import { useChat } from "../ai/useChat";
 import { Doc, Pencil, Copy, Graph, SplitView, Board, Pin, Palette, Trash, Sparkles } from "../icons";
+import { listenEscape } from "../keys";
 import "./ContextMenu.css";
 
 interface Item {
@@ -32,13 +33,12 @@ export default function ContextMenu() {
   useEffect(() => {
     if (!menu) return;
     const onDown = () => close();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
+    const stopEsc = listenEscape(close);
     window.addEventListener("blur", close);
     return () => {
       window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
+      stopEsc();
       window.removeEventListener("blur", close);
     };
   }, [menu, close]);

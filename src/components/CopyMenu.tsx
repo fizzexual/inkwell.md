@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { Copy } from "../icons";
+import { listenEscape } from "../keys";
 import "./CopyMenu.css";
 
 export interface CopyOption {
@@ -16,13 +17,12 @@ export default function CopyMenu({ options, small }: { options: CopyOption[]; sm
   useEffect(() => {
     if (!pos) return;
     const close = () => setPos(null);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("pointerdown", close);
-    window.addEventListener("keydown", onKey);
+    const stopEsc = listenEscape(close);
     window.addEventListener("scroll", close, true);
     return () => {
       window.removeEventListener("pointerdown", close);
-      window.removeEventListener("keydown", onKey);
+      stopEsc();
       window.removeEventListener("scroll", close, true);
     };
   }, [pos]);

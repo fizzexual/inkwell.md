@@ -33,18 +33,8 @@ import Picker from "./components/Picker";
 import Toaster from "./components/Toaster";
 import ShortcutsModal from "./components/ShortcutsModal";
 import Resizer from "./components/Resizer";
+import { appShortcut } from "./keys";
 import "./App.css";
-
-function isTyping(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  const tag = el?.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    el?.isContentEditable === true ||
-    !!el?.closest?.(".bld-input")
-  );
-}
 
 export default function App() {
   const centerView = useVault((s) => s.centerView);
@@ -76,64 +66,47 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
       const s = useVault.getState();
-      if (e.key === "Escape" && s.zen) {
-        e.preventDefault();
-        s.toggleZen();
-        return;
-      }
-      if (mod && e.key === ".") {
-        e.preventDefault();
-        s.toggleZen();
-      } else if (mod && !e.shiftKey && (e.key === "p" || e.key === "k")) {
-        e.preventDefault();
-        setPaletteOpen(!s.paletteOpen);
-      } else if (mod && e.shiftKey && (e.key === "k" || e.key === "K")) {
-        e.preventDefault();
-        s.setQuickOpen(!s.quickOpen);
-      } else if (mod && e.key === "n") {
-        e.preventDefault();
-        s.createNote();
-      } else if (mod && e.key === "e") {
-        e.preventDefault();
-        if (s.centerView !== "article") s.setCenterView("article");
-        s.setEditing(!s.editing);
-      } else if (mod && e.key === "g") {
-        e.preventDefault();
-        s.setCenterView("graph");
-      } else if (e.altKey && e.key === "ArrowLeft") {
-        e.preventDefault();
-        s.goBack();
-      } else if (e.altKey && e.key === "ArrowRight") {
-        e.preventDefault();
-        s.goForward();
-      } else if (mod && e.key === "\\") {
-        e.preventDefault();
-        if (e.shiftKey) s.toggleInspector();
-        else s.toggleSidebar();
-      } else if (mod && e.key === "j") {
-        e.preventDefault();
-        s.toggleAi();
-      } else if (mod && e.shiftKey && (e.key === "f" || e.key === "F")) {
-        e.preventDefault();
-        s.openSemantic();
-      } else if (mod && (e.key === "z" || e.key === "Z")) {
-        // let native undo win inside other text fields (math sheet, search…)
-        const t = e.target as HTMLElement | null;
-        if (isTyping(t) && !t?.classList.contains("md-editor")) return;
-        e.preventDefault();
-        if (e.shiftKey) s.redo();
-        else s.undo();
-      } else if (mod && e.key === "y") {
-        e.preventDefault();
-        s.redo();
-      } else if (e.key === "?" && !isTyping(e.target)) {
-        e.preventDefault();
-        s.setShortcutsOpen(true);
-      } else if (e.key === "Escape" && !s.paletteOpen) {
-        if (s.editing) s.setEditing(false);
-        else if (s.centerView === "article") s.setCenterView("graph");
+      const action = appShortcut(e, s);
+      if (!action) return;
+      // a plain Esc that leaves edit / goes to the map keeps its default (as before)
+      if (action !== "stopEditing" && action !== "toMap") e.preventDefault();
+      switch (action) {
+        case "exitZen":
+        case "toggleZen":
+          return s.toggleZen();
+        case "togglePalette":
+          return setPaletteOpen(!s.paletteOpen);
+        case "toggleQuick":
+          return s.setQuickOpen(!s.quickOpen);
+        case "newNote":
+          return s.createNote();
+        case "toggleEdit":
+          if (s.centerView !== "article") s.setCenterView("article");
+          return s.setEditing(!s.editing);
+        case "graph":
+        case "toMap":
+          return s.setCenterView("graph");
+        case "back":
+          return s.goBack();
+        case "forward":
+          return s.goForward();
+        case "toggleInspector":
+          return s.toggleInspector();
+        case "toggleSidebar":
+          return s.toggleSidebar();
+        case "toggleAi":
+          return s.toggleAi();
+        case "semantic":
+          return s.openSemantic();
+        case "undo":
+          return s.undo();
+        case "redo":
+          return s.redo();
+        case "shortcuts":
+          return s.setShortcutsOpen(true);
+        case "stopEditing":
+          return s.setEditing(false);
       }
     };
     window.addEventListener("keydown", onKey);

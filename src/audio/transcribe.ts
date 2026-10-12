@@ -1,5 +1,6 @@
 // Fully-local speech-to-text: transcribes an audio file with Whisper running in the browser
 // (transformers.js / Xenova/whisper-tiny.en, ~40MB, browser-cached). No upload, no API.
+import { loadOnce } from "../loadOnce";
 
 export interface TranscribeProgress {
   stage: "download" | "decoding" | "transcribing" | "done";
@@ -7,28 +8,26 @@ export interface TranscribeProgress {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let asr: any = null;
-let loading: Promise<any> | null = null;
+// progress goes to whoever is waiting on the current load
+let loadProgress: ((p: TranscribeProgress) => void) | undefined;
 
-async function getAsr(onProgress?: (p: TranscribeProgress) => void): Promise<any> {
-  if (asr) return asr;
-  if (!loading) {
-    loading = (async () => {
-      const { pipeline, env } = await import("@huggingface/transformers");
-      env.allowLocalModels = false;
-      env.useBrowserCache = true;
-      const pipe = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
-        dtype: "q8",
-        progress_callback: (e: any) => {
-          if (e?.status === "progress" && typeof e.progress === "number")
-            onProgress?.({ stage: "download", ratio: e.progress / 100 });
-        },
-      });
-      asr = pipe;
-      return pipe;
-    })();
-  }
-  return loading;
+/** Load (once) the Whisper model; a failed load (offline…) is retried next time. */
+const loadAsr = loadOnce<any>(async () => {
+  const { pipeline, env } = await import("@huggingface/transformers");
+  env.allowLocalModels = false;
+  env.useBrowserCache = true;
+  return pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
+    dtype: "q8",
+    progress_callback: (e: any) => {
+      if (e?.status === "progress" && typeof e.progress === "number")
+        loadProgress?.({ stage: "download", ratio: e.progress / 100 });
+    },
+  });
+});
+
+function getAsr(onProgress?: (p: TranscribeProgress) => void): Promise<any> {
+  if (onProgress) loadProgress = onProgress;
+  return loadAsr();
 }
 
 /** Decode any browser-supported audio file to 16 kHz mono Float32 samples (what Whisper expects). */
@@ -52,7 +51,7 @@ async function decodeAudio(file: File | Blob): Promise<Float32Array> {
 
 /** True once the Whisper model has loaded. */
 export function isAsrReady(): boolean {
-  return !!asr;
+  return loadAsr.ready();
 }
 
 /** Transcribe an audio file to text, entirely on-device. */

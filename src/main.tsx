@@ -44,6 +44,8 @@ startHistory();
 if (isTauri()) {
   import("@tauri-apps/api/event")
     .then(({ listen }) => listen("global-quick-capture", () => useVault.getState().setQuickOpen(true)))
+    // dev only: drop the listener when this module is hot-replaced, so captures don't stack up
+    .then((unlisten) => import.meta.hot?.dispose(unlisten))
     .catch(() => {});
 }
 

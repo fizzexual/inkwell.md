@@ -16,7 +16,7 @@ Obsidian, a PDF reader and a writing app.
 
 ## About
 
-Inkwell is a desktop app for researchers and students who read papers and write notes about them. Notes are plain markdown linked with `[[wikilinks]]`, and the app turns them into a knowledge graph, backlinks, tags and search. It is in active development as a Windows Tauri app; opening a real folder as a vault, a full PDF reader with highlights and citation import are still on the roadmap.
+Inkwell is a desktop app for researchers and students who read papers and write notes about them. Notes are plain markdown linked with `[[wikilinks]]`, and the app turns them into a knowledge graph, backlinks, tags and search. It is in active development as a Windows Tauri app: you can open a real folder of markdown files as your vault, read PDFs and save highlights into notes, and import sources from BibTeX, DOI or arXiv to cite with `[@key]`.
 
 ## Why
 
@@ -26,8 +26,22 @@ the **note** as the atom and derives everything else from it — the file tree,
 the link graph, backlinks, tags and search are all projections of one source of
 truth. Edit a note and the graph moves with it.
 
-It is **local-first**: your vault is plain markdown, nothing leaves the machine,
-and the app ships as a single native Windows binary.
+It is **local-first**: your vault is plain markdown on your disk, your notes are
+never uploaded anywhere, and the app ships as a single native Windows binary.
+
+### What goes online
+
+Some features do use the network. Plainly:
+
+- **On-device AI models** (semantic search, audio transcription) are downloaded
+  once from Hugging Face, and the ONNX runtime that runs them comes from
+  jsDelivr. After that they run on your machine; the note text you search or
+  the audio you transcribe is not sent anywhere.
+- **Web clipping** sends the page URL to `r.jina.ai`, which returns it as markdown.
+- **DOI / arXiv lookups** query Crossref and arXiv with the id you typed.
+- **The AI assistant** talks to a cloud provider (Groq, OpenAI, Anthropic, …)
+  only if you add an API key for it — and then the notes you ask about are sent
+  to that provider. With Ollama it stays on your machine.
 
 ## Highlights
 
@@ -78,7 +92,18 @@ src-tauri/      Rust shell · window config · capabilities · icons
 | `Ctrl/Cmd+N` | New note |
 | `Ctrl/Cmd+E` | Toggle edit / read |
 | `Ctrl/Cmd+G` | Knowledge map |
-| `Esc` | Leave edit, then return to the map |
+| `Ctrl/Cmd+F` | Find & replace (while editing) |
+| `Ctrl/Cmd+Shift+F` | Semantic search — find notes by meaning |
+| `Ctrl/Cmd+Shift+K` | Quick capture → Inbox |
+| `Ctrl/Cmd+Shift+Space` | Quick capture from anywhere (global, desktop app) |
+| `Ctrl/Cmd+J` | Toggle the AI assistant |
+| `Ctrl/Cmd+.` | Focus / zen mode |
+| `Ctrl/Cmd+\` | Toggle sidebar |
+| `Ctrl/Cmd+Shift+\` | Toggle inspector |
+| `Ctrl/Cmd+Z` · `Ctrl/Cmd+Y` | Undo · redo |
+| `Alt+←` · `Alt+→` | Back · forward |
+| `?` | All shortcuts |
+| `Esc` | Close a dialog; else leave edit, then return to the map |
 
 ## Develop
 
@@ -86,17 +111,18 @@ src-tauri/      Rust shell · window config · capabilities · icons
 npm install
 npm run tauri dev      # native window (needs Rust + WebView2)
 npm run dev            # web UI only, in a browser
+npm test               # unit tests (vitest)
 npm run build          # type-check + production bundle
 npm run tauri build    # package the Windows installer
 ```
 
 ## Roadmap
 
-- [ ] Open a real folder as a vault (read/write markdown on disk via Rust)
-- [ ] Embedded PDF reader with highlight-to-note
-- [ ] Citations & source metadata (BibTeX / CSL import)
-- [ ] Local-graph mode — the neighbourhood of the selected note
-- [ ] Folder management (create / rename / move)
+- [x] Open a real folder as a vault (read/write markdown on disk via Rust)
+- [x] Citations & source metadata — BibTeX import, DOI / arXiv lookup, `[@key]` citations, `bibliography` blocks (CSL styles not yet)
+- [x] Local-graph mode — the neighbourhood of the selected note
+- [ ] Embedded PDF reader with highlight-to-note — **partial**: the reader saves selected text (with its page) into a highlights note; highlights are not yet drawn on the PDF itself
+- [ ] Folder management — notes can be moved between folders; creating and renaming folders is not done yet
 
 ## License
 

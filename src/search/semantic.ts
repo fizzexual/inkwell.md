@@ -2,6 +2,7 @@
 // (transformers.js / all-MiniLM-L6-v2, ~23MB, cached by the browser after first download).
 // No API, no server — embeddings and search all happen on-device.
 import type { Note } from "../data/vault";
+import { loadOnce } from "../loadOnce";
 
 export interface LoadProgress {
   stage: "download" | "ready" | "embedding";
@@ -12,36 +13,33 @@ export interface LoadProgress {
 
 // transformers.js is heavy and dynamically imported; `any` avoids pulling its types into the main build.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let extractor: any = null;
-let loadingPipe: Promise<any> | null = null;
+// progress goes to whoever is waiting on the current load
+let loadProgress: ((p: LoadProgress) => void) | undefined;
 
-/** Load (once) the on-device embedding model, reporting download progress. */
-async function getExtractor(onProgress?: (p: LoadProgress) => void): Promise<any> {
-  if (extractor) return extractor;
-  if (!loadingPipe) {
-    loadingPipe = (async () => {
-      const { pipeline, env } = await import("@huggingface/transformers");
-      // always pull the model from the HF hub (we don't ship a local copy), and let the browser cache it
-      env.allowLocalModels = false;
-      env.useBrowserCache = true;
-      const pipe = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-        dtype: "q8", // the ~23MB quantized weights
-        progress_callback: (e: any) => {
-          if (e?.status === "progress" && typeof e.progress === "number") {
-            onProgress?.({ stage: "download", ratio: e.progress / 100, file: e.file });
-          }
-        },
-      });
-      extractor = pipe;
-      return pipe;
-    })();
-  }
-  return loadingPipe;
+/** Load (once) the on-device embedding model; a failed load (offline…) is retried next time. */
+const loadExtractor = loadOnce<any>(async () => {
+  const { pipeline, env } = await import("@huggingface/transformers");
+  // always pull the model from the HF hub (we don't ship a local copy), and let the browser cache it
+  env.allowLocalModels = false;
+  env.useBrowserCache = true;
+  return pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
+    dtype: "q8", // the ~23MB quantized weights
+    progress_callback: (e: any) => {
+      if (e?.status === "progress" && typeof e.progress === "number") {
+        loadProgress?.({ stage: "download", ratio: e.progress / 100, file: e.file });
+      }
+    },
+  });
+});
+
+function getExtractor(onProgress?: (p: LoadProgress) => void): Promise<any> {
+  if (onProgress) loadProgress = onProgress;
+  return loadExtractor();
 }
 
 /** True once the model has finished loading (so the UI can skip the "first run downloads…" note). */
 export function isModelReady(): boolean {
-  return !!extractor;
+  return loadExtractor.ready();
 }
 
 async function embed(text: string, onProgress?: (p: LoadProgress) => void): Promise<Float32Array> {

@@ -37,6 +37,7 @@ export default function QuickCapture() {
               e.preventDefault();
               submit();
             } else if (e.key === "Escape") {
+              e.preventDefault();
               setOpen(false);
             }
           }}

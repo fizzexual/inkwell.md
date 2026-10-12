@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useVault } from "../store/useVault";
 import { useMath } from "../math/useMath";
-import { buildMathCtx } from "../math/render";
 import { renderMarkdown } from "../markdown";
+import { noteRenderCtx, renderMermaid } from "../renderCtx";
 import "./LiveEditor.css";
 
 interface Props {
@@ -74,7 +74,9 @@ function parseBlocks(md: string): Blk[] {
 
 export default function LiveEditor({ value, onChange, noteId }: Props) {
   const resolve = useVault((s) => s.resolve);
+  const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
+  const theme = useVault((s) => s.theme);
   const citeMap = useVault((s) => s.citeMap);
   const openArticle = useVault((s) => s.openArticle);
   const mathResult = useMath((s) => s.result);
@@ -82,24 +84,32 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
   // the block currently being edited, identified by its (stable) start offset + live text
   const [active, setActive] = useState<{ start: number; text: string } | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const docRef = useRef<HTMLDivElement>(null);
 
   const blocks = useMemo(() => parseBlocks(value), [value]);
 
+  // same context as reading view: links, embeds, citations, math, ```query, ```bibliography
   const ctx = useMemo(
-    () => ({
-      resolve,
-      getNote: (id: string) => {
-        const n = notesById.get(id);
-        return n ? { title: n.title, content: n.content ?? "" } : undefined;
-      },
-      cite: (key: string) => {
-        const c = citeMap.get(key);
-        return c ? { id: c.id, label: c.label } : undefined;
-      },
-      math: buildMathCtx(mathResult),
-    }),
-    [resolve, notesById, citeMap, mathResult],
+    () => noteRenderCtx({ md: value, noteId, notes, notesById, resolve, citeMap, mathResult }),
+    [value, noteId, notes, notesById, resolve, citeMap, mathResult],
   );
+
+  // React 19 rewrites innerHTML whenever the {__html} object changes, which would wipe drawn
+  // diagrams on every keystroke. Reuse last render's object while a block's HTML is unchanged.
+  const lastHtml = useRef(new Map<string, { __html: string }>());
+  const nextHtml = new Map<string, { __html: string }>();
+  const htmlOf = (text: string) => {
+    const html = text.trim() ? renderMarkdown(text, ctx) : "<p></p>";
+    const key = `${theme}|${html}`; // a theme switch redraws diagrams in the new theme
+    const obj = lastHtml.current.get(key) ?? { __html: html };
+    nextHtml.set(key, obj);
+    return obj;
+  };
+  useEffect(() => {
+    lastHtml.current = nextHtml;
+    // draw any ```mermaid block that is new on the page (cheap no-op when there is none)
+    if (docRef.current) renderMermaid(docRef.current, theme);
+  });
 
   // grow the active textarea to fit its content so blocks read as one seamless page
   useEffect(() => {
@@ -167,21 +177,23 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
     activate(b);
   };
 
-  const renderBlock = (b: Blk) => {
+  // React keys must not change while you type: blocks above the edited one keep their start
+  // offset, blocks below it keep their distance from the end of the note
+  const renderBlock = (b: Blk, key: string | number = b.start) => {
     // the frontmatter block renders to nothing — show a clickable "Properties" affordance instead
     if (b.start === 0 && /^---\r?\n[\s\S]*?\r?\n---\s*$/.test(b.text)) {
       return (
-        <div key={b.start} className="live-block live-frontmatter" onMouseDown={(e) => onBlockClick(e, b)}>
+        <div key={key} className="live-block live-frontmatter" onMouseDown={(e) => onBlockClick(e, b)}>
           <span className="live-fm-chip">Properties</span>
         </div>
       );
     }
     return (
       <div
-        key={b.start}
+        key={key}
         className={"live-block" + (b.text.trim() === "" ? " live-empty" : "")}
         onMouseDown={(e) => onBlockClick(e, b)}
-        dangerouslySetInnerHTML={{ __html: b.text.trim() ? renderMarkdown(b.text, ctx) : "<p></p>" }}
+        dangerouslySetInnerHTML={htmlOf(b.text)}
       />
     );
   };
@@ -201,8 +213,8 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
 
   return (
     <div className="live-root">
-      <div className="live-doc md-preview" onClick={onContainerClick} key={noteId}>
-        {before.map(renderBlock)}
+      <div className="live-doc md-preview" onClick={onContainerClick} key={noteId} ref={docRef}>
+        {before.map((b) => renderBlock(b))}
         {active && (
           <textarea
             ref={taRef}
@@ -216,7 +228,7 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
             placeholder="Write in markdown…"
           />
         )}
-        {after.map(renderBlock)}
+        {after.map((b) => renderBlock(b, `end-${value.length - b.start}`))}
       </div>
       {!active && blocks.length === 1 && blocks[0].text === "" && (
         <div className="live-hint" onMouseDown={() => activate(blocks[0])}>
