@@ -61,8 +61,17 @@ export interface Toast {
   id: number;
   message: string;
   action?: { label: string; run: () => void };
+  /** stays until dismissed (warnings the user must not miss) */
+  sticky?: boolean;
 }
 let toastSeq = 0;
+
+// Runs before a disk vault is closed (the sync engine registers its flush here, so the last
+// debounced edits reach disk first).
+let beforeVaultClose: () => Promise<void> = async () => {};
+export function onBeforeVaultClose(fn: () => Promise<void>) {
+  beforeVaultClose = fn;
+}
 
 export interface Pane {
   tabs: string[];
@@ -252,6 +261,8 @@ interface VaultState extends Derived {
   editorMode: "source" | "live";
   setEditorMode: (m: "source" | "live") => void;
   vaultPath: string | null;
+  /** the disk vault whose notes are loaded (null until the folder has been read). */
+  loadedVault: string | null;
   loadDiskVault: (path: string, notes: Note[]) => void;
   /** apply an externally-changed note set from disk, keeping the user's current note & scroll. */
   reconcileDisk: (notes: Note[]) => void;
@@ -282,7 +293,7 @@ interface VaultState extends Derived {
   deleteNote: (id: string) => void;
   restoreNote: (note: Note) => void;
   toasts: Toast[];
-  toast: (message: string, action?: Toast["action"]) => void;
+  toast: (message: string, action?: Toast["action"], opts?: { sticky?: boolean }) => void;
   dismissToast: (id: number) => void;
   pinned: string[];
   togglePin: (id: string) => void;
@@ -388,8 +399,11 @@ export const useVault = create<VaultState>((set, get) => ({
   editorMode: persisted.editorMode ?? "source",
   setEditorMode: (m) => set({ editorMode: m }),
   vaultPath: persisted.vaultPath ?? null,
+  loadedVault: null,
   loadDiskVault: (path, notes) => {
-    set(() => ({ notes, ...derive(notes), vaultPath: path, deleted: new Set<string>() }));
+    // through null first, so a re-load of the same folder also resets the sync baseline
+    set({ loadedVault: null });
+    set(() => ({ notes, ...derive(notes), vaultPath: path, loadedVault: path }));
     const first = notes[0];
     if (first) get().openArticle(first.id);
   },
@@ -400,8 +414,9 @@ export const useVault = create<VaultState>((set, get) => ({
       return { notes, ...derive(notes), selectedId: keep };
     }),
   closeVault: async () => {
+    await beforeVaultClose().catch((e) => console.error("Inkwell: saving before close failed", e));
     if (isTauri()) await closeVaultFolder().catch(() => {});
-    set({ vaultPath: null });
+    set({ vaultPath: null, loadedVault: null });
     // reload to re-init the built-in demo vault cleanly
     try {
       window.location.reload();
@@ -444,8 +459,8 @@ export const useVault = create<VaultState>((set, get) => ({
       return { noteIcons, picker: null };
     }),
   toasts: [],
-  toast: (message, action) =>
-    set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, message, action }] })),
+  toast: (message, action, opts) =>
+    set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, message, action, sticky: opts?.sticky }] })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   pinned: persisted.pinned ?? [],
   togglePin: (id) =>

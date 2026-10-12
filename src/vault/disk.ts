@@ -31,6 +31,8 @@ export const closeVaultFolder = () => invoke<void>("close_vault", {});
 export const readVault = () => invoke<DiskNote[]>("read_vault", {});
 export const writeNoteFile = (rel: string, content: string) => invoke<void>("write_note", { rel, content });
 export const deleteNoteFile = (rel: string) => invoke<void>("delete_note", { rel });
+/** Move/rename a note file inside the vault; refuses to replace an existing file. */
+export const renameNoteFile = (from: string, to: string) => invoke<void>("rename_note", { from, to });
 
 /** Start the native filesystem watcher on the open vault folder (replaces any previous watch). */
 export const watchVault = () => invoke<void>("watch_vault", {});
@@ -73,13 +75,21 @@ export function diskNoteToNote(d: DiskNote): Note {
   };
 }
 
-/** The on-disk relative path a note should live at. */
-export function relOf(note: Note, used: Set<string>): string {
-  // notes loaded from disk keep their original file path (stable across heading edits)
-  if (/\.md$/i.test(note.id)) return note.id;
+/**
+ * The on-disk relative path a note should live at. `used` holds the lowercased paths already taken
+ * (files on disk + paths handed out this pass): names compare case-insensitively, as NTFS/APFS do,
+ * so a new "Ideas" never lands on an existing "Ideas.md". `own` is the file the note already has.
+ */
+export function relOf(note: Note, used: Set<string>, own?: string): string {
+  // notes loaded from disk keep their original file name (stable across heading edits);
   // new notes: <folder>/<slug(title)>.md, de-duplicated within the folder
+  const md = /\.md$/i.test(note.id);
+  const base = md
+    ? note.id.slice(note.id.lastIndexOf("/") + 1).replace(/\.md$/i, "")
+    : slugify(note.title || "untitled");
   const dir = note.folder ? note.folder + "/" : "";
-  let rel = `${dir}${slugify(note.title || "untitled")}.md`;
-  for (let i = 1; used.has(rel); i++) rel = `${dir}${slugify(note.title || "untitled")}-${i}.md`;
+  const free = (rel: string) => !used.has(rel.toLowerCase()) || rel.toLowerCase() === own?.toLowerCase();
+  let rel = `${dir}${base}.md`;
+  for (let i = 1; !free(rel); i++) rel = `${dir}${base}-${i}.md`;
   return rel;
 }

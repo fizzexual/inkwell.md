@@ -1,6 +1,7 @@
 // Keeps an open on-disk vault in sync: writes changed/new notes to their files and
 // removes deleted ones. Only active inside the Tauri desktop app.
-import { useVault } from "../store/useVault";
+import { useVault, onBeforeVaultClose } from "../store/useVault";
+import { useHistory } from "../useHistory";
 import {
   isTauri,
   pickVault,
@@ -8,6 +9,7 @@ import {
   readVault,
   writeNoteFile,
   deleteNoteFile,
+  renameNoteFile,
   relOf,
   diskNoteToNote,
   watchVault,
@@ -19,118 +21,220 @@ import { noteTitle } from "../data/derive";
 
 type Written = Map<string, { rel: string; content: string }>;
 
+/** note id → the file it lives in, and the content last written to / read from that file. */
 let written: Written = new Map();
-let lastPath: string | null = null;
+/** lowercased paths of the .md files known to be on disk (last read + our own writes). */
+let onDisk = new Set<string>();
+/** the loaded disk vault the baseline above belongs to (null = nothing may be written). */
+let syncedPath: string | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-async function syncNow(notes: Note[]) {
-  const used = new Set<string>();
-  const next: Written = new Map();
-  const currentIds = new Set(notes.map((n) => n.id));
+const lc = (rel: string) => rel.toLowerCase();
 
-  for (const note of notes) {
-    const rel = relOf(note, used);
-    used.add(rel);
-    const content = note.content ?? "";
-    const prev = written.get(note.id);
-    next.set(note.id, { rel, content });
+// Write-outs and re-reads run one at a time, so a re-read never sees a half-done write-out.
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(job: () => Promise<T>): Promise<T> {
+  const run = queue.then(job, job);
+  queue = run.catch(() => {});
+  return run;
+}
+
+async function syncNow() {
+  const s = useVault.getState();
+  if (!s.loadedVault || s.loadedVault !== syncedPath) return;
+  const notes = s.notes;
+  const live = new Set(notes.map((n) => n.id));
+  let failed: string | null = null;
+
+  // files whose notes were deleted — first, so their names are free again
+  for (const [id, prev] of [...written]) {
+    if (live.has(id)) continue;
     try {
-      if (!prev || prev.content !== content || prev.rel !== rel) {
+      await deleteNoteFile(prev.rel);
+      onDisk.delete(lc(prev.rel));
+      written.delete(id);
+    } catch (e) {
+      console.error("Inkwell: disk delete failed for", prev.rel, e);
+    }
+  }
+
+  // where every note lives; a note never gets a name some other file on disk already has
+  const used = new Set(onDisk);
+  for (const w of written.values()) used.add(lc(w.rel));
+  for (const note of notes) {
+    const prev = written.get(note.id);
+    let rel = relOf(note, used, prev?.rel);
+    used.add(lc(rel));
+    const content = note.content ?? "";
+    try {
+      if (prev && prev.rel !== rel) {
+        // moved to another folder / a new note retitled: rename, never delete + rewrite
+        try {
+          await renameNoteFile(prev.rel, rel);
+          onDisk.delete(lc(prev.rel));
+          onDisk.add(lc(rel));
+          written.set(note.id, { rel, content: prev.content });
+        } catch (e) {
+          console.error("Inkwell: couldn't move", prev.rel, "to", rel, e);
+          rel = prev.rel; // keep the file where it is, but still save the text
+        }
+      }
+      const cur = written.get(note.id);
+      if (!cur || cur.rel !== rel || cur.content !== content) {
         await writeNoteFile(rel, content);
-        if (prev && prev.rel !== rel) await deleteNoteFile(prev.rel); // file moved
+        onDisk.add(lc(rel));
+        written.set(note.id, { rel, content });
       }
     } catch (e) {
+      // not recorded as written, so the next pass tries again
       console.error("Inkwell: disk write failed for", rel, e);
+      failed ??= note.title;
     }
   }
-  // files whose notes were deleted
-  for (const [id, prev] of written) {
-    if (!currentIds.has(id)) {
-      try {
-        await deleteNoteFile(prev.rel);
-      } catch {
-        /* already gone */
-      }
-    }
+  if (failed) useVault.getState().toast(`Couldn't save “${failed}” to disk — will retry on the next edit`);
+}
+
+function scheduleSync() {
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => {
+    timer = undefined;
+    void serial(syncNow);
+  }, 500);
+}
+
+/** Write any pending (debounced) edits to disk now. Safe to call any time; no-op without a disk vault. */
+export async function flushDiskSync() {
+  if (timer) {
+    clearTimeout(timer);
+    timer = undefined;
   }
-  written = next;
+  await serial(syncNow);
 }
 
 /** Subscribe once; writes to disk (debounced) whenever notes change while a disk vault is open. */
 export function startDiskSync() {
   if (!isTauri()) return;
   useVault.subscribe((s) => {
-    if (!s.vaultPath) return;
-    // a freshly (re)loaded vault matches disk already — set the baseline, don't rewrite it
-    if (s.vaultPath !== lastPath) {
-      lastPath = s.vaultPath;
-      written = new Map(s.notes.map((n) => [n.id, { rel: n.id, content: n.content ?? "" }]));
+    // nothing is written until a disk vault has actually been read: before that the notes in
+    // memory are the demo vault, which must never land in (or delete from) the user's folder
+    if (!s.loadedVault) {
+      syncedPath = null;
       return;
     }
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => syncNow(useVault.getState().notes), 500);
+    // a freshly (re)loaded vault matches disk already — set the baseline, don't rewrite it
+    if (s.loadedVault !== syncedPath) {
+      syncedPath = s.loadedVault;
+      written = new Map(s.notes.map((n) => [n.id, { rel: n.id, content: n.content ?? "" }]));
+      onDisk = new Set(s.notes.map((n) => lc(n.id)));
+      return;
+    }
+    scheduleSync();
   });
+  onBeforeVaultClose(flushDiskSync);
 }
 
 // ---- external change watching (desktop only) ----
 let watchTimer: ReturnType<typeof setTimeout> | undefined;
 let reconciling = false;
+let again = false;
 
-/** Re-read the vault from disk and fold in any changes made by other apps, without a write-back loop. */
-async function reconcile(path: string) {
-  if (reconciling) return;
+/** Keep the version of a note another app wrote while the user had unsaved edits to it. */
+function keepDiskVersion(note: Note, content: string, extra: Note[]) {
+  if (useHistory.getState().record(note.id, content, Date.now())) return;
+  // too big for History: keep it as its own note instead, so it is never silently dropped
+  extra.push({
+    id: `${note.id.replace(/\.md$/i, "")}-disk-version-${Date.now().toString(36)}`,
+    title: `${note.title} (disk version)`,
+    folder: note.folder,
+    kind: note.kind,
+    links: [],
+    content,
+  });
+}
+
+/**
+ * Re-read the vault from disk and fold in changes made by other apps, without a write-back loop.
+ * - disk == what we last wrote/read → our own write (or nothing new): skipped, memory stays.
+ * - changed by another app, no unsaved edits here → taken in.
+ * - changed by another app while the user has unsaved edits → the user's text is kept (and saved
+ *   on the next write-out); the other app's version goes to the note's History.
+ */
+async function reconcile() {
+  const path = syncedPath;
+  if (!path) return;
+  const disk = await readVault();
+  const v = useVault.getState();
+  if (v.loadedVault !== path || syncedPath !== path) return; // vault was closed/switched while reading
+  const diskByRel = new Map(disk.map((d) => [lc(d.rel), d]));
+  onDisk = new Set(diskByRel.keys());
+  // every file we wrote or read for a note (incl. ones about to be renamed/deleted) is ours
+  const owned = new Set([...written.values()].map((w) => lc(w.rel)));
+
+  let changed = false;
+  const conflicts: string[] = [];
+  const extra: Note[] = [];
+  const next: Note[] = v.notes.map((n) => {
+    const w = written.get(n.id);
+    const d = w && diskByRel.get(lc(w.rel));
+    // not on disk yet (or its file vanished): nothing to compare, and never adopt a file it doesn't own
+    if (!w || !d) return n;
+    const mem = n.content ?? "";
+    if (d.content === w.content) return n;
+    if (d.content === mem) {
+      written.set(n.id, { rel: w.rel, content: mem });
+      return n;
+    }
+    written.set(n.id, { rel: w.rel, content: d.content });
+    if (mem !== w.content) {
+      keepDiskVersion(n, d.content, extra);
+      conflicts.push(n.title);
+      return n;
+    }
+    changed = true;
+    return { ...n, content: d.content, title: noteTitle(d.content) || n.title };
+  });
+  // files created by another app that we've never seen
+  const ids = new Set(next.map((n) => n.id));
+  for (const d of disk) {
+    if (owned.has(lc(d.rel)) || ids.has(d.rel)) continue;
+    changed = true;
+    written.set(d.rel, { rel: d.rel, content: d.content });
+    next.push(diskNoteToNote(d));
+  }
+  // NB: deliberately do NOT auto-remove notes whose file vanished — a brand-new in-app note
+  // hasn't been flushed to disk yet, and dropping it here would lose unsynced work.
+  if (extra.length) {
+    changed = true;
+    next.push(...extra);
+  }
+  if (changed) useVault.getState().reconcileDisk(next);
+  if (conflicts.length) {
+    // the user's text wins on disk at the next write-out; say so, and where the other version is
+    scheduleSync();
+    useVault
+      .getState()
+      .toast(
+        `“${conflicts.join("”, “")}” changed on disk while you were editing — kept your text; the disk version is in History`,
+        undefined,
+        { sticky: true },
+      );
+  } else if (changed) {
+    useVault.getState().toast("Vault updated from disk");
+  }
+}
+
+async function runReconcile() {
+  // a change reported while a re-read is running is not dropped: one more pass runs after it
+  if (reconciling) {
+    again = true;
+    return;
+  }
   reconciling = true;
   try {
-    const disk = await readVault();
-    const v = useVault.getState();
-    if (v.vaultPath !== path) return; // vault was closed/switched while reading
-    const diskByRel = new Map(disk.map((d) => [d.rel, d.content]));
-
-    // the on-disk path each current note maps to (same ordering syncNow uses)
-    const used = new Set<string>();
-    const relById = new Map<string, string>();
-    for (const n of v.notes) {
-      const rel = relOf(n, used);
-      used.add(rel);
-      relById.set(n.id, rel);
-    }
-
-    let changed = false;
-    const seen = new Set<string>();
-    const next: Note[] = v.notes.map((n) => {
-      const rel = relById.get(n.id)!;
-      seen.add(rel);
-      const dc = diskByRel.get(rel);
-      if (dc !== undefined && dc !== (n.content ?? "")) {
-        changed = true;
-        const heading = noteTitle(dc);
-        return { ...n, content: dc, title: heading || n.title };
-      }
-      return n;
-    });
-    // files created by another app that we've never seen
-    for (const d of disk) {
-      if (!seen.has(d.rel)) {
-        changed = true;
-        next.push(diskNoteToNote(d));
-      }
-    }
-    // NB: deliberately do NOT auto-remove notes whose file vanished — a brand-new in-app note
-    // hasn't been flushed to disk yet, and dropping it here would lose unsynced work.
-    if (!changed) return;
-
-    // reset the write baseline to exactly the reconciled state so the sync pass writes nothing back
-    const used2 = new Set<string>();
-    written = new Map();
-    for (const n of next) {
-      const rel = relOf(n, used2);
-      used2.add(rel);
-      written.set(n.id, { rel, content: n.content ?? "" });
-    }
-    useVault.getState().reconcileDisk(next);
-    useVault.getState().toast("Vault updated from disk");
-  } catch (e) {
-    console.error("Inkwell: reconcile failed", e);
+    do {
+      again = false;
+      await serial(reconcile).catch((e) => console.error("Inkwell: reconcile failed", e));
+    } while (again);
   } finally {
     reconciling = false;
   }
@@ -138,7 +242,7 @@ async function reconcile(path: string) {
 
 /**
  * Watch the open vault folder for changes made outside Inkwell (editors, git, Dropbox…) and fold
- * them in live. Starts/stops the native watcher as vaults open and close. No-op in the browser.
+ * them in live. Starts/stops the native watcher as disk vaults load and close. No-op in the browser.
  */
 export function startVaultWatch() {
   if (!isTauri()) return;
@@ -147,20 +251,24 @@ export function startVaultWatch() {
   const sync = (path: string | null) => {
     if (path === watched) return;
     watched = path;
-    if (path) watchVault().catch((e) => console.error("Inkwell: watch failed", e));
+    if (path)
+      watchVault().catch((e) => {
+        watched = null; // let the next load try again
+        console.error("Inkwell: watch failed", e);
+      });
     else unwatchVault().catch(() => {});
   };
 
   // debounced reconcile on any batch of filesystem events
   onFsChange(() => {
-    const path = useVault.getState().vaultPath;
-    if (!path) return;
+    if (!useVault.getState().loadedVault) return;
     if (watchTimer) clearTimeout(watchTimer);
-    watchTimer = setTimeout(() => reconcile(path), 350);
+    watchTimer = setTimeout(() => void runReconcile(), 350);
   }).catch((e) => console.error("Inkwell: fs listener failed", e));
 
-  sync(useVault.getState().vaultPath);
-  useVault.subscribe((s) => sync(s.vaultPath));
+  // only once the folder has been restored and read — before that Rust has no vault to watch
+  sync(useVault.getState().loadedVault);
+  useVault.subscribe((s) => sync(s.loadedVault));
 }
 
 /** Prompt for a folder, read its .md files, and make it the live vault. */
@@ -171,6 +279,7 @@ export async function openVaultFolderFlow() {
     return;
   }
   try {
+    await flushDiskSync(); // the current vault's last edits, before switching away from it
     const path = await pickVault();
     if (!path) return;
     const disk = await readVault();
@@ -195,8 +304,10 @@ export async function autoloadVault() {
       return;
     }
     const disk = await readVault();
-    v.loadDiskVault(path, disk.map(diskNoteToNote));
-  } catch {
-    /* folder moved/removed — fall back to whatever is loaded */
+    useVault.getState().loadDiskVault(path, disk.map(diskNoteToNote));
+  } catch (e) {
+    // folder moved/removed — nothing is written to it; the notes shown are the built-in ones
+    console.error("Inkwell: couldn't load the vault folder", e);
+    v.toast("Couldn't open your vault folder — showing the built-in notes");
   }
 }

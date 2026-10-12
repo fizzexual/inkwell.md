@@ -6,9 +6,10 @@ import "./Toaster.css";
 function ToastRow({ toast }: { toast: Toast }) {
   const dismiss = useVault((s) => s.dismissToast);
   useEffect(() => {
+    if (toast.sticky) return;
     const t = window.setTimeout(() => dismiss(toast.id), 4200);
     return () => window.clearTimeout(t);
-  }, [toast.id, dismiss]);
+  }, [toast.id, toast.sticky, dismiss]);
 
   return (
     <div className="toast">

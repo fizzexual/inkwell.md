@@ -20,7 +20,8 @@ function load(): Record<string, Version[]> {
 
 interface HistState {
   versions: Record<string, Version[]>;
-  record: (id: string, content: string, at: number) => void;
+  /** false when the snapshot can't be kept (too big). */
+  record: (id: string, content: string, at: number) => boolean;
   clear: (id: string) => void;
 }
 
@@ -35,12 +36,13 @@ function persist(s: HistState) {
 export const useHistory = create<HistState>((set, get) => ({
   versions: load(),
   record: (id, content, at) => {
-    if (content.length > MAX_CONTENT) return;
+    if (content.length > MAX_CONTENT) return false;
     const list = get().versions[id] ?? [];
-    if (list[0]?.content === content) return; // unchanged since last snapshot
+    if (list[0]?.content === content) return true; // unchanged since last snapshot
     const next = [{ t: at, content }, ...list].slice(0, MAX_PER_NOTE);
     set((s) => ({ versions: { ...s.versions, [id]: next } }));
     persist(get());
+    return true;
   },
   clear: (id) =>
     set((s) => {
