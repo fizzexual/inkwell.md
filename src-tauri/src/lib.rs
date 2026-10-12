@@ -11,6 +11,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+mod backup;
 mod folders;
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
@@ -349,7 +350,11 @@ pub fn run() {
             folders::read_vault_dirs,
             folders::create_folder,
             folders::rename_folder,
-            folders::delete_folder
+            folders::delete_folder,
+            backup::backup_vault,
+            backup::list_backups,
+            backup::restore_backup,
+            backup::open_restored_vault
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
