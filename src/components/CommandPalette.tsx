@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
+import { listenEscape } from "../keys";
 import { fuzzyMatch } from "../fuzzy";
 import { aliasesOf } from "../data/derive";
 import { Search, Doc, Sources, Sparkles } from "../icons";
@@ -21,6 +22,8 @@ function Highlight({ text, ranges }: { text: string; ranges: [number, number][] 
 export default function CommandPalette() {
   const open = useVault((s) => s.paletteOpen);
   const setOpen = useVault((s) => s.setPaletteOpen);
+  // close on Esc wherever focus is (the input may not have focus yet, or was clicked away)
+  useEffect(() => (open ? listenEscape(() => setOpen(false)) : undefined), [open, setOpen]);
   const notes = useVault((s) => s.notes);
   const history = useVault((s) => s.history);
   const openArticle = useVault((s) => s.openArticle);

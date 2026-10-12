@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
+import { listenEscape } from "../keys";
 import "./QuickCapture.css";
 
 export default function QuickCapture() {
   const open = useVault((s) => s.quickOpen);
   const setOpen = useVault((s) => s.setQuickOpen);
+  // close on Esc wherever focus is (the input may not have focus yet, or was clicked away)
+  useEffect(() => (open ? listenEscape(() => setOpen(false)) : undefined), [open, setOpen]);
   const quickCapture = useVault((s) => s.quickCapture);
   const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);

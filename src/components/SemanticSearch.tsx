@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
+import { listenEscape } from "../keys";
 import { semanticSearch, isModelReady, type LoadProgress, type SemanticHit } from "../search/semantic";
 import { Sparkles } from "../icons";
 import "./SemanticSearch.css";
@@ -15,6 +16,8 @@ const strip = (md: string) =>
 export default function SemanticSearch() {
   const open = useVault((s) => s.semanticOpen);
   const setOpen = useVault((s) => s.setSemanticOpen);
+  // close on Esc wherever focus is (the input may not have focus yet, or was clicked away)
+  useEffect(() => (open ? listenEscape(() => setOpen(false)) : undefined), [open, setOpen]);
   const seed = useVault((s) => s.semanticSeed);
   const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
