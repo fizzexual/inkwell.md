@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
 import { useMath } from "../math/useMath";
-import { buildMathCtx } from "../math/render";
 import { useSmoothScroll } from "../useSmoothScroll";
 import { renderMarkdown, parseFrontmatter } from "../markdown";
-import { runQuery } from "../dataview";
-import { buildBibliography } from "../data/derive";
+import { noteRenderCtx, renderMermaid } from "../renderCtx";
 import MarkdownEditor from "./MarkdownEditor";
 import LiveEditor from "./LiveEditor";
 import PropertiesPanel from "./PropertiesPanel";
@@ -13,9 +11,6 @@ import { useChat } from "../ai/useChat";
 import { History } from "lucide-react";
 import { Graph, Pencil, Doc, Sparkles } from "../icons";
 import "./ArticleView.css";
-
-// unique mermaid render ids across effect runs and panes (time-based ids could collide)
-let mermaidSeq = 0;
 
 function wordCount(md: string): number {
   const text = md.replace(/[#>*`_\-[\]|]/g, " ");
@@ -50,21 +45,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const { data: frontmatter, body } = useMemo(() => parseFrontmatter(md), [md]);
   const words = wordCount(body);
   const html = useMemo(
-    () =>
-      renderMarkdown(md, {
-        resolve,
-        getNote: (id) => {
-          const n = notesById.get(id);
-          return n ? { title: n.title, content: n.content ?? "" } : undefined;
-        },
-        cite: (key) => {
-          const c = citeMap.get(key);
-          return c ? { id: c.id, label: c.label } : undefined;
-        },
-        math: buildMathCtx(mathResult),
-        query: (src) => runQuery(src, notes, noteId),
-        bibliography: () => buildBibliography(md, citeMap),
-      }),
+    () => renderMarkdown(md, noteRenderCtx({ md, noteId, notes, notesById, resolve, citeMap, mathResult })),
     [md, resolve, notesById, citeMap, mathResult, notes, noteId],
   );
   // React 19 diffs dangerouslySetInnerHTML by object identity, so a fresh {__html} on every
@@ -85,37 +66,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   useEffect(() => {
     const root = bodyRef.current;
     if (showEditor || !root) return;
-    const blocks = root.querySelectorAll<HTMLElement>(".mermaid-src:not(.mermaid-done)");
-    if (!blocks.length) return;
-    let cancelled = false;
-    import("mermaid").then(({ default: mermaid }) => {
-      if (cancelled) return;
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: theme === "dark" ? "dark" : "neutral",
-        // strict: labels are HTML-escaped and click/callback directives are disabled — diagrams
-        // come from note text, which may be untrusted (clips, imports, shared vaults)
-        securityLevel: "strict",
-        fontFamily: "Inter, sans-serif",
-      });
-      blocks.forEach((el) => {
-        const src = (el.textContent || "").trim();
-        mermaid
-          .render(`mmd-${++mermaidSeq}`, src)
-          .then(({ svg }) => {
-            if (cancelled) return;
-            el.innerHTML = svg;
-            el.classList.add("mermaid-done");
-          })
-          .catch(() => {
-            el.innerHTML = `<div class="mermaid-error">Diagram syntax error</div>`;
-            el.classList.add("mermaid-done");
-          });
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
+    renderMermaid(root, theme);
   }, [preview, showEditor, theme]);
 
   // syntax-highlight ```code blocks (highlight.js lazy-loaded, only when a block exists)
