@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ci": "node scripts/ci.mjs",
+    "hooks": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
