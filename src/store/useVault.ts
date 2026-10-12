@@ -14,6 +14,7 @@ import {
 } from "../data/derive";
 import { buildContents } from "../data/content";
 import { closeVaultFolder, isTauri } from "../vault/disk";
+import { readAttachment } from "../vault/attachments";
 import { renameWikilinks, setFrontmatterField, type Resolver } from "../markdown";
 
 export type SidebarView =
@@ -48,6 +49,8 @@ export type CenterView =
 export interface PdfDoc {
   name: string;
   data: ArrayBuffer;
+  /** where the PDF lives in the open vault (desktop); absent = opened from a file, not stored */
+  rel?: string | null;
 }
 export type Theme = "light" | "dark";
 
@@ -204,6 +207,7 @@ interface Persisted {
   noteIcons?: Record<string, string>;
   savedSearches?: { id: string; name: string; query: string }[];
   editorMode?: "source" | "live";
+  pdfRel?: string | null;
 }
 function loadPersisted(): Persisted {
   try {
@@ -368,7 +372,16 @@ interface VaultState extends Derived {
   moveNote: (id: string, folder: string) => void;
   quickCapture: (text: string) => void;
   pdf: PdfDoc | null;
-  openPdf: (name: string, data: ArrayBuffer) => void;
+  /** the page the PDF reader should show; `n` changes on every request so the same page re-jumps */
+  pdfTarget: { page: number; n: number } | null;
+  /** the vault PDF that was open (survives a reload; the bytes are read back from the vault) */
+  pdfRel: string | null;
+  openPdf: (name: string, data: ArrayBuffer, rel?: string | null, page?: number) => void;
+  /**
+   * Follow a `#/pdf/…` page link: jump if that PDF is open, else read it from the vault (desktop
+   * with a vault folder), else explain. Resolves to whether the PDF is now showing.
+   */
+  openPdfLink: (rel: string, page: number) => Promise<boolean>;
   openDailyNote: (dateStr: string) => void;
   requestFit: () => void;
   linksOf: (id: string) => Note[];
@@ -843,7 +856,39 @@ export const useVault = create<VaultState>((set, get) => ({
     s.toast(`Duplicated as “${title}”`);
   },
   pdf: null,
-  openPdf: (name, data) => set({ pdf: { name, data }, centerView: "pdf" }),
+  pdfTarget: null,
+  pdfRel: persisted.pdfRel ?? null,
+  openPdf: (name, data, rel = null, page = 1) =>
+    set((s) => ({
+      pdf: { name, data, rel },
+      pdfRel: rel,
+      pdfTarget: { page, n: (s.pdfTarget?.n ?? 0) + 1 },
+      centerView: "pdf",
+    })),
+  openPdfLink: async (rel, page) => {
+    const s = get();
+    const name = rel.slice(rel.lastIndexOf("/") + 1);
+    const cur = s.pdf;
+    // links written without a vault carry only the file name
+    if (cur && (cur.rel ? cur.rel.toLowerCase() === rel.toLowerCase() : cur.name.toLowerCase() === rel.toLowerCase())) {
+      set((st) => ({ centerView: "pdf", pdfTarget: { page, n: (st.pdfTarget?.n ?? 0) + 1 } }));
+      return true;
+    }
+    if (isTauri() && s.loadedVault) {
+      try {
+        const data = await readAttachment(rel);
+        get().openPdf(name, data, rel, page);
+        return true;
+      } catch (e) {
+        get().toast(`Couldn't open “${rel}” from the vault: ${typeof e === "string" ? e : (e as Error)?.message ?? e}`);
+        return false;
+      }
+    }
+    get().toast(
+      `“${name}” isn't open. Without a vault folder, page links only jump within the PDF that is open — open “${name}” in the PDF reader, then click the link again.`,
+    );
+    return false;
+  },
   openDailyNote: (dateStr) => {
     const s = get();
     const existing = s.notes.find((nn) => nn.folder === "Daily" && nn.title === dateStr);
@@ -944,6 +989,7 @@ useVault.subscribe(() => {
       noteIcons: s.noteIcons,
       savedSearches: s.savedSearches,
       editorMode: s.editorMode,
+      pdfRel: s.pdfRel,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
