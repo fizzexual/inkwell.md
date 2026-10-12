@@ -114,7 +114,18 @@ fn write_in(root: &Path, rel: &str, content: &str) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     check_parent_inside(root, &full)?;
-    fs::write(&full, content).map_err(|e| e.to_string())
+    // write the new text next to the note, then swap it in: a crash or full disk mid-write leaves
+    // the old note intact instead of a truncated one. The temp name starts with `.` and doesn't end
+    // in `.md`, so neither the vault reader nor the watcher ever sees it.
+    let name = full.file_name().ok_or("No file name")?.to_string_lossy().to_string();
+    let tmp = full.with_file_name(format!(".{name}.inkwell-tmp"));
+    fs::write(&tmp, content).map_err(|e| e.to_string())?;
+    if fs::rename(&tmp, &full).is_err() {
+        // e.g. another app holds the note open without delete-sharing (Windows): save in place
+        let _ = fs::remove_file(&tmp);
+        fs::write(&full, content).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Deleting a note moves its file to the OS recycle bin / trash, so it can always be restored.
@@ -400,6 +411,28 @@ mod tests {
         assert_eq!(back, vec!["recover me".to_string()]);
         // deleting outside the vault is still refused
         assert!(delete_in(&root, "../x.md").is_err());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn writes_replace_the_note_and_leave_no_temp_file() {
+        let root = tmp_root("atomic");
+        write_in(&root, "a.md", "one").unwrap();
+        write_in(&root, "a.md", "two").unwrap();
+        write_in(&root, "sub/b.md", "three").unwrap();
+        assert_eq!(fs::read_to_string(root.join("a.md")).unwrap(), "two");
+        let names = |d: &Path| -> Vec<String> {
+            let mut v: Vec<String> = fs::read_dir(d)
+                .unwrap()
+                .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+                .collect();
+            v.sort();
+            v
+        };
+        assert_eq!(names(&root), vec!["a.md", "sub"]);
+        assert_eq!(names(&root.join("sub")), vec!["b.md"]);
+        // the path checks still apply
+        assert!(write_in(&root, "../evil.md", "x").is_err());
         let _ = fs::remove_dir_all(&root);
     }
 
