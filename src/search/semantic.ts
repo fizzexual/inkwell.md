@@ -1,38 +1,26 @@
-// Fully-local semantic search: embeds notes with a small transformer that runs in the browser
-// (transformers.js / all-MiniLM-L6-v2, ~23MB, cached by the browser after first download).
+// Fully-local semantic search: embeds notes with a small transformer (all-MiniLM-L6-v2, ~23MB,
+// shipped with the app) that runs in the on-device ML worker (src/ml/), off the main thread.
 // No API, no server — embeddings and search all happen on-device.
 import type { Note } from "../data/vault";
 import { loadOnce } from "../loadOnce";
+import { ml } from "../ml/host";
 
 export interface LoadProgress {
   stage: "download" | "ready" | "embedding";
-  /** 0–1 for download / embedding progress. */
+  /** 0–1 for model loading / embedding progress. */
   ratio?: number;
   file?: string;
 }
 
-// transformers.js is heavy and dynamically imported; `any` avoids pulling its types into the main build.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // progress goes to whoever is waiting on the current load
 let loadProgress: ((p: LoadProgress) => void) | undefined;
 
-/** Load (once) the on-device embedding model; a failed load (offline…) is retried next time. */
-const loadExtractor = loadOnce<any>(async () => {
-  const { pipeline, env } = await import("@huggingface/transformers");
-  // always pull the model from the HF hub (we don't ship a local copy), and let the browser cache it
-  env.allowLocalModels = false;
-  env.useBrowserCache = true;
-  return pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-    dtype: "q8", // the ~23MB quantized weights
-    progress_callback: (e: any) => {
-      if (e?.status === "progress" && typeof e.progress === "number") {
-        loadProgress?.({ stage: "download", ratio: e.progress / 100, file: e.file });
-      }
-    },
-  });
-});
+/** Load (once) the on-device embedding model in the worker; a failed load is retried next time. */
+const loadExtractor = loadOnce<null>(() =>
+  ml.load("embed", (ratio, file) => loadProgress?.({ stage: "download", ratio, file })),
+);
 
-function getExtractor(onProgress?: (p: LoadProgress) => void): Promise<any> {
+function getExtractor(onProgress?: (p: LoadProgress) => void): Promise<null> {
   if (onProgress) loadProgress = onProgress;
   return loadExtractor();
 }
@@ -43,9 +31,8 @@ export function isModelReady(): boolean {
 }
 
 async function embed(text: string, onProgress?: (p: LoadProgress) => void): Promise<Float32Array> {
-  const pipe = await getExtractor(onProgress);
-  const out = await pipe(text.slice(0, 2000), { pooling: "mean", normalize: true });
-  return out.data as Float32Array;
+  await getExtractor(onProgress);
+  return ml.embed(text.slice(0, 2000));
 }
 
 /** The text we embed for a note: its title carries a lot of signal, then the (stripped) body. */
