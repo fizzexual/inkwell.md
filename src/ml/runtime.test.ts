@@ -88,3 +88,12 @@ describe("configureTransformers", () => {
     }
   });
 });
+
+describe("Whisper decoding options", () => {
+  it("asks for timestamps, or whisper-tiny stops after the first sentence", async () => {
+    // measured on a 6.4 s two-sentence clip with the bundled q8 model: without timestamps only
+    // "The quick brown fox jumps over the lazy dog." came back; with them both sentences did
+    const { ASR_OPTIONS } = await import("./runtime");
+    expect(ASR_OPTIONS).toMatchObject({ chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
+  });
+});

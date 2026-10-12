@@ -74,3 +74,7 @@ export function configureTransformers(env: TransformersEnv, c: RuntimeChoice): v
   wasm.numThreads = 1;
   wasm.proxy = false; // we already are the worker
 }
+
+/** Whisper call options. Timestamps on: without them whisper-tiny.en stops decoding after the
+ *  first sentence of a clip; the returned text is the same plain text either way. */
+export const ASR_OPTIONS = { chunk_length_s: 30, stride_length_s: 5, return_timestamps: true } as const;

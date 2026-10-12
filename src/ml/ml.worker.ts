@@ -7,7 +7,7 @@ import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url
 import models from "./models.json";
 import { loadOnce } from "../loadOnce";
 import { createDispatcher, type MlHandlers, type MlRequest, type MlTask, type OnProgress } from "./protocol";
-import { configureTransformers, probeLocalModels, type TransformersEnv } from "./runtime";
+import { ASR_OPTIONS, configureTransformers, probeLocalModels, type TransformersEnv } from "./runtime";
 
 // transformers.js is heavy and its pipeline types are huge unions; `any` keeps them out of the build.
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -65,7 +65,7 @@ const handlers: MlHandlers = {
 
   async transcribe(audio) {
     const pipe = await loaders.asr();
-    const out = await pipe(audio, { chunk_length_s: 30, stride_length_s: 5, return_timestamps: false });
+    const out = await pipe(audio, { ...ASR_OPTIONS });
     return (Array.isArray(out) ? out.map((o: any) => o.text).join(" ") : (out?.text ?? "")).trim();
   },
 };
