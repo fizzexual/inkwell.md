@@ -126,21 +126,20 @@ export default function SemanticSearch() {
             <span className="sem-spin" />
             <span>
               {progress?.stage === "download"
-                ? `Downloading the on-device model… ${pct ?? 0}%`
+                ? `Loading the on-device model… ${pct ?? 0}%`
                 : progress?.stage === "embedding"
                   ? `Indexing your notes… ${pct ?? 0}%`
                   : "Thinking…"}
             </span>
             {!ready && progress?.stage === "download" && (
-              <span className="sem-note">first run only — it's cached afterwards</span>
+              <span className="sem-note">once per session — it ships with the app</span>
             )}
           </div>
         )}
 
         {!busy && error && (
           <div className="sem-error" role="alert">
-            Couldn't {ready ? "search" : "load the on-device model"} — {error}. Check your connection and press
-            Enter to try again.
+            Couldn't {ready ? "search" : "load the on-device model"} — {error}. Press Enter to try again.
           </div>
         )}
 

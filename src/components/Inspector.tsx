@@ -3,7 +3,7 @@ import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
 import { parseTags, parseHeadings, parseCitations } from "../markdown";
 import { toBibtex, aliasesOf } from "../data/derive";
-import { relatedNotes, isIndexWarm, type SemanticHit, type LoadProgress } from "../search/semantic";
+import { relatedNotes, isIndexWarm, whenIndexLoaded, type SemanticHit, type LoadProgress } from "../search/semantic";
 import { suggestTags, suggestTitle } from "../ai/suggest";
 import { ArrowRight, OpenExternal, Copy, Link, Sparkles } from "../icons";
 import "./Inspector.css";
@@ -32,7 +32,7 @@ function LinkRow({ note, index }: { note: Note; index: number }) {
 }
 
 /** Notes most similar in MEANING to the current one, via the on-device embedding index. */
-function RelatedNotes({ noteId }: { noteId: string }) {
+export function RelatedNotes({ noteId }: { noteId: string }) {
   const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const openArticle = useVault((s) => s.openArticle);
@@ -60,11 +60,16 @@ function RelatedNotes({ noteId }: { noteId: string }) {
 
   // once the model + index are warm, auto-refresh as you move between notes (cheap: just cosine ranking)
   useEffect(() => {
-    runId.current++; // cancel any in-flight compute for the previous note
+    const my = ++runId.current; // cancel any in-flight compute for the previous note
     if (isIndexWarm()) compute();
     else {
       setStatus("idle");
       setHits([]);
+      // right after launch the index saved by the last session may still be loading: show
+      // related notes as soon as it is there (if there was none, keep the button)
+      void whenIndexLoaded().then(() => {
+        if (my === runId.current && isIndexWarm()) compute();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);

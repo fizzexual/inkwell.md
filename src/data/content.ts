@@ -1546,7 +1546,7 @@ In the [[PDF Reader & Highlights]], select text and click **Add highlight** — 
 The **microphone** button in the sidebar transcribes an audio file to a note, on-device. See [[Transcribe Audio to Notes]].
 
 > [!tip]
-> The AI-model features (related notes, semantic search, transcription) download a small model once, then keep working offline.`,
+> The AI-model features (related notes, semantic search, transcription) use small models that ship with the app — they work offline from the first launch.`,
 
   "ex-queries": `# Live Query Examples
 
@@ -1607,7 +1607,7 @@ Two ways to find notes by **meaning**, not just keywords — both running entire
 
 Open any note and look at the **Related** panel on the right (the inspector). It lists the notes most *semantically similar* to the one you're reading — connections you might never have linked by hand.
 
-- The **first** time, it loads a tiny embedding model (~23 MB, cached after that).
+- The **first** time, it loads a tiny embedding model (~23 MB, bundled with the app) and indexes your notes; the index is saved, so after a restart only changed notes are re-indexed.
 - Then it's instant, and refreshes as you move between notes.
 - Try it on [[Linking Notes]] or the [[Knowledge Graph]].
 
@@ -1638,11 +1638,11 @@ Turn a lecture, meeting, or voice memo into a searchable note — **on your devi
 
 1. Click the **microphone** button in the sidebar toolbar (next to import).
 2. Choose an audio (or video) file.
-3. It transcribes locally with a small Whisper model (~40 MB, cached after first use), then shows the text.
+3. It transcribes locally with a small Whisper model (~40 MB, bundled with the app), then shows the text.
 4. Edit if needed and **Save as note** — it lands in a **Transcripts/** folder.
 
 > [!note]
-> The first run downloads the model; after that it works fully offline. Longer recordings take a little longer to process.
+> Nothing is downloaded or uploaded — it works fully offline. Longer recordings take a little longer to process.
 
 Great with [[Quick Capture]] for turning spoken ideas into written ones.`,
 

@@ -15,6 +15,11 @@ export default defineConfig(async () => ({
     exclude: ["@huggingface/transformers", "onnxruntime-web"],
   },
 
+  // the on-device ML worker (src/ml/ml.worker.ts) is an ES module worker
+  worker: {
+    format: "es" as const,
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
