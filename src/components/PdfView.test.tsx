@@ -180,6 +180,20 @@ describe("PdfView", () => {
     expect(h.loads.length).toBe(1); // same document, not reloaded
   });
 
+  it("sizes the selectable text layer like the drawn page (pdf.js needs --total-scale-factor)", async () => {
+    // without it pdf.js' text-layer CSS falls back to a smaller font, so the invisible selectable
+    // text was ~55% of the drawn text and mouse selection grabbed the wrong words
+    setPdf("a");
+    act(() => root.render(<PdfView />));
+    await flush();
+    h.renders.forEach((r) => r.resolve());
+    await flush();
+    const layer = host.querySelector<HTMLElement>(".textLayer")!;
+    const scale = layer.style.getPropertyValue("--scale-factor");
+    expect(scale).not.toBe("");
+    expect(layer.style.getPropertyValue("--total-scale-factor")).toBe(scale);
+  });
+
   it("saving a highlight writes a link back to that page of the vault file", async () => {
     setPdf("My Paper", { rel: "Attachments/My Paper.pdf" });
     act(() => root.render(<PdfView />));

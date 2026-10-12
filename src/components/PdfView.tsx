@@ -5,8 +5,11 @@ import { ChevronRight, Plus, NoteEdit } from "../icons";
 import { isTauri } from "../vault/disk";
 import { openPdfFile } from "../pdfOpen";
 import { highlightEntry, highlightsHeader, highlightsTitle } from "../pdfLinks";
-import "pdfjs-dist/web/pdf_viewer.css";
+import { ensurePdfCss } from "../pdfCss";
 import "./PdfView.css";
+
+// pdf.js styles, scoped to .pdf-view so its own `.sidebar` rules can't restyle the app
+ensurePdfCss();
 
 export default function PdfView() {
   const pdf = useVault((s) => s.pdf);
@@ -106,6 +109,9 @@ export default function PdfView() {
         textDiv.style.width = `${viewport.width}px`;
         textDiv.style.height = `${viewport.height}px`;
         textDiv.style.setProperty("--scale-factor", String(scale));
+        // pdf.js' text-layer CSS sizes glyphs by --total-scale-factor (its full viewer sets it);
+        // without it the selectable text is smaller than the drawn text
+        textDiv.style.setProperty("--total-scale-factor", String(scale));
         const tc = await p.getTextContent();
         if (token !== renderToken.current) return;
         const layer = new pdfjs.TextLayer({ textContentSource: tc, container: textDiv, viewport });
