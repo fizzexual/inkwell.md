@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useVault } from "../store/useVault";
 import { FOLDER_PALETTE } from "../folders";
 import { NOTE_ICONS, NOTE_ICON_NAMES } from "../noteIcons";
+import { listenEscape } from "../keys";
 import "./Picker.css";
 
 export default function Picker() {
@@ -15,12 +16,11 @@ export default function Picker() {
     if (!picker) return;
     setQuery("");
     const onDown = () => close();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
+    const stopEsc = listenEscape(close);
     return () => {
       window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
+      stopEsc();
     };
   }, [picker, close]);
 

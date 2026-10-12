@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { filesToNotes, parseBib, fetchSource } from "../importers";
 import { Download, FileText, BookMarked } from "lucide-react";
+import { listenEscape } from "../keys";
 import "./ImportModal.css";
 
 export default function ImportModal() {
@@ -29,9 +30,7 @@ export default function ImportModal() {
     if (!open) return;
     setError(null);
     setBusy(false);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return listenEscape(() => setOpen(false));
   }, [open, setOpen]);
 
   if (!open) return null;

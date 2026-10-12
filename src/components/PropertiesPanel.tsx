@@ -61,7 +61,10 @@ export default function PropertiesPanel({ data, noteId }: { data: FrontmatterDat
                   onBlur={commit}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commit();
-                    if (e.key === "Escape") setEditing(null);
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setEditing(null);
+                    }
                   }}
                 />
               ) : (

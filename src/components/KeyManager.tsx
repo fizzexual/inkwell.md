@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useChat } from "../ai/useChat";
 import { PROVIDERS } from "../ai/providers";
 import { Eye, EyeOff, Copy, Check, Trash2, KeyRound } from "lucide-react";
+import { listenEscape } from "../keys";
 import "./KeyManager.css";
 
 export default function KeyManager() {
@@ -24,9 +25,7 @@ export default function KeyManager() {
   useEffect(() => {
     if (!open) return;
     loadModels(active); // pull the live model list for the active provider
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return listenEscape(() => setOpen(false));
   }, [open, active, setOpen, loadModels]);
 
   // reset the "reveal keys" state each time the manager is closed, so keys aren't left on screen

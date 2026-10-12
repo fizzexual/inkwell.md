@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useVault } from "../store/useVault";
 import { Keyboard } from "../icons";
+import { listenEscape } from "../keys";
 import "./ShortcutsModal.css";
 
 const GROUPS: { title: string; items: [string, string][] }[] = [
@@ -52,9 +53,7 @@ export default function ShortcutsModal() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return listenEscape(() => setOpen(false));
   }, [open, setOpen]);
 
   if (!open) return null;

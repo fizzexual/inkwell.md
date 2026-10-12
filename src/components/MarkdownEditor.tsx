@@ -463,6 +463,7 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
                 e.preventDefault();
                 findNext();
               } else if (e.key === "Escape") {
+                e.preventDefault();
                 setFr((f) => ({ ...f, open: false }));
                 ref.current?.focus();
               }

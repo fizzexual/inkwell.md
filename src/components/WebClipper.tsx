@@ -75,7 +75,10 @@ export default function WebClipper() {
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") clip();
-            else if (e.key === "Escape") close();
+            else if (e.key === "Escape") {
+              e.preventDefault();
+              close();
+            }
           }}
         />
         {error && <div className="clip-error">{error}</div>}

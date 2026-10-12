@@ -105,6 +105,7 @@ export default function SemanticSearch() {
                 e.preventDefault();
                 run(q);
               } else if (e.key === "Escape") {
+                e.preventDefault();
                 setOpen(false);
               }
             }}
