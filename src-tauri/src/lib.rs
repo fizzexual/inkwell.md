@@ -3,6 +3,9 @@
 // The webview renders untrusted text (notes, web clips, imports, AI answers). So the vault root is
 // owned here, not by JS: it is only ever set by the native folder picker (or restored from the
 // file this side saved), and every note path is checked to stay inside it and end in `.md`.
+mod attachments;
+mod web;
+
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
@@ -17,7 +20,7 @@ mod secrets;
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
 
 /// The open vault folder (canonical). None = no disk vault open.
-struct VaultRoot(Mutex<Option<PathBuf>>);
+pub(crate) struct VaultRoot(Mutex<Option<PathBuf>>);
 
 #[derive(Serialize)]
 struct DiskNote {
@@ -51,7 +54,7 @@ fn resolve_rel(root: &Path, rel: &str) -> Result<PathBuf, String> {
 }
 
 /// After the parent folder exists: make sure it really is inside the vault (no junction/symlink escape).
-fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
+pub(crate) fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
     let parent = full.parent().ok_or("No parent folder")?;
     let real = parent.canonicalize().map_err(|e| e.to_string())?;
     if real.starts_with(root) {
@@ -61,7 +64,7 @@ fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
     }
 }
 
-fn current_root(state: &State<VaultRoot>) -> Result<PathBuf, String> {
+pub(crate) fn current_root(state: &State<VaultRoot>) -> Result<PathBuf, String> {
     state
         .0
         .lock()
@@ -348,7 +351,10 @@ pub fn run() {
             arxiv_query,
             secrets::secret_set,
             secrets::secrets_get,
-            secrets::secret_delete
+            secrets::secret_delete,
+            web::fetch_page,
+            attachments::write_attachment,
+            attachments::read_attachment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

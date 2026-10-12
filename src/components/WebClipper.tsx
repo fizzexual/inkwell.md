@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
+import { isTauri } from "../vault/disk";
 import "./WebClipper.css";
 
 export default function WebClipper() {
@@ -37,18 +38,14 @@ export default function WebClipper() {
     setError(null);
     const controller = new AbortController();
     abortRef.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    // desktop: Rust gives up after 20 s with its own message, so wait a little longer for it
+    const timeout = setTimeout(() => controller.abort(), isTauri() ? 25000 : 20000);
     try {
-      // r.jina.ai returns clean, readable Markdown and is CORS-friendly
-      const res = await fetch("https://r.jina.ai/" + target, {
-        headers: { Accept: "text/markdown" },
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-      const md = await res.text();
-      const titleMatch = md.match(/^Title:\s*(.+)$/m) || md.match(/^#\s+(.+)$/m);
-      const title = (titleMatch?.[1] || new URL(target).hostname).trim().slice(0, 120);
-      const body = `# ${title}\n\n> Clipped from [${target}](${target})\n\n${md.replace(/^Title:.*\n/m, "")}`;
+      // Readability + Turndown load only when a page is actually clipped
+      const { clipPage } = await import("../clip");
+      const { title, body } = await clipPage(target, controller.signal);
+      // closed (or timed out) while the page was on its way: don't create a note behind the user's back
+      if (controller.signal.aborted) throw new DOMException("aborted", "AbortError");
       createNoteWith(title, body, "Clippings");
       toast("Page clipped to Clippings");
       setOpen(false);
@@ -83,7 +80,16 @@ export default function WebClipper() {
         />
         {error && <div className="clip-error">{error}</div>}
         <div className="clip-foot">
-          <span className="clip-hint">Saves a clean Markdown copy to your Clippings folder.</span>
+          <span className="clip-hint">
+            Saves a clean Markdown copy to your Clippings folder.
+            {!isTauri() && (
+              <>
+                {" "}
+                <b>Web-only fallback:</b> in the browser the page is fetched through r.jina.ai, which sees the URL.
+                The desktop app fetches pages itself.
+              </>
+            )}
+          </span>
           <button className="clip-go" disabled={!url.trim() || busy} onClick={clip}>
             {busy ? "Clipping…" : "Clip"}
           </button>

@@ -2,12 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import { pdfjs } from "../pdf";
 import { ChevronRight, Plus, NoteEdit } from "../icons";
+import { isTauri } from "../vault/disk";
+import { writeAttachment } from "../vault/attachments";
+import { attachmentRel, highlightEntry, highlightsHeader, highlightsTitle } from "../pdfLinks";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PdfView.css";
 
 export default function PdfView() {
   const pdf = useVault((s) => s.pdf);
+  const pdfTarget = useVault((s) => s.pdfTarget);
+  const pdfRel = useVault((s) => s.pdfRel);
+  const loadedVault = useVault((s) => s.loadedVault);
   const openPdf = useVault((s) => s.openPdf);
+  const openPdfLink = useVault((s) => s.openPdfLink);
   const createNoteWith = useVault((s) => s.createNoteWith);
   const resolve = useVault((s) => s.resolve);
   const notesById = useVault((s) => s.notesById);
@@ -41,6 +48,9 @@ export default function PdfView() {
         if (cancelled) return;
         setDoc(d);
         setNumPages(d.numPages);
+        // opened from a page link: start on that page
+        const want = useVault.getState().pdfTarget?.page ?? 1;
+        setPage(Math.min(Math.max(1, want), d.numPages));
       })
       .catch((e) => !cancelled && setError(String(e?.message ?? e)));
     return () => {
@@ -50,6 +60,22 @@ export default function PdfView() {
       task.destroy().catch(() => {});
     };
   }, [pdf]);
+
+  // a page link for the PDF that is already open: jump there (a NEW request only — the first
+  // page of a newly loaded PDF is set by the load above)
+  useEffect(() => {
+    if (!pdfTarget || !numPages) return;
+    setPage(Math.min(Math.max(1, pdfTarget.page), numPages));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfTarget]);
+
+  // after a reload / restart: the vault PDF that was open is read back once the vault is loaded
+  useEffect(() => {
+    if (pdf || !pdfRel || !loadedVault || !isTauri()) return;
+    openPdfLink(pdfRel, 1).then((ok) => {
+      if (!ok) useVault.setState({ pdfRel: null }); // gone from this vault: don't retry
+    });
+  }, [pdf, pdfRel, loadedVault, openPdfLink]);
 
   // render the current page + its text layer
   useEffect(() => {
@@ -98,10 +124,23 @@ export default function PdfView() {
     };
   }, [doc, page, scale]);
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // desktop with a vault folder: the PDF is copied into the vault (Attachments/), so it — and the
+  // page links in its highlights note — still work after a restart
+  const storeInVault = isTauri() && !!loadedVault;
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    file.arrayBuffer().then((buf) => openPdf(file.name, buf));
+    const buf = await file.arrayBuffer();
+    if (!storeInVault) return openPdf(file.name, buf);
+    try {
+      const rel = await writeAttachment(attachmentRel(file.name), buf.slice(0));
+      openPdf(rel.slice(rel.lastIndexOf("/") + 1), buf, rel);
+    } catch (err) {
+      toast(
+        `Couldn't copy “${file.name}” into the vault (${typeof err === "string" ? err : ((err as Error)?.message ?? String(err))}) — it is open, but won't be there after a restart.`,
+      );
+      openPdf(file.name, buf);
+    }
   };
 
   // append the current selection to ONE running "<pdf> — Highlights" note (create it the first time)
@@ -113,15 +152,16 @@ export default function PdfView() {
     }
     setSel(null);
     window.getSelection()?.removeAllRanges();
-    const base = pdf.name.replace(/\.pdf$/i, "");
-    const title = `${base} — Highlights`;
-    const entry = `> ${quote.replace(/\s*\n\s*/g, " ")}\n>\n> — page ${page}\n`;
+    // links point at the vault file (desktop with a vault) or, without one, at the file name
+    const where = pdf.rel ?? pdf.name;
+    const title = highlightsTitle(where);
+    const entry = highlightEntry(quote, page, where);
     const existingId = resolve(title);
     if (existingId && notesById.get(existingId)) {
       const prev = notesById.get(existingId)!.content ?? "";
       updateContent(existingId, `${prev.replace(/\s*$/, "")}\n\n${entry}`);
     } else {
-      createNoteWith(title, `# ${title}\n\n_Source: ${pdf.name}_\n\n${entry}`, "Highlights");
+      createNoteWith(title, `${highlightsHeader(where)}${entry}`, "Highlights");
     }
     toast(`Highlight added to “${title}”`);
     setSaved(true);
@@ -142,7 +182,7 @@ export default function PdfView() {
 
   const openHighlights = () => {
     if (!pdf) return;
-    const id = resolve(`${pdf.name.replace(/\.pdf$/i, "")} — Highlights`);
+    const id = resolve(highlightsTitle(pdf.rel ?? pdf.name));
     if (id) openArticle(id);
     else toast("No highlights yet — select text and add one");
   };
@@ -154,6 +194,11 @@ export default function PdfView() {
           <div className="pdf-empty-card">
             <h2>Open a PDF</h2>
             <p>Read a paper here and turn selections into linked notes.</p>
+            <p className="pdf-empty-note">
+              {storeInVault
+                ? "It is copied into Attachments/ in your vault, so it and the page links in its highlights note work after a restart."
+                : "Not saved: without a vault folder the PDF is gone on reload, and page links in highlight notes only jump within the PDF that is open."}
+            </p>
             <label className="pdf-open-btn">
               <Plus size={15} />
               Choose a PDF
@@ -168,7 +213,9 @@ export default function PdfView() {
   return (
     <main className="pdf-view">
       <header className="pdf-toolbar">
-        <span className="pdf-name">{pdf.name}</span>
+        <span className="pdf-name" title={pdf.rel ? `In your vault: ${pdf.rel}` : "Not saved in a vault — gone on reload"}>
+          {pdf.name}
+        </span>
         <div className="pdf-controls">
           <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
             <ChevronRight size={15} style={{ transform: "rotate(180deg)" }} />

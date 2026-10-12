@@ -38,7 +38,11 @@ Some features do use the network. Plainly:
   runtime ship inside the app and run in a background worker; the note text you
   search and the audio you transcribe never leave your machine. The semantic
   index is saved locally (IndexedDB), so a restart only re-indexes changed notes.
-- **Web clipping** sends the page URL to `r.jina.ai`, which returns it as markdown.
+- **Web clipping** in the desktop app fetches the page directly from its own
+  site and converts it to markdown on your machine — no third party sees the URL.
+  It refuses local and private-network addresses (`localhost`, `192.168.…`, …).
+  The browser build has no native side, so there it falls back to `r.jina.ai`,
+  which receives the URL and returns the page as markdown (labelled in the clipper).
 - **DOI / arXiv lookups** query Crossref and arXiv with the id you typed.
 - **The AI assistant** talks to a cloud provider (Groq, OpenAI, Anthropic, …)
   only if you add an API key for it — and then the notes you ask about are sent

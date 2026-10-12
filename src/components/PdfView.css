@@ -29,6 +29,10 @@
   color: var(--tx-4);
   margin: 8px 0 18px;
 }
+.pdf-empty-card p.pdf-empty-note {
+  font-size: 12px;
+  margin-top: -10px;
+}
 .pdf-open-btn {
   display: inline-flex;
   align-items: center;
