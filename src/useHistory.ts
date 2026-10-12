@@ -25,11 +25,20 @@ interface HistState {
   clear: (id: string) => void;
 }
 
+let warned = false;
 function persist(s: HistState) {
   try {
     localStorage.setItem(KEY, JSON.stringify(s.versions));
+    warned = false;
   } catch {
-    /* quota — drop silently */
+    // full: say so once (and keep saying nothing per keystroke) instead of dropping versions silently
+    if (warned) return;
+    warned = true;
+    useVault
+      .getState()
+      .toast("Version history can't be saved: browser storage is full. New snapshots last only until reload.", undefined, {
+        sticky: true,
+      });
   }
 }
 

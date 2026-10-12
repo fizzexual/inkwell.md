@@ -104,9 +104,12 @@ const defaultCanvas: CanvasState = {
   ],
 };
 
-/** A note id guaranteed unique against the current vault — never collides after deletions. */
+/**
+ * A note id guaranteed unique against the current vault — never collides after deletions, and
+ * never takes a built-in note's id (that one's saved edits/deletion would apply to it).
+ */
 function freshId(base: string, notes: Note[]): string {
-  const taken = new Set(notes.map((n) => n.id));
+  const taken = new Set([...notes.map((n) => n.id), ...seedIds]);
   const s = base || "note";
   if (!taken.has(s)) return s;
   for (let i = 1; ; i++) if (!taken.has(`${s}-${i}`)) return `${s}-${i}`;
@@ -212,15 +215,25 @@ function loadPersisted(): Persisted {
 const persisted = loadPersisted();
 
 const seedIds = new Set(vault.notes.map((n) => n.id));
-const deletedSet = new Set(persisted.deleted ?? []);
-const deletedIds = deletedSet;
+// `deleted` only ever names built-in notes (derived from the notes on save, see below)
+const deletedIds = new Set(persisted.deleted ?? []);
+// The demo vault's saved state. While a disk vault is open the disk is the source of truth: its
+// notes are never written to browser storage, and this stays as the demo vault left it.
+// (Older versions saved disk notes — ids ending in .md — as browser notes; they're dropped here.)
+let demoSaved: Pick<Persisted, "contents" | "newNotes" | "deleted"> = {
+  contents: persisted.contents ?? {},
+  newNotes: (persisted.newNotes ?? []).filter((n) => !seedIds.has(n.id) && !/\.md$/i.test(n.id)),
+  deleted: persisted.deleted ?? [],
+};
 const seedNotes: Note[] = [
-  ...vault.notes.map((n) => ({
-    ...n,
-    content: persisted.contents?.[n.id] ?? seedContents[n.id],
-  })),
-  ...(persisted.newNotes ?? []).filter((n) => !seedIds.has(n.id)),
-].filter((n) => !deletedIds.has(n.id));
+  ...vault.notes
+    .filter((n) => !deletedIds.has(n.id))
+    .map((n) => ({
+      ...n,
+      content: persisted.contents?.[n.id] ?? seedContents[n.id],
+    })),
+  ...(demoSaved.newNotes ?? []),
+];
 
 interface VaultState extends Derived {
   vaultName: string;
@@ -489,7 +502,6 @@ export const useVault = create<VaultState>((set, get) => ({
   deleteNote: (id) => {
     const removed = get().notes.find((n) => n.id === id);
     set((s) => {
-      deletedSet.add(id);
       const notes = s.notes.filter((n) => n.id !== id);
       const fallback = notes[0]?.id ?? "";
       let panes = s.panes
@@ -527,7 +539,6 @@ export const useVault = create<VaultState>((set, get) => ({
   },
   restoreNote: (note) =>
     set((s) => {
-      deletedSet.delete(note.id);
       const notes = [...s.notes, note];
       return {
         notes,
@@ -891,25 +902,29 @@ useVault.subscribe((s, prev) => {
 
 // Persist edited content + light UI state (debounced via microtask coalescing).
 let persistQueued = false;
+let storageWarned = false;
 useVault.subscribe(() => {
   if (persistQueued) return;
   persistQueued = true;
   queueMicrotask(() => {
     persistQueued = false;
     const s = useVault.getState();
-    const contents: Record<string, string> = {};
-    const newNotes: Note[] = [];
-    for (const n of s.notes) {
-      if (!seedIds.has(n.id)) {
-        newNotes.push(n);
-      } else if (n.content !== undefined && n.content !== seedContents[n.id]) {
-        contents[n.id] = n.content;
+    if (!s.loadedVault) {
+      const contents: Record<string, string> = {};
+      const newNotes: Note[] = [];
+      for (const n of s.notes) {
+        if (!seedIds.has(n.id)) {
+          newNotes.push(n);
+        } else if (n.content !== undefined && n.content !== seedContents[n.id]) {
+          contents[n.id] = n.content;
+        }
       }
+      // deletions are whatever built-in notes are missing — undo/re-create can't leave a stale entry
+      const deleted = [...seedIds].filter((id) => !s.notesById.has(id));
+      demoSaved = { contents, newNotes, deleted };
     }
     const data: Persisted = {
-      contents,
-      newNotes,
-      deleted: [...deletedSet],
+      ...demoSaved,
       selectedId: s.selectedId,
       expanded: [...s.expanded],
       sidebarView: s.sidebarView,
@@ -932,8 +947,17 @@ useVault.subscribe(() => {
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      /* storage full / unavailable — ignore */
+      storageWarned = false;
+    } catch (e) {
+      // never lose edits silently: one warning that stays until dismissed (not one per keystroke)
+      if (storageWarned) return;
+      storageWarned = true;
+      const full = e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22);
+      s.toast(
+        `Can't save: browser storage is ${full ? "full" : "unavailable"}. Your latest edits will be lost on reload — export your notes or open a vault folder.`,
+        undefined,
+        { sticky: true },
+      );
     }
   });
 });
