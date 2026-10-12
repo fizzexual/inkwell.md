@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useVault } from "../store/useVault";
 import { useFlashcards, type Rating } from "../useFlashcards";
 import { parseCards } from "../flashcards";
@@ -18,11 +18,14 @@ export default function CardsView() {
   const grade = useFlashcards((s) => s.grade);
   const isDue = useFlashcards((s) => s.isDue);
   const reviews = useFlashcards((s) => s.reviews);
+  const adoptLegacy = useFlashcards((s) => s.adoptLegacy);
 
   const allCards = useMemo(
     () => notes.flatMap((n) => parseCards(n.id, n.content ?? "")),
     [notes],
   );
+  // history saved before card ids became stable follows its card
+  useEffect(() => adoptLegacy(allCards), [allCards, adoptLegacy]);
   const byId = useMemo(() => new Map(allCards.map((c) => [c.id, c])), [allCards]);
   const dueIds = useMemo(
     () => allCards.filter((c) => isDue(c.id)).map((c) => c.id),
