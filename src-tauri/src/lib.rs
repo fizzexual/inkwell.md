@@ -3,6 +3,8 @@
 // The webview renders untrusted text (notes, web clips, imports, AI answers). So the vault root is
 // owned here, not by JS: it is only ever set by the native folder picker (or restored from the
 // file this side saved), and every note path is checked to stay inside it and end in `.md`.
+mod web;
+
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
@@ -343,7 +345,8 @@ pub fn run() {
             rename_note,
             watch_vault,
             unwatch_vault,
-            arxiv_query
+            arxiv_query,
+            web::fetch_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

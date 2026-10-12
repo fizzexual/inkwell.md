@@ -1757,6 +1757,7 @@ dependencies = [
  "tauri-plugin-opener",
  "trash",
  "ureq",
+ "url",
 ]
 
 [[package]]
