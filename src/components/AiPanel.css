@@ -438,3 +438,23 @@
 .ai-send.stop {
   background: var(--danger, #d6453d);
 }
+
+/* edit proposals: the full change as a line diff */
+.ai-diff {
+  max-height: 320px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-diff-add {
+  color: var(--tl-green);
+  background: color-mix(in srgb, var(--tl-green) 12%, transparent);
+}
+.ai-diff-del {
+  color: var(--tl-red);
+  background: color-mix(in srgb, var(--tl-red) 12%, transparent);
+  text-decoration: line-through;
+}
+.ai-diff-fold {
+  color: var(--tx-4);
+  font-style: italic;
+}

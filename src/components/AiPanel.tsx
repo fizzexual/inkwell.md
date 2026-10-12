@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { marked } from "marked";
 import { useChat } from "../ai/useChat";
+import { renderAnswer } from "../ai/renderAnswer";
+import { foldContext, lineDiff } from "../ai/lineDiff";
 import { useVault } from "../store/useVault";
 import { getProvider } from "../ai/providers";
 import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette, Clock, Pencil } from "../icons";
@@ -12,18 +13,6 @@ const EXAMPLES = [
   "What can the Math Engine do?",
 ];
 
-function escapeAttr(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
-
-function renderAnswer(md: string): string {
-  const withLinks = md.replace(
-    /\[\[([^\]]+)\]\]/g,
-    (_, t) => `<a class="ai-link" data-title="${escapeAttr(t)}">${t}</a>`,
-  );
-  return marked.parse(withLinks, { async: false }) as string;
-}
-
 const STEP_ICON = { search: Search, links: Graph, read: Doc, wait: Clock } as const;
 const STEP_VERB = { search: "Searching", links: "Following links from", read: "Reading", wait: "" } as const;
 
@@ -31,6 +20,8 @@ export default function AiPanel() {
   const toggleAi = useVault((s) => s.toggleAi);
   const openArticle = useVault((s) => s.openArticle);
   const resolve = useVault((s) => s.resolve);
+  const notes = useVault((s) => s.notes);
+  const noteContent = (id?: string) => notes.find((n) => n.id === id)?.content ?? "";
 
   const providerId = useChat((s) => s.provider);
   const keys = useChat((s) => s.keys);
@@ -178,7 +169,25 @@ export default function AiPanel() {
               <span className={"ai-prop-kind " + p.kind}>{p.kind === "create" ? "New note" : "Edit"}</span>
               <span className="ai-prop-title">{p.title}</span>
             </div>
-            <pre className="ai-prop-body">{p.content.slice(0, 600)}{p.content.length > 600 ? "\n…" : ""}</pre>
+            {/* show the WHOLE change before it can be applied — the request may come from a
+                prompt-injected note, so nothing may hide past a cut-off */}
+            {p.kind === "edit" ? (
+              <pre className="ai-prop-body ai-diff">
+                {foldContext(lineDiff(noteContent(p.targetId), p.content)).map((l, i) =>
+                  l.op === "…" ? (
+                    <div key={i} className="ai-diff-fold">
+                      ⋯ {l.text} unchanged line{l.text === "1" ? "" : "s"}
+                    </div>
+                  ) : (
+                    <div key={i} className={l.op === "+" ? "ai-diff-add" : l.op === "-" ? "ai-diff-del" : undefined}>
+                      {l.op} {l.text}
+                    </div>
+                  ),
+                )}
+              </pre>
+            ) : (
+              <pre className="ai-prop-body">{p.content}</pre>
+            )}
             <div className="ai-prop-actions">
               <button className="ai-prop-reject" onClick={() => rejectProposal(p.id)}>
                 Reject
