@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { startDiskSync, autoloadVault, startVaultWatch } from "./vault/sync";
+import { startAutoBackup } from "./vault/backup";
 import { isTauri } from "./vault/disk";
 import { useVault } from "./store/useVault";
 import { startHistory } from "./useHistory";
@@ -36,6 +37,7 @@ installLinkGuard(document, (url) => {
 // on-disk vaults (desktop only; all no-op in the browser)
 startDiskSync();
 startVaultWatch();
+startAutoBackup(); // a zip of the vault when it opens and the last one is a day old
 autoloadVault();
 // per-note version history (auto-snapshots as you edit)
 startHistory();

@@ -16,6 +16,7 @@ import { buildContents } from "../data/content";
 import { closeVaultFolder, isTauri } from "../vault/disk";
 import { readAttachment } from "../vault/attachments";
 import { renameWikilinks, setFrontmatterField, type Resolver } from "../markdown";
+import { allFolderPaths, folderAddError, folderMoveError, isInFolder, rebaseFolder } from "../folders";
 
 export type SidebarView =
   | "stats"
@@ -58,6 +59,12 @@ export interface MenuState {
   x: number;
   y: number;
   noteId: string;
+}
+
+export interface FolderMenuState {
+  x: number;
+  y: number;
+  path: string;
 }
 
 export interface Toast {
@@ -188,6 +195,10 @@ interface Persisted {
   contents?: Record<string, string>;
   newNotes?: Note[];
   deleted?: string[];
+  /** built-in notes moved to another folder: id → folder */
+  moved?: Record<string, string>;
+  /** folders made in the app (they show while empty) */
+  folders?: string[];
   selectedId?: string;
   expanded?: string[];
   sidebarView?: SidebarView;
@@ -224,16 +235,20 @@ const deletedIds = new Set(persisted.deleted ?? []);
 // The demo vault's saved state. While a disk vault is open the disk is the source of truth: its
 // notes are never written to browser storage, and this stays as the demo vault left it.
 // (Older versions saved disk notes — ids ending in .md — as browser notes; they're dropped here.)
-let demoSaved: Pick<Persisted, "contents" | "newNotes" | "deleted"> = {
+let demoSaved: Pick<Persisted, "contents" | "newNotes" | "deleted" | "moved" | "folders"> = {
   contents: persisted.contents ?? {},
   newNotes: (persisted.newNotes ?? []).filter((n) => !seedIds.has(n.id) && !/\.md$/i.test(n.id)),
   deleted: persisted.deleted ?? [],
+  moved: persisted.moved ?? {},
+  folders: persisted.folders ?? [],
 };
+const seedFolder = new Map(vault.notes.map((n) => [n.id, n.folder]));
 const seedNotes: Note[] = [
   ...vault.notes
     .filter((n) => !deletedIds.has(n.id))
     .map((n) => ({
       ...n,
+      folder: persisted.moved?.[n.id] ?? n.folder,
       content: persisted.contents?.[n.id] ?? seedContents[n.id],
     })),
   ...(demoSaved.newNotes ?? []),
@@ -280,7 +295,7 @@ interface VaultState extends Derived {
   vaultPath: string | null;
   /** the disk vault whose notes are loaded (null until the folder has been read). */
   loadedVault: string | null;
-  loadDiskVault: (path: string, notes: Note[]) => void;
+  loadDiskVault: (path: string, notes: Note[], folders?: string[]) => void;
   /** apply an externally-changed note set from disk, keeping the user's current note & scroll. */
   reconcileDisk: (notes: Note[]) => void;
   closeVault: () => void;
@@ -300,6 +315,22 @@ interface VaultState extends Derived {
   menu: MenuState | null;
   openMenu: (x: number, y: number, noteId: string) => void;
   closeMenu: () => void;
+  folderMenu: FolderMenuState | null;
+  openFolderMenu: (x: number, y: number, path: string) => void;
+  closeFolderMenu: () => void;
+  /** the folder whose name is being edited inline in the sidebar */
+  renamingFolder: string | null;
+  setRenamingFolder: (path: string | null) => void;
+  /** folders that exist even without notes (made in the app, or empty folders on disk) */
+  folders: string[];
+  /** make a folder (`A` or `A/B`); returns why it can't, or null */
+  addFolder: (path: string) => string | null;
+  /** rename or move a folder with everything in it; returns why it can't, or null */
+  renameFolder: (from: string, to: string) => string | null;
+  /** remove a folder and its notes; `undoable` adds the Undo toast (the in-browser vault) */
+  removeFolder: (path: string, undoable?: boolean) => void;
+  /** how many notes are in a folder, subfolders included */
+  notesIn: (path: string) => number;
   picker: { x: number; y: number; kind: "icon" | "color"; target: string } | null;
   openPicker: (x: number, y: number, kind: "icon" | "color", target: string) => void;
   closePicker: () => void;
@@ -426,10 +457,10 @@ export const useVault = create<VaultState>((set, get) => ({
   setEditorMode: (m) => set({ editorMode: m }),
   vaultPath: persisted.vaultPath ?? null,
   loadedVault: null,
-  loadDiskVault: (path, notes) => {
+  loadDiskVault: (path, notes, folders = []) => {
     // through null first, so a re-load of the same folder also resets the sync baseline
     set({ loadedVault: null });
-    set(() => ({ notes, ...derive(notes), vaultPath: path, loadedVault: path }));
+    set(() => ({ notes, ...derive(notes), folders, vaultPath: path, loadedVault: path }));
     const first = notes[0];
     if (first) get().openArticle(first.id);
   },
@@ -465,6 +496,75 @@ export const useVault = create<VaultState>((set, get) => ({
   menu: null,
   openMenu: (x, y, noteId) => set({ menu: { x, y, noteId } }),
   closeMenu: () => set({ menu: null }),
+  folderMenu: null,
+  openFolderMenu: (x, y, path) => set({ folderMenu: { x, y, path }, menu: null }),
+  closeFolderMenu: () => set({ folderMenu: null }),
+  renamingFolder: null,
+  setRenamingFolder: (path) => set({ renamingFolder: path, folderMenu: null }),
+  folders: demoSaved.folders ?? [],
+  addFolder: (path) => {
+    const s = get();
+    const bad = folderAddError(allFolderPaths(s.notes.map((n) => n.folder), s.folders), path);
+    if (bad) return bad;
+    const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+    set({ folders: [...s.folders, path], expanded: parent ? new Set([...s.expanded, parent]) : s.expanded });
+    return null;
+  },
+  renameFolder: (from, to) => {
+    const s = get();
+    const bad = folderMoveError(allFolderPaths(s.notes.map((n) => n.folder), s.folders), from, to);
+    if (bad) return bad;
+    if (to === from) return null;
+    const move = (p: string) => rebaseFolder(p, from, to);
+    const notes = s.notes.map((n) => (isInFolder(n.folder, from) ? { ...n, folder: move(n.folder) } : n));
+    const folders = [...new Set([...s.folders.map(move), to])];
+    const parent = to.includes("/") ? to.slice(0, to.lastIndexOf("/")) : "";
+    const expanded = new Set([...s.expanded].map(move));
+    if (parent) expanded.add(parent);
+    const folderColors = Object.fromEntries(Object.entries(s.folderColors).map(([k, v]) => [move(k), v]));
+    set({ notes, ...derive(notes), folders, expanded, folderColors });
+    return null;
+  },
+  removeFolder: (path, undoable = true) => {
+    const s0 = get();
+    const removed = s0.notes.filter((n) => isInFolder(n.folder, path));
+    const removedFolders = s0.folders.filter((f) => isInFolder(f, path));
+    const gone = new Set(removed.map((n) => n.id));
+    set((s) => {
+      const notes = s.notes.filter((n) => !gone.has(n.id));
+      const fallback = notes[0]?.id ?? "";
+      let panes = s.panes
+        .map((p) => {
+          const tabs = p.tabs.filter((t) => !gone.has(t));
+          return { tabs, active: tabs.includes(p.active) ? p.active : tabs[tabs.length - 1] ?? fallback };
+        })
+        .filter((p, i) => i === 0 || p.tabs.length > 0);
+      if (!panes.length) panes = [{ tabs: fallback ? [fallback] : [], active: fallback }];
+      const activePane = Math.min(s.activePane, panes.length - 1);
+      return {
+        notes,
+        ...derive(notes),
+        folders: s.folders.filter((f) => !isInFolder(f, path)),
+        panes,
+        activePane,
+        selectedId: panes[activePane]?.active ?? fallback,
+        folderMenu: null,
+        ...pushHist(s),
+      };
+    });
+    if (!undoable) return;
+    const n = removed.length;
+    get().toast(`Deleted folder “${path}”${n ? ` and ${n} note${n === 1 ? "" : "s"}` : ""}`, {
+      label: "Undo",
+      run: () =>
+        set((s) => {
+          const have = new Set(s.notes.map((x) => x.id));
+          const notes = [...s.notes, ...removed.filter((x) => !have.has(x.id))];
+          return { notes, ...derive(notes), folders: [...new Set([...s.folders, path, ...removedFolders])] };
+        }),
+    });
+  },
+  notesIn: (path) => get().notes.filter((n) => isInFolder(n.folder, path)).length,
   picker: null,
   openPicker: (x, y, kind, target) => set({ picker: { x, y, kind, target }, menu: null }),
   closePicker: () => set({ picker: null }),
@@ -695,13 +795,7 @@ export const useVault = create<VaultState>((set, get) => ({
   setAllFolders: (open) =>
     set((s) => {
       if (!open) return { expanded: new Set<string>() };
-      const paths = new Set<string>();
-      const walk = (f: TreeFolder) => {
-        if (f.path) paths.add(f.path);
-        f.folders.forEach(walk);
-      };
-      walk(s.tree);
-      return { expanded: paths };
+      return { expanded: allFolderPaths(s.notes.map((n) => n.folder), s.folders) };
     }),
   setSidebarView: (v) =>
     set(() => {
@@ -957,16 +1051,18 @@ useVault.subscribe(() => {
     if (!s.loadedVault) {
       const contents: Record<string, string> = {};
       const newNotes: Note[] = [];
+      const moved: Record<string, string> = {};
       for (const n of s.notes) {
         if (!seedIds.has(n.id)) {
           newNotes.push(n);
-        } else if (n.content !== undefined && n.content !== seedContents[n.id]) {
-          contents[n.id] = n.content;
+          continue;
         }
+        if (n.content !== undefined && n.content !== seedContents[n.id]) contents[n.id] = n.content;
+        if (n.folder !== seedFolder.get(n.id)) moved[n.id] = n.folder;
       }
       // deletions are whatever built-in notes are missing — undo/re-create can't leave a stale entry
       const deleted = [...seedIds].filter((id) => !s.notesById.has(id));
-      demoSaved = { contents, newNotes, deleted };
+      demoSaved = { contents, newNotes, deleted, moved, folders: s.folders };
     }
     const data: Persisted = {
       ...demoSaved,

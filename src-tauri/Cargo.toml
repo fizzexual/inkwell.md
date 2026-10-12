@@ -29,4 +29,5 @@ ureq = "2"
 url = "2"
 trash = "5"
 keyring = { version = "3", features = ["windows-native"] }
-
+zip = { version = "9", default-features = false, features = ["deflate-flate2", "chrono"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

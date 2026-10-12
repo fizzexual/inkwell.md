@@ -34,6 +34,33 @@ export const deleteNoteFile = (rel: string) => invoke<void>("delete_note", { rel
 /** Move/rename a note file inside the vault; refuses to replace an existing file. */
 export const renameNoteFile = (from: string, to: string) => invoke<void>("rename_note", { from, to });
 
+/** Every folder in the vault (vault-relative, forward slashes), empty ones included. */
+export const readVaultDirs = () => invoke<string[]>("read_vault_dirs", {});
+/** Make a folder (and missing parents) inside the vault; refuses one that exists. */
+export const createFolderOnDisk = (rel: string) => invoke<void>("create_folder", { rel });
+/** Rename/move a folder inside the vault; refuses an existing target or moving into itself. */
+export const renameFolderOnDisk = (from: string, to: string) => invoke<void>("rename_folder", { from, to });
+/** Move a folder, notes and all, to the Recycle Bin. */
+export const deleteFolderOnDisk = (rel: string) => invoke<void>("delete_folder", { rel });
+
+export interface BackupInfo {
+  name: string;
+  /** ms since the epoch */
+  time: number;
+  /** bytes */
+  size: number;
+  /** .md files inside */
+  notes: number;
+}
+/** Zip the open vault into the app's backups folder (keeps the newest 14). */
+export const backupVault = () => invoke<BackupInfo>("backup_vault", {});
+/** The open vault's backups, newest first. */
+export const listBackups = () => invoke<BackupInfo[]>("list_backups", {});
+/** Extract a backup into a new folder next to the vault; returns that folder's path. */
+export const restoreBackup = (name: string) => invoke<string>("restore_backup", { name });
+/** Make the folder the last restore created the vault. Returns its path. */
+export const openRestoredVault = () => invoke<string | null>("open_restored_vault", {});
+
 /** Start the native filesystem watcher on the open vault folder (replaces any previous watch). */
 export const watchVault = () => invoke<void>("watch_vault", {});
 /** Stop watching the current vault folder. */

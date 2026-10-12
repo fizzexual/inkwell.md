@@ -15,6 +15,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 mod secrets;
+mod backup;
+mod folders;
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
@@ -164,7 +166,7 @@ fn saved_root_file(app: &AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|d| d.join("vault-path.txt"))
 }
 
-fn set_root(app: &AppHandle, state: &State<VaultRoot>, dir: Option<PathBuf>) -> Result<Option<String>, String> {
+pub(crate) fn set_root(app: &AppHandle, state: &State<VaultRoot>, dir: Option<PathBuf>) -> Result<Option<String>, String> {
     let canon = match dir {
         Some(d) => Some(d.canonicalize().map_err(|e| e.to_string())?),
         None => None,
@@ -354,7 +356,15 @@ pub fn run() {
             secrets::secret_delete,
             web::fetch_page,
             attachments::write_attachment,
-            attachments::read_attachment
+            attachments::read_attachment,
+            folders::read_vault_dirs,
+            folders::create_folder,
+            folders::rename_folder,
+            folders::delete_folder,
+            backup::backup_vault,
+            backup::list_backups,
+            backup::restore_backup,
+            backup::open_restored_vault
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
