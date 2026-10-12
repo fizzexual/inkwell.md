@@ -8,12 +8,13 @@ import {
   buildBacklinks,
   buildCiteMap,
   titleResolver,
+  noteTitle,
   type TreeFolder,
   type Citation,
 } from "../data/derive";
 import { buildContents } from "../data/content";
 import { closeVaultFolder, isTauri } from "../vault/disk";
-import { setFrontmatterField, type Resolver } from "../markdown";
+import { renameWikilinks, setFrontmatterField, type Resolver } from "../markdown";
 
 export type SidebarView =
   | "stats"
@@ -688,7 +689,7 @@ export const useVault = create<VaultState>((set, get) => ({
       const coalesce = undoMeta.kind === "edit" && undoMeta.id === id && now - undoMeta.time < 900;
       undoMeta = { kind: "edit", id, time: now };
       const undoStack = coalesce ? s.undoStack : [...s.undoStack, snap(s)].slice(-UNDO_LIMIT);
-      const heading = md.match(/^#\s+(.+?)\s*$/m)?.[1]?.trim();
+      const heading = noteTitle(md);
       const notes = s.notes.map((n) =>
         n.id === id ? { ...n, content: md, title: heading || n.title } : n,
       );
@@ -840,6 +841,38 @@ export const useVault = create<VaultState>((set, get) => ({
     return (backlinkMap.get(id) ?? []).map((t) => notesById.get(t)).filter((n): n is Note => !!n);
   },
 }));
+
+// [[links]] follow a retitled note. Compared once per edit session (title when editing starts vs
+// when it ends or the user switches notes), so typing a heading never rewrites links into
+// half-typed titles.
+let editStart: { id: string; title: string; owned: boolean } | null = null;
+useVault.subscribe((s, prev) => {
+  const ended = prev.editing && (!s.editing || s.selectedId !== prev.selectedId);
+  if (ended && editStart) {
+    const { id, title: oldTitle, owned } = editStart;
+    editStart = null;
+    const newTitle = s.notesById.get(id)?.title ?? "";
+    // only links that really pointed at this note; a title a link can't hold is left alone
+    if (owned && newTitle && newTitle.toLowerCase() !== oldTitle.toLowerCase() && !/[[\]|#]/.test(newTitle)) {
+      let count = 0;
+      const notes = s.notes.map((n) => {
+        if (n.id === id) return n;
+        const r = renameWikilinks(n.content ?? "", oldTitle, newTitle);
+        count += r.count;
+        return r.count ? { ...n, content: r.md } : n;
+      });
+      if (count) {
+        useVault.setState((cur) => ({ notes, ...derive(notes), ...pushHist(cur) }));
+        useVault.getState().toast(`Updated ${count} link${count === 1 ? "" : "s"} to “${newTitle}”`);
+      }
+    }
+  }
+  const cur = useVault.getState();
+  if (cur.editing && (!prev.editing || cur.selectedId !== prev.selectedId) && editStart?.id !== cur.selectedId) {
+    const title = cur.notesById.get(cur.selectedId)?.title ?? "";
+    editStart = { id: cur.selectedId, title, owned: !!title && cur.resolve(title) === cur.selectedId };
+  }
+});
 
 // Persist edited content + light UI state (debounced via microtask coalescing).
 let persistQueued = false;

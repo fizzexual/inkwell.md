@@ -15,6 +15,7 @@ import {
   onFsChange,
 } from "./disk";
 import type { Note } from "../data/vault";
+import { noteTitle } from "../data/derive";
 
 type Written = Map<string, { rel: string; content: string }>;
 
@@ -102,7 +103,7 @@ async function reconcile(path: string) {
       const dc = diskByRel.get(rel);
       if (dc !== undefined && dc !== (n.content ?? "")) {
         changed = true;
-        const heading = dc.match(/^#\s+(.+?)\s*$/m)?.[1]?.trim();
+        const heading = noteTitle(dc);
         return { ...n, content: dc, title: heading || n.title };
       }
       return n;

@@ -1,6 +1,7 @@
 // Bridge to the Rust filesystem commands for on-disk vaults.
 // All calls are guarded by isTauri() so the browser/dev build silently no-ops.
 import type { Note } from "../data/vault";
+import { noteTitle } from "../data/derive";
 
 interface DiskNote {
   rel: string;
@@ -57,7 +58,7 @@ export function diskNoteToNote(d: DiskNote): Note {
   const slash = d.rel.lastIndexOf("/");
   const folder = slash >= 0 ? d.rel.slice(0, slash) : "";
   const base = (slash >= 0 ? d.rel.slice(slash + 1) : d.rel).replace(/\.md$/i, "");
-  const heading = d.content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+  const heading = noteTitle(d.content);
   return {
     id: d.rel,
     title: heading || base,

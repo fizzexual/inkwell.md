@@ -73,6 +73,14 @@ export interface TreeFolder {
   notes: Note[];
 }
 
+/** A note's title: its first `# ` heading, ignoring frontmatter and fenced code (a `# comment` there). */
+export function noteTitle(md: string): string | undefined {
+  const body = md
+    .replace(/^---\n[\s\S]*?\n---(?:\n|$)/, "")
+    .replace(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^\1[^\n]*$|(?![\s\S]))/gm, "");
+  return body.match(/^#\s+(.+?)\s*$/m)?.[1]?.trim() || undefined;
+}
+
 /** aliases declared in a note's frontmatter. */
 export function aliasesOf(note: Note): string[] {
   const a = parseFrontmatter(note.content ?? "").data.aliases;

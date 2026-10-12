@@ -68,6 +68,23 @@ export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
   return ids;
 }
 
+/**
+ * Point every [[wikilink]] to `oldTitle` (case-insensitive, exact) at `newTitle`, keeping any
+ * `#heading` / `|alias` part. Links shown as code are left alone.
+ */
+export function renameWikilinks(md: string, oldTitle: string, newTitle: string): { md: string; count: number } {
+  const code: string[] = [];
+  const want = oldTitle.trim().toLowerCase();
+  let count = 0;
+  const out = protectCode(md, code).replace(WIKILINK, (m, inner: string) => {
+    if (wikilinkTitle(inner).toLowerCase() !== want) return m;
+    const cut = inner.search(/#|\\?\|/);
+    count++;
+    return `[[${newTitle}${cut >= 0 ? inner.slice(cut) : ""}]]`;
+  });
+  return { md: count ? restoreCode(out, code) : md, count };
+}
+
 /** #tags found in `md` (lowercased, without the #). */
 const TAG = /(^|\s)#([a-z0-9](?:[a-z0-9_/-]*[a-z0-9])?)/gi;
 export function parseTags(md: string): string[] {
