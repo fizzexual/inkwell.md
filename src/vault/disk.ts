@@ -43,14 +43,18 @@ export async function onFsChange(cb: (paths: string[]) => void): Promise<() => v
   return listen<string[]>("vault-fs-change", (e) => cb(e.payload ?? []));
 }
 
+// names Windows reserves for devices: `con.md` can't be created there
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/** A file-name-safe slug: letters/digits in any script; everything else (incl. `<>:"/\|?*`) → `-`. */
 function slugify(s: string): string {
-  return (
+  const slug =
     s
+      .normalize("NFC")
       .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "untitled"
-  );
+      .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "") || "untitled";
+  return RESERVED.test(slug) ? `${slug}_` : slug;
 }
 
 /** A DiskNote → an Inkwell Note. id IS the file's relative path; folder is its directory. */
