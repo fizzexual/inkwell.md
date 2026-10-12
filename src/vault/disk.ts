@@ -17,20 +17,22 @@ async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T>
   return invoke<T>(cmd, args);
 }
 
-/** Native folder picker. Returns the chosen absolute path, or null if cancelled. */
-export async function pickFolder(): Promise<string | null> {
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  const res = await open({ directory: true, multiple: false, title: "Open a vault folder" });
-  return typeof res === "string" ? res : null;
-}
+// The vault folder lives on the Rust side: JS can pick one (native dialog run by Rust) or restore
+// the last one, but can never point the file commands at an arbitrary path.
 
-export const readVault = (path: string) => invoke<DiskNote[]>("read_vault", { path });
-export const writeNoteFile = (path: string, rel: string, content: string) =>
-  invoke<void>("write_note", { path, rel, content });
-export const deleteNoteFile = (path: string, rel: string) => invoke<void>("delete_note", { path, rel });
+/** Native folder picker; makes the chosen folder the vault. Returns its path, or null if cancelled. */
+export const pickVault = () => invoke<string | null>("pick_vault", {});
+/** Re-open the vault folder Rust saved last time. Returns its path, or null if there is none. */
+export const restoreVault = () => invoke<string | null>("restore_vault", {});
+/** Forget the vault folder. */
+export const closeVaultFolder = () => invoke<void>("close_vault", {});
 
-/** Start the native filesystem watcher on a vault folder (replaces any previous watch). */
-export const watchVault = (path: string) => invoke<void>("watch_vault", { path });
+export const readVault = () => invoke<DiskNote[]>("read_vault", {});
+export const writeNoteFile = (rel: string, content: string) => invoke<void>("write_note", { rel, content });
+export const deleteNoteFile = (rel: string) => invoke<void>("delete_note", { rel });
+
+/** Start the native filesystem watcher on the open vault folder (replaces any previous watch). */
+export const watchVault = () => invoke<void>("watch_vault", {});
 /** Stop watching the current vault folder. */
 export const unwatchVault = () => invoke<void>("unwatch_vault", {});
 

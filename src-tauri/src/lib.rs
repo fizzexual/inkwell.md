@@ -1,13 +1,21 @@
 // Inkwell — Rust backend: on-disk vault filesystem commands.
+//
+// The webview renders untrusted text (notes, web clips, imports, AI answers). So the vault root is
+// owned here, not by JS: it is only ever set by the native folder picker (or restored from the
+// file this side saved), and every note path is checked to stay inside it and end in `.md`.
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
+
+/// The open vault folder (canonical). None = no disk vault open.
+struct VaultRoot(Mutex<Option<PathBuf>>);
 
 #[derive(Serialize)]
 struct DiskNote {
@@ -15,16 +23,54 @@ struct DiskNote {
     content: String,
 }
 
-/// Recursively read every `.md` file under `path`, returning each file's
-/// vault-relative path (forward-slashed) and its text.
-#[tauri::command]
-fn read_vault(path: String) -> Result<Vec<DiskNote>, String> {
-    let root = PathBuf::from(&path);
-    if !root.is_dir() {
-        return Err("Not a folder".into());
+/// `rel` as a path inside `root`, or an error if it could leave the vault or isn't a `.md` file.
+fn resolve_rel(root: &Path, rel: &str) -> Result<PathBuf, String> {
+    let rel_path = Path::new(rel);
+    let mut parts = 0;
+    for c in rel_path.components() {
+        match c {
+            Component::Normal(_) => parts += 1,
+            Component::CurDir => {}
+            _ => return Err(format!("Path leaves the vault: {rel}")),
+        }
     }
+    // a bare `\\server\share` or `C:x` that Path didn't split as a prefix on this OS
+    if parts == 0 || rel.contains(':') || rel.starts_with('\\') || rel.starts_with('/') {
+        return Err(format!("Not a vault path: {rel}"));
+    }
+    let is_md = rel_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("md"));
+    if !is_md || rel.ends_with('/') || rel.ends_with('\\') {
+        return Err(format!("Only .md files can be changed: {rel}"));
+    }
+    Ok(root.join(rel_path))
+}
+
+/// After the parent folder exists: make sure it really is inside the vault (no junction/symlink escape).
+fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
+    let parent = full.parent().ok_or("No parent folder")?;
+    let real = parent.canonicalize().map_err(|e| e.to_string())?;
+    if real.starts_with(root) {
+        Ok(())
+    } else {
+        Err("Path leaves the vault".into())
+    }
+}
+
+fn current_root(state: &State<VaultRoot>) -> Result<PathBuf, String> {
+    state
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone()
+        .ok_or_else(|| "No vault folder is open".to_string())
+}
+
+fn read_in(root: &Path) -> Result<Vec<DiskNote>, String> {
     let mut out: Vec<DiskNote> = Vec::new();
-    walk(&root, &root, &mut out).map_err(|e| e.to_string())?;
+    walk(root, root, &mut out).map_err(|e| e.to_string())?;
     Ok(out)
 }
 
@@ -37,9 +83,18 @@ fn walk(dir: &Path, root: &Path, out: &mut Vec<DiskNote>) -> std::io::Result<()>
         if name.starts_with('.') || name == "node_modules" {
             continue;
         }
-        if p.is_dir() {
+        // file_type() does not follow links: skipping symlinks/junctions avoids loops and escapes
+        let ft = entry.file_type()?;
+        if ft.is_symlink() {
+            continue;
+        }
+        if ft.is_dir() {
             walk(&p, root, out)?;
-        } else if p.extension().and_then(|e| e.to_str()) == Some("md") {
+        } else if p
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("md"))
+        {
             if let Ok(content) = fs::read_to_string(&p) {
                 let rel = p
                     .strip_prefix(root)
@@ -53,46 +108,131 @@ fn walk(dir: &Path, root: &Path, out: &mut Vec<DiskNote>) -> std::io::Result<()>
     Ok(())
 }
 
-/// Write (creating parent dirs) a single note file at `path`/`rel`.
-#[tauri::command]
-fn write_note(path: String, rel: String, content: String) -> Result<(), String> {
-    let full = PathBuf::from(&path).join(&rel);
+fn write_in(root: &Path, rel: &str, content: &str) -> Result<(), String> {
+    let full = resolve_rel(root, rel)?;
     if let Some(parent) = full.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+    check_parent_inside(root, &full)?;
     fs::write(&full, content).map_err(|e| e.to_string())
 }
 
-/// Delete a note file if it exists (a missing file is not an error).
-#[tauri::command]
-fn delete_note(path: String, rel: String) -> Result<(), String> {
-    let full = PathBuf::from(&path).join(&rel);
+fn delete_in(root: &Path, rel: &str) -> Result<(), String> {
+    let full = resolve_rel(root, rel)?;
     if full.exists() {
+        check_parent_inside(root, &full)?;
         fs::remove_file(&full).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
-/// Move/rename a note file from one relative path to another.
-#[tauri::command]
-fn rename_note(path: String, from: String, to: String) -> Result<(), String> {
-    let root = PathBuf::from(&path);
-    let src = root.join(&from);
-    let dst = root.join(&to);
+fn rename_in(root: &Path, from: &str, to: &str) -> Result<(), String> {
+    let src = resolve_rel(root, from)?;
+    let dst = resolve_rel(root, to)?;
+    check_parent_inside(root, &src)?;
+    // never replace another file (fs::rename overwrites on Windows); a case-only rename of the
+    // same file is fine — it resolves to the same canonical path
+    if dst.exists() && dst.canonicalize().ok() != src.canonicalize().ok() {
+        return Err(format!("A file named {to} already exists"));
+    }
     if let Some(parent) = dst.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+    check_parent_inside(root, &dst)?;
     fs::rename(&src, &dst).map_err(|e| e.to_string())
 }
 
-/// Start watching a vault folder recursively; emits `vault-fs-change` with the changed `.md`
-/// paths whenever files are created, edited, or removed by anything on the system.
+/// Where this side remembers the last vault folder (never taken from JS).
+fn saved_root_file(app: &AppHandle) -> Option<PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join("vault-path.txt"))
+}
+
+fn set_root(app: &AppHandle, state: &State<VaultRoot>, dir: Option<PathBuf>) -> Result<Option<String>, String> {
+    let canon = match dir {
+        Some(d) => Some(d.canonicalize().map_err(|e| e.to_string())?),
+        None => None,
+    };
+    if let Some(file) = saved_root_file(app) {
+        match &canon {
+            Some(d) => {
+                if let Some(parent) = file.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                let _ = fs::write(&file, d.to_string_lossy().as_bytes());
+            }
+            None => {
+                let _ = fs::remove_file(&file);
+            }
+        }
+    }
+    *state.0.lock().map_err(|e| e.to_string())? = canon.clone();
+    Ok(canon.map(|d| d.to_string_lossy().to_string()))
+}
+
+/// Show the native folder picker and make the chosen folder the vault. Returns its path, or None.
 #[tauri::command]
-fn watch_vault(path: String, app: AppHandle, state: State<WatcherState>) -> Result<(), String> {
-    let root = PathBuf::from(&path);
-    if !root.is_dir() {
+async fn pick_vault(app: AppHandle, state: State<'_, VaultRoot>) -> Result<Option<String>, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .set_title("Open a vault folder")
+        .blocking_pick_folder();
+    let Some(picked) = picked else { return Ok(None) };
+    let dir = picked.into_path().map_err(|e| e.to_string())?;
+    if !dir.is_dir() {
         return Err("Not a folder".into());
     }
+    set_root(&app, &state, Some(dir))
+}
+
+/// Re-open the vault folder saved by the last `pick_vault`, if it still exists.
+#[tauri::command]
+fn restore_vault(app: AppHandle, state: State<VaultRoot>) -> Result<Option<String>, String> {
+    let saved = saved_root_file(&app)
+        .and_then(|f| fs::read_to_string(f).ok())
+        .map(|s| PathBuf::from(s.trim()))
+        .filter(|p| p.is_dir());
+    match saved {
+        Some(dir) => set_root(&app, &state, Some(dir)),
+        None => Ok(None),
+    }
+}
+
+/// Forget the vault folder.
+#[tauri::command]
+fn close_vault(app: AppHandle, state: State<VaultRoot>) -> Result<(), String> {
+    set_root(&app, &state, None).map(|_| ())
+}
+
+/// Every `.md` file in the open vault: vault-relative path (forward-slashed) and text.
+#[tauri::command]
+fn read_vault(state: State<VaultRoot>) -> Result<Vec<DiskNote>, String> {
+    read_in(&current_root(&state)?)
+}
+
+/// Write (creating parent dirs) one note file inside the open vault.
+#[tauri::command]
+fn write_note(rel: String, content: String, state: State<VaultRoot>) -> Result<(), String> {
+    write_in(&current_root(&state)?, &rel, &content)
+}
+
+/// Delete one note file inside the open vault (a missing file is not an error).
+#[tauri::command]
+fn delete_note(rel: String, state: State<VaultRoot>) -> Result<(), String> {
+    delete_in(&current_root(&state)?, &rel)
+}
+
+/// Move/rename a note file inside the open vault; refuses to replace an existing file.
+#[tauri::command]
+fn rename_note(from: String, to: String, state: State<VaultRoot>) -> Result<(), String> {
+    rename_in(&current_root(&state)?, &from, &to)
+}
+
+/// Start watching the open vault folder recursively; emits `vault-fs-change` with the changed `.md`
+/// paths whenever files are created, edited, or removed by anything on the system.
+#[tauri::command]
+fn watch_vault(app: AppHandle, roots: State<VaultRoot>, state: State<WatcherState>) -> Result<(), String> {
+    let root = current_root(&roots)?;
     let handle = app.clone();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(event) = res {
@@ -128,6 +268,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(WatcherState(Mutex::new(None)))
+        .manage(VaultRoot(Mutex::new(None)))
         .setup(|app| {
             // system-wide hotkey: bring Inkwell to the front and open Quick Capture from anywhere
             #[cfg(desktop)]
@@ -152,6 +293,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            pick_vault,
+            restore_vault,
+            close_vault,
             read_vault,
             write_note,
             delete_note,
@@ -161,4 +305,78 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tmp_root(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("inkwell-test-{}-{}", name, std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d.canonicalize().unwrap()
+    }
+
+    #[test]
+    fn rel_inside_the_vault_is_accepted() {
+        let root = tmp_root("ok");
+        let p = resolve_rel(&root, "Folder/Note.md").unwrap();
+        assert_eq!(p, root.join("Folder").join("Note.md"));
+        assert!(resolve_rel(&root, "a.MD").is_ok());
+    }
+
+    #[test]
+    fn rel_escaping_the_vault_is_refused() {
+        let root = tmp_root("escape");
+        for bad in [
+            "../x.md",
+            "a/../../x.md",
+            "C:/Windows/x.md",
+            r"C:\Users\x.md",
+            r"\\server\share\x.md",
+            "/etc/x.md",
+            "",
+        ] {
+            assert!(resolve_rel(&root, bad).is_err(), "should refuse {bad:?}");
+        }
+    }
+
+    #[test]
+    fn only_markdown_files_can_be_touched() {
+        let root = tmp_root("ext");
+        for bad in ["a.bat", "a.exe", "a", "a.md.lnk", "folder/"] {
+            assert!(resolve_rel(&root, bad).is_err(), "should refuse {bad:?}");
+        }
+    }
+
+    #[test]
+    fn write_read_delete_stay_in_the_vault() {
+        let root = tmp_root("rw");
+        write_in(&root, "sub/n.md", "hello").unwrap();
+        let notes = read_in(&root).unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].rel, "sub/n.md");
+        assert_eq!(notes[0].content, "hello");
+        assert!(write_in(&root, "../evil.md", "x").is_err());
+        assert!(!root.parent().unwrap().join("evil.md").exists());
+        delete_in(&root, "sub/n.md").unwrap();
+        assert!(read_in(&root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn rename_never_overwrites_another_file() {
+        let root = tmp_root("rename");
+        write_in(&root, "a.md", "A").unwrap();
+        write_in(&root, "b.md", "B").unwrap();
+        assert!(rename_in(&root, "a.md", "b.md").is_err());
+        assert_eq!(fs::read_to_string(root.join("b.md")).unwrap(), "B");
+        rename_in(&root, "a.md", "c.md").unwrap();
+        assert_eq!(fs::read_to_string(root.join("c.md")).unwrap(), "A");
+        // a case-only rename of the same file is allowed
+        rename_in(&root, "c.md", "C.md").unwrap();
+        let names: Vec<String> = read_in(&root).unwrap().into_iter().map(|n| n.rel).collect();
+        assert!(names.contains(&"C.md".to_string()), "{names:?}");
+        assert!(names.contains(&"b.md".to_string()), "{names:?}");
+    }
 }

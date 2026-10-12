@@ -12,6 +12,7 @@ import {
   type Citation,
 } from "../data/derive";
 import { buildContents } from "../data/content";
+import { closeVaultFolder, isTauri } from "../vault/disk";
 import { setFrontmatterField, type Resolver } from "../markdown";
 
 export type SidebarView =
@@ -397,7 +398,8 @@ export const useVault = create<VaultState>((set, get) => ({
       const keep = notes.some((n) => n.id === s.selectedId) ? s.selectedId : notes[0]?.id ?? s.selectedId;
       return { notes, ...derive(notes), selectedId: keep };
     }),
-  closeVault: () => {
+  closeVault: async () => {
+    if (isTauri()) await closeVaultFolder().catch(() => {});
     set({ vaultPath: null });
     // reload to re-init the built-in demo vault cleanly
     try {

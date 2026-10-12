@@ -3,7 +3,8 @@
 import { useVault } from "../store/useVault";
 import {
   isTauri,
-  pickFolder,
+  pickVault,
+  restoreVault,
   readVault,
   writeNoteFile,
   deleteNoteFile,
@@ -21,7 +22,7 @@ let written: Written = new Map();
 let lastPath: string | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-async function syncNow(path: string, notes: Note[]) {
+async function syncNow(notes: Note[]) {
   const used = new Set<string>();
   const next: Written = new Map();
   const currentIds = new Set(notes.map((n) => n.id));
@@ -34,8 +35,8 @@ async function syncNow(path: string, notes: Note[]) {
     next.set(note.id, { rel, content });
     try {
       if (!prev || prev.content !== content || prev.rel !== rel) {
-        await writeNoteFile(path, rel, content);
-        if (prev && prev.rel !== rel) await deleteNoteFile(path, prev.rel); // file moved
+        await writeNoteFile(rel, content);
+        if (prev && prev.rel !== rel) await deleteNoteFile(prev.rel); // file moved
       }
     } catch (e) {
       console.error("Inkwell: disk write failed for", rel, e);
@@ -45,7 +46,7 @@ async function syncNow(path: string, notes: Note[]) {
   for (const [id, prev] of written) {
     if (!currentIds.has(id)) {
       try {
-        await deleteNoteFile(path, prev.rel);
+        await deleteNoteFile(prev.rel);
       } catch {
         /* already gone */
       }
@@ -66,8 +67,7 @@ export function startDiskSync() {
       return;
     }
     if (timer) clearTimeout(timer);
-    const path = s.vaultPath;
-    timer = setTimeout(() => syncNow(path, useVault.getState().notes), 500);
+    timer = setTimeout(() => syncNow(useVault.getState().notes), 500);
   });
 }
 
@@ -80,7 +80,7 @@ async function reconcile(path: string) {
   if (reconciling) return;
   reconciling = true;
   try {
-    const disk = await readVault(path);
+    const disk = await readVault();
     const v = useVault.getState();
     if (v.vaultPath !== path) return; // vault was closed/switched while reading
     const diskByRel = new Map(disk.map((d) => [d.rel, d.content]));
@@ -146,7 +146,7 @@ export function startVaultWatch() {
   const sync = (path: string | null) => {
     if (path === watched) return;
     watched = path;
-    if (path) watchVault(path).catch((e) => console.error("Inkwell: watch failed", e));
+    if (path) watchVault().catch((e) => console.error("Inkwell: watch failed", e));
     else unwatchVault().catch(() => {});
   };
 
@@ -170,9 +170,9 @@ export async function openVaultFolderFlow() {
     return;
   }
   try {
-    const path = await pickFolder();
+    const path = await pickVault();
     if (!path) return;
-    const disk = await readVault(path);
+    const disk = await readVault();
     v.loadDiskVault(path, disk.map(diskNoteToNote));
     v.toast(`Opened vault · ${disk.length} note${disk.length === 1 ? "" : "s"}`);
   } catch (e) {
@@ -186,8 +186,15 @@ export async function autoloadVault() {
   const v = useVault.getState();
   if (!isTauri() || !v.vaultPath) return;
   try {
-    const disk = await readVault(v.vaultPath);
-    v.loadDiskVault(v.vaultPath, disk.map(diskNoteToNote));
+    // the folder itself comes from Rust's own record, never from localStorage
+    const path = await restoreVault();
+    if (!path) {
+      useVault.setState({ vaultPath: null });
+      v.toast("Open your vault folder again (Inkwell now asks once after updating)");
+      return;
+    }
+    const disk = await readVault();
+    v.loadDiskVault(path, disk.map(diskNoteToNote));
   } catch {
     /* folder moved/removed — fall back to whatever is loaded */
   }
