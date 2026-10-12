@@ -1,5 +1,6 @@
 import { marked } from "marked";
 import katex from "katex";
+import { escapeHtml, sanitizeHtml } from "./sanitize";
 
 export type Resolver = (title: string) => string | undefined;
 
@@ -94,8 +95,11 @@ function expandWikilinks(md: string, resolve: Resolver): string {
   return md.replace(WIKILINK, (_m, inner: string) => {
     const [rawTitle, rawAlias] = inner.split("|");
     const id = resolve(rawTitle);
-    const label = (rawAlias ?? rawTitle).trim();
-    if (id) return `<a class="wikilink" href="#/note/${id}" data-note="${id}">${label}</a>`;
+    const label = escapeHtml((rawAlias ?? rawTitle).trim());
+    if (id) {
+      const i = escapeHtml(id);
+      return `<a class="wikilink" href="#/note/${i}" data-note="${i}">${label}</a>`;
+    }
     return `<span class="wikilink missing">${label}</span>`;
   });
 }
@@ -218,10 +222,6 @@ export interface RenderCtx {
   bibliography?: () => string;
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-}
-
 function katexInline(tex: string): string {
   try {
     return katex.renderToString(tex, { throwOnError: false, output: "html" });
@@ -273,7 +273,7 @@ function expandCitations(md: string, cite?: CiteResolver): string {
   return md.replace(CITATION, (_m, key: string) => {
     const c = cite(key);
     return c
-      ? `<a class="cite" data-note="${c.id}" href="#/note/${c.id}">(${c.label})</a>`
+      ? `<a class="cite" data-note="${escapeHtml(c.id)}" href="#/note/${escapeHtml(c.id)}">(${escapeHtml(c.label)})</a>`
       : `(<span class="cite-missing">@${key}</span>)`;
   });
 }
@@ -323,7 +323,7 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
   const withEmbeds = src.replace(EMBED_LINE, (_m, inner: string) => {
     const [rawTitle, heading] = inner.split("#");
     const id = resolve(rawTitle);
-    if (!id || !getNote) return `<span class="wikilink missing">${inner}</span>`;
+    if (!id || !getNote) return `<span class="wikilink missing">${escapeHtml(inner)}</span>`;
     return `\n\n<!--EMBED:${id}:${heading ? slugify(heading) : ""}-->\n\n`;
   });
 
@@ -335,7 +335,10 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
   // give headings stable ids so the outline can scroll to them
   html = html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_m, lvl, inner) => {
     const text = inner.replace(/<[^>]+>/g, "");
-    return `<h${lvl} id="${slugify(text)}">${inner}</h${lvl}>`;
+    const slug = slugify(text);
+    // data-heading is what the outline scrolls to; the sanitizer may drop ids that shadow
+    // document properties ("title", "body"…)
+    return `<h${lvl} id="${slug}" data-heading="${slug}">${inner}</h${lvl}>`;
   });
 
   // mermaid blocks → a host div the ArticleView renders asynchronously
@@ -389,21 +392,23 @@ export function renderMarkdown(md: string, ctx: RenderCtx, stack: Set<string> = 
     (_m, id: string, headingSlug: string) => {
       const note = getNote?.(id);
       if (!note) return "";
-      if (stack.has(id)) return `<div class="embed embed-cycle">↻ ${note.title}</div>`;
+      if (stack.has(id)) return `<div class="embed embed-cycle">↻ ${escapeHtml(note.title)}</div>`;
       const next = new Set(stack).add(id);
       const inner = renderMarkdown(
         headingSlug ? sectionBySlug(note.content, headingSlug) : note.content,
         ctx,
         next,
       );
-      return `<div class="embed"><a class="embed-head" data-note="${id}" href="#/note/${id}">${note.title}</a><div class="embed-body">${inner}</div></div>`;
+      return `<div class="embed"><a class="embed-head" data-note="${id}" href="#/note/${id}">${escapeHtml(note.title)}</a><div class="embed-body">${inner}</div></div>`;
     },
   );
 
   // restore rendered KaTeX (block placeholders may be wrapped in a <p>)
   html = html.replace(/(?:<p>)?<!--MATH:(\d+)-->(?:<\/p>)?/g, (_m, i: string) => katexStore[+i] ?? "");
 
-  return html;
+  // notes are untrusted (clips, imports, other people's vaults): strip anything executable once,
+  // at the outermost call — nested embeds are part of this same string
+  return stack.size ? html : sanitizeHtml(html);
 }
 
 function decodeEntities(s: string): string {

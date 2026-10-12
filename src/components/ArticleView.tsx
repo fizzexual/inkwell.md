@@ -76,7 +76,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
 
   useEffect(() => {
     if (!scrollTarget || showEditor || !isActive) return;
-    const el = bodyRef.current?.querySelector(`#${CSS.escape(scrollTarget)}`);
+    const el = bodyRef.current?.querySelector(`[data-heading="${CSS.escape(scrollTarget)}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
     clearScrollTarget();
   }, [scrollTarget, showEditor, isActive, html, clearScrollTarget]);
@@ -93,7 +93,9 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
       mermaid.initialize({
         startOnLoad: false,
         theme: theme === "dark" ? "dark" : "neutral",
-        securityLevel: "loose",
+        // strict: labels are HTML-escaped and click/callback directives are disabled — diagrams
+        // come from note text, which may be untrusted (clips, imports, shared vaults)
+        securityLevel: "strict",
         fontFamily: "Inter, sans-serif",
       });
       blocks.forEach((el) => {
