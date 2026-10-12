@@ -11,11 +11,13 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+mod folders;
+
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
 
 /// The open vault folder (canonical). None = no disk vault open.
-struct VaultRoot(Mutex<Option<PathBuf>>);
+pub(crate) struct VaultRoot(Mutex<Option<PathBuf>>);
 
 #[derive(Serialize)]
 struct DiskNote {
@@ -49,7 +51,7 @@ fn resolve_rel(root: &Path, rel: &str) -> Result<PathBuf, String> {
 }
 
 /// After the parent folder exists: make sure it really is inside the vault (no junction/symlink escape).
-fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
+pub(crate) fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
     let parent = full.parent().ok_or("No parent folder")?;
     let real = parent.canonicalize().map_err(|e| e.to_string())?;
     if real.starts_with(root) {
@@ -59,7 +61,7 @@ fn check_parent_inside(root: &Path, full: &Path) -> Result<(), String> {
     }
 }
 
-fn current_root(state: &State<VaultRoot>) -> Result<PathBuf, String> {
+pub(crate) fn current_root(state: &State<VaultRoot>) -> Result<PathBuf, String> {
     state
         .0
         .lock()
@@ -159,7 +161,7 @@ fn saved_root_file(app: &AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|d| d.join("vault-path.txt"))
 }
 
-fn set_root(app: &AppHandle, state: &State<VaultRoot>, dir: Option<PathBuf>) -> Result<Option<String>, String> {
+pub(crate) fn set_root(app: &AppHandle, state: &State<VaultRoot>, dir: Option<PathBuf>) -> Result<Option<String>, String> {
     let canon = match dir {
         Some(d) => Some(d.canonicalize().map_err(|e| e.to_string())?),
         None => None,
@@ -343,7 +345,11 @@ pub fn run() {
             rename_note,
             watch_vault,
             unwatch_vault,
-            arxiv_query
+            arxiv_query,
+            folders::read_vault_dirs,
+            folders::create_folder,
+            folders::rename_folder,
+            folders::delete_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
