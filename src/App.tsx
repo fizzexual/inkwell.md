@@ -31,6 +31,7 @@ import WebClipper from "./components/WebClipper";
 import ContextMenu from "./components/ContextMenu";
 import Picker from "./components/Picker";
 import Toaster from "./components/Toaster";
+import UpdateBanner from "./components/UpdateBanner";
 import ShortcutsModal from "./components/ShortcutsModal";
 import Resizer from "./components/Resizer";
 import { appShortcut } from "./keys";
@@ -189,6 +190,7 @@ export default function App() {
       {constellationOpen && <ConstellationView />}
       <Onboarding />
       <Toaster />
+      <UpdateBanner />
     </div>
   );
 }
