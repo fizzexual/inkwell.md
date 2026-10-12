@@ -117,11 +117,12 @@ fn write_in(root: &Path, rel: &str, content: &str) -> Result<(), String> {
     fs::write(&full, content).map_err(|e| e.to_string())
 }
 
+/// Deleting a note moves its file to the OS recycle bin / trash, so it can always be restored.
 fn delete_in(root: &Path, rel: &str) -> Result<(), String> {
     let full = resolve_rel(root, rel)?;
     if full.exists() {
         check_parent_inside(root, &full)?;
-        fs::remove_file(&full).map_err(|e| e.to_string())?;
+        trash::delete(&full).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -350,6 +351,23 @@ mod tests {
         }
     }
 
+    /// Put back whatever the tests sent to the recycle bin from `dir`, so test runs leave the
+    /// real bin as they found it. Returns how many items came back.
+    fn restore_from_bin(dir: &Path) -> usize {
+        // the bin reports plain paths; ours are canonical (`\\?\C:\…` on Windows)
+        let plain = |p: &Path| p.to_string_lossy().trim_start_matches("\\\\?\\").to_lowercase();
+        let items: Vec<_> = trash::os_limited::list()
+            .unwrap()
+            .into_iter()
+            .filter(|i| plain(&i.original_parent) == plain(dir))
+            .collect();
+        let n = items.len();
+        if n > 0 {
+            trash::os_limited::restore_all(items).unwrap();
+        }
+        n
+    }
+
     #[test]
     fn write_read_delete_stay_in_the_vault() {
         let root = tmp_root("rw");
@@ -362,6 +380,27 @@ mod tests {
         assert!(!root.parent().unwrap().join("evil.md").exists());
         delete_in(&root, "sub/n.md").unwrap();
         assert!(read_in(&root).unwrap().is_empty());
+        restore_from_bin(&root.join("sub"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn delete_sends_the_note_to_the_recycle_bin() {
+        let root = tmp_root("trash");
+        write_in(&root, "keep.md", "recover me").unwrap();
+        delete_in(&root, "keep.md").unwrap();
+        assert!(!root.join("keep.md").exists());
+        // it is in the bin, and comes back from there with its text (the crate's restore may drop
+        // the extension when Explorer hides extensions — restoring from Explorer itself does not)
+        assert_eq!(restore_from_bin(&root), 1, "the deleted note should be in the recycle bin");
+        let back: Vec<String> = fs::read_dir(&root)
+            .unwrap()
+            .filter_map(|e| fs::read_to_string(e.unwrap().path()).ok())
+            .collect();
+        assert_eq!(back, vec!["recover me".to_string()]);
+        // deleting outside the vault is still refused
+        assert!(delete_in(&root, "../x.md").is_err());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
