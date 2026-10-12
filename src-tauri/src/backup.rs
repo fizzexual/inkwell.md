@@ -102,7 +102,7 @@ fn backups_of(dir: &Path, label: &str) -> Vec<(NaiveDateTime, u32, PathBuf)> {
             Some((t, n, e.path()))
         })
         .collect();
-    found.sort_by(|a, b| (b.0, b.1).cmp(&(a.0, a.1)));
+    found.sort_by_key(|b| std::cmp::Reverse((b.0, b.1)));
     found
 }
 

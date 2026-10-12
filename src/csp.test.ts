@@ -18,8 +18,12 @@ describe("Content-Security-Policy", () => {
 
   it("keeps the hosts the other features need", () => {
     const connect = sources("connect-src");
-    for (const host of ["'self'", "ipc:", "http://ipc.localhost", "https://r.jina.ai", "https://api.crossref.org"]) {
+    for (const host of ["'self'", "ipc:", "http://ipc.localhost", "https://api.crossref.org", "https://export.arxiv.org"]) {
       expect(connect).toContain(host);
     }
+  });
+
+  it("sends clipped URLs to no third party (the desktop app fetches pages in Rust)", () => {
+    expect(csp["connect-src"]).not.toContain("r.jina.ai");
   });
 });
