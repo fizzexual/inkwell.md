@@ -15,7 +15,7 @@ import {
 import { buildContents } from "../data/content";
 import { closeVaultFolder, isTauri } from "../vault/disk";
 import { renameWikilinks, setFrontmatterField, type Resolver } from "../markdown";
-import { allFolderPaths, folderNameError, isInFolder, rebaseFolder } from "../folders";
+import { allFolderPaths, folderAddError, folderMoveError, isInFolder, rebaseFolder } from "../folders";
 
 export type SidebarView =
   | "stats"
@@ -491,24 +491,17 @@ export const useVault = create<VaultState>((set, get) => ({
   folders: demoSaved.folders ?? [],
   addFolder: (path) => {
     const s = get();
-    const bad = folderNameError(path);
+    const bad = folderAddError(allFolderPaths(s.notes.map((n) => n.folder), s.folders), path);
     if (bad) return bad;
-    const all = allFolderPaths(s.notes.map((n) => n.folder), s.folders);
-    if ([...all].some((p) => p.toLowerCase() === path.toLowerCase())) return `A folder named “${path}” already exists`;
     const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
     set({ folders: [...s.folders, path], expanded: parent ? new Set([...s.expanded, parent]) : s.expanded });
     return null;
   },
   renameFolder: (from, to) => {
     const s = get();
-    const bad = folderNameError(to);
+    const bad = folderMoveError(allFolderPaths(s.notes.map((n) => n.folder), s.folders), from, to);
     if (bad) return bad;
-    const all = allFolderPaths(s.notes.map((n) => n.folder), s.folders);
-    if (!from || !all.has(from)) return `There is no folder “${from}”`;
     if (to === from) return null;
-    const [f, t] = [from.toLowerCase(), to.toLowerCase()];
-    if (t !== f && isInFolder(t, f)) return "A folder can't be moved into itself";
-    if (t !== f && [...all].some((p) => p.toLowerCase() === t)) return `A folder named “${to}” already exists`;
     const move = (p: string) => rebaseFolder(p, from, to);
     const notes = s.notes.map((n) => (isInFolder(n.folder, from) ? { ...n, folder: move(n.folder) } : n));
     const folders = [...new Set([...s.folders.map(move), to])];

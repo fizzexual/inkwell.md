@@ -10,6 +10,10 @@ import {
   writeNoteFile,
   deleteNoteFile,
   renameNoteFile,
+  readVaultDirs,
+  createFolderOnDisk,
+  renameFolderOnDisk,
+  deleteFolderOnDisk,
   relOf,
   diskNoteToNote,
   watchVault,
@@ -18,6 +22,7 @@ import {
 } from "./disk";
 import type { Note } from "../data/vault";
 import { noteTitle } from "../data/derive";
+import { allFolderPaths, folderAddError, folderMoveError } from "../folders";
 
 type Written = Map<string, { rel: string; content: string }>;
 
@@ -281,6 +286,106 @@ export function startVaultWatch() {
   useVault.subscribe((s) => sync(s.loadedVault));
 }
 
+// ---- folders (both vaults; on disk Rust moves/deletes the real folder) ----
+
+/** The open vault's folders, empty ones included; [] if they can't be listed (notes still load). */
+function readDirs(): Promise<string[]> {
+  return readVaultDirs().catch((e) => {
+    console.error("Inkwell: couldn't list the vault's folders", e);
+    return [];
+  });
+}
+
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+/** `rel` is the folder `dir` itself or inside it — compared case-insensitively, as NTFS does. */
+const inDirCI = (rel: string, dir: string) => lc(rel) === lc(dir) || lc(rel).startsWith(lc(dir) + "/");
+
+/**
+ * Runs `job` after any pending (debounced) note saves, in the same queue as the sync engine, so no
+ * write-out or re-read sees the folder half-moved. Returns why it failed, or null.
+ */
+function folderJob(job: () => Promise<string | null>): Promise<string | null> {
+  if (timer) {
+    clearTimeout(timer);
+    timer = undefined;
+  }
+  return serial(async () => {
+    await syncNow(); // edits still inside the save delay land at the notes' current paths first
+    const s = useVault.getState();
+    if (!s.loadedVault || s.loadedVault !== syncedPath) return "The vault folder isn't open";
+    return job();
+  });
+}
+
+const foldersOf = () => {
+  const s = useVault.getState();
+  return allFolderPaths(s.notes.map((n) => n.folder), s.folders);
+};
+
+/** Make a folder (`A` or `A/B`). Returns why it couldn't, or null. */
+export async function createFolderFlow(path: string): Promise<string | null> {
+  const v = useVault.getState();
+  if (!v.loadedVault) return v.addFolder(path);
+  const bad = folderAddError(foldersOf(), path);
+  if (bad) return bad;
+  try {
+    await createFolderOnDisk(path);
+  } catch (e) {
+    return errText(e);
+  }
+  return useVault.getState().addFolder(path);
+}
+
+/**
+ * Rename or move a folder with everything in it. On disk it is one folder rename by Rust; the sync
+ * engine's record of where each note's file lives moves with it, so it never re-writes, renames or
+ * deletes those files itself. Note ids stay as they are (as with a single-note move). Returns why
+ * it couldn't, or null.
+ */
+export async function renameFolderFlow(from: string, to: string): Promise<string | null> {
+  const v = useVault.getState();
+  if (!v.loadedVault) return v.renameFolder(from, to);
+  const bad = folderMoveError(foldersOf(), from, to);
+  if (bad || from === to) return bad;
+  return folderJob(async () => {
+    try {
+      await renameFolderOnDisk(from, to);
+    } catch (e) {
+      return errText(e);
+    }
+    const move = (rel: string) => (inDirCI(rel, from) ? to + rel.slice(from.length) : rel);
+    for (const [id, w] of written) if (inDirCI(w.rel, from)) written.set(id, { rel: move(w.rel), content: w.content });
+    onDisk = new Set([...onDisk].map((p) => lc(move(p))));
+    const err = useVault.getState().renameFolder(from, to);
+    if (err) console.error("Inkwell: folder moved on disk but not in the app:", err);
+    return err;
+  });
+}
+
+/** Delete a folder and its notes (on disk: to the Recycle Bin). Returns why it couldn't, or null. */
+export async function deleteFolderFlow(path: string): Promise<string | null> {
+  const v = useVault.getState();
+  if (!v.loadedVault) {
+    v.removeFolder(path);
+    return null;
+  }
+  return folderJob(async () => {
+    try {
+      await deleteFolderOnDisk(path);
+    } catch (e) {
+      return errText(e);
+    }
+    // the files went with the folder: forget them, so the sync engine doesn't try to delete them
+    for (const [id, w] of written) if (inDirCI(w.rel, path)) written.delete(id);
+    onDisk = new Set([...onDisk].filter((p) => !inDirCI(p, path)));
+    const s = useVault.getState();
+    const n = s.notesIn(path);
+    s.removeFolder(path, false);
+    s.toast(`Moved “${path}”${n ? ` and ${n} note${n === 1 ? "" : "s"}` : ""} to the Recycle Bin`);
+    return null;
+  });
+}
+
 /** Prompt for a folder, read its .md files, and make it the live vault. */
 export async function openVaultFolderFlow() {
   const v = useVault.getState();
@@ -292,8 +397,8 @@ export async function openVaultFolderFlow() {
     await flushDiskSync(); // the current vault's last edits, before switching away from it
     const path = await pickVault();
     if (!path) return;
-    const disk = await readVault();
-    v.loadDiskVault(path, disk.map(diskNoteToNote));
+    const [disk, dirs] = await Promise.all([readVault(), readDirs()]);
+    v.loadDiskVault(path, disk.map(diskNoteToNote), dirs);
     v.toast(`Opened vault · ${disk.length} note${disk.length === 1 ? "" : "s"}`);
   } catch (e) {
     v.toast("Couldn't open that folder");
@@ -313,8 +418,8 @@ export async function autoloadVault() {
       v.toast("Open your vault folder again (Inkwell now asks once after updating)");
       return;
     }
-    const disk = await readVault();
-    useVault.getState().loadDiskVault(path, disk.map(diskNoteToNote));
+    const [disk, dirs] = await Promise.all([readVault(), readDirs()]);
+    useVault.getState().loadDiskVault(path, disk.map(diskNoteToNote), dirs);
   } catch (e) {
     // folder moved/removed — nothing is written to it; the notes shown are the built-in ones
     console.error("Inkwell: couldn't load the vault folder", e);

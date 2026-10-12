@@ -66,6 +66,26 @@ export function folderNameError(path: string): string | null {
   return null;
 }
 
+/** Why a new folder `path` can't be made among `all` existing folder paths, or null. */
+export function folderAddError(all: Set<string>, path: string): string | null {
+  const bad = folderNameError(path);
+  if (bad) return bad;
+  if ([...all].some((p) => p.toLowerCase() === path.toLowerCase())) return `A folder named “${path}” already exists`;
+  return null;
+}
+
+/** Why folder `from` can't be renamed/moved to `to` among `all` existing folder paths, or null. */
+export function folderMoveError(all: Set<string>, from: string, to: string): string | null {
+  const bad = folderNameError(to);
+  if (bad) return bad;
+  if (!from || !all.has(from)) return `There is no folder “${from}”`;
+  const [f, t] = [from.toLowerCase(), to.toLowerCase()];
+  if (t === f) return null; // the same folder, or a case-only rename
+  if (isInFolder(t, f)) return "A folder can't be moved into itself";
+  if ([...all].some((p) => p.toLowerCase() === t)) return `A folder named “${to}” already exists`;
+  return null;
+}
+
 /** The note tree plus the explicit folders that hold no notes yet (a new tree; the input is untouched). */
 export function withFolders(tree: TreeFolder, folders: string[]): TreeFolder {
   if (!folders.length) return tree;
