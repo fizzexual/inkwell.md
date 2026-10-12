@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
-import { filesToNotes, parseBib, fetchSource } from "../importers";
-import { Download, FileText, BookMarked } from "lucide-react";
+import { filesToNotes, parseBib, parseVaultJson, fetchSource } from "../importers";
+import { Download, FileText, BookMarked, Archive } from "lucide-react";
 import { listenEscape } from "../keys";
 import "./ImportModal.css";
 
@@ -14,6 +14,7 @@ export default function ImportModal() {
   const folderRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
   const bibRef = useRef<HTMLInputElement>(null);
+  const jsonRef = useRef<HTMLInputElement>(null);
   const [doi, setDoi] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,22 @@ export default function ImportModal() {
     if (!items.length) return toast("No entries found in that .bib file");
     importNotes(items);
     setOpen(false);
+  };
+
+  const onJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    try {
+      const { items, skipped } = parseVaultJson(await file.text());
+      if (!items.length) return setError("No notes found in that backup.");
+      importNotes(items);
+      if (skipped) toast(`Skipped ${skipped} damaged note${skipped === 1 ? "" : "s"} in the backup`);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't read that backup.");
+    }
   };
 
   const onAddSource = async () => {
@@ -96,6 +113,17 @@ export default function ImportModal() {
         </div>
 
         <div className="imp-card">
+          <div className="imp-ico"><Archive size={18} /></div>
+          <div className="imp-text">
+            <h3>Inkwell JSON backup</h3>
+            <p>Restore a backup made with Export → JSON backup. Notes are added alongside what you have.</p>
+            <div className="imp-actions">
+              <button onClick={() => jsonRef.current?.click()}>Choose .json backup…</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="imp-card">
           <div className="imp-ico"><BookMarked size={18} /></div>
           <div className="imp-text">
             <h3>BibTeX (.bib)</h3>
@@ -133,6 +161,7 @@ export default function ImportModal() {
         <input ref={folderRef} type="file" multiple hidden onChange={onMarkdown} />
         <input ref={filesRef} type="file" multiple accept=".md,.markdown,.txt" hidden onChange={onMarkdown} />
         <input ref={bibRef} type="file" accept=".bib,.bibtex" hidden onChange={onBib} />
+        <input ref={jsonRef} type="file" accept=".json,application/json" hidden onChange={onJson} />
       </div>
     </div>
   );

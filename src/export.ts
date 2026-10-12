@@ -22,7 +22,12 @@ export function exportVaultMarkdown(notes: Note[]) {
   download("inkwell-vault.md", `# Inkwell vault export\n${body}`, "text/markdown");
 }
 
-/** Lossless JSON backup (re-importable later). */
+/** The JSON backup format (version 1) — read back by parseVaultJson() in importers.ts. */
+export function vaultJson(notes: Note[]): string {
+  return JSON.stringify({ version: 1, notes }, null, 2);
+}
+
+/** Lossless JSON backup (re-importable from Import → JSON backup). */
 export function exportVaultJson(notes: Note[]) {
-  download("inkwell-vault.json", JSON.stringify({ version: 1, notes }, null, 2), "application/json");
+  download("inkwell-vault.json", vaultJson(notes), "application/json");
 }

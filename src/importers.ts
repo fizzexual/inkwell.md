@@ -1,4 +1,5 @@
-// Bring external content into the vault: Markdown/Obsidian/Notion files, BibTeX, and DOI/arXiv lookups.
+// Bring external content into the vault: Markdown/Obsidian/Notion files, Inkwell JSON backups,
+// BibTeX, and DOI/arXiv lookups.
 
 export interface ImportItem {
   title: string;
@@ -30,6 +31,46 @@ export async function filesToNotes(files: File[]): Promise<ImportItem[]> {
     out.push({ title: heading || base || "Untitled", content, folder });
   }
   return out;
+}
+
+// ---- Inkwell JSON backup ----
+
+const NOT_A_BACKUP = "That file is not an Inkwell JSON backup.";
+
+/**
+ * Read a JSON backup written by exportVaultJson() (`{ version: 1, notes: Note[] }`) back into
+ * importable notes. Ids are not kept: the vault gives each imported note a fresh id, so nothing
+ * existing is overwritten (links are by title, so they still resolve). Malformed notes are skipped.
+ */
+export function parseVaultJson(text: string): { items: ImportItem[]; skipped: number } {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(NOT_A_BACKUP);
+  }
+  const d = data as { version?: unknown; notes?: unknown } | null;
+  if (!d || typeof d !== "object" || Array.isArray(d) || !Array.isArray(d.notes) || d.version === undefined)
+    throw new Error(NOT_A_BACKUP);
+  if (d.version !== 1) throw new Error(`This backup is format version ${String(d.version)}, which this Inkwell can't read.`);
+
+  const items: ImportItem[] = [];
+  let skipped = 0;
+  for (const raw of d.notes as unknown[]) {
+    const n = raw as { title?: unknown; content?: unknown; folder?: unknown; kind?: unknown } | null;
+    const title = n && typeof n === "object" && typeof n.title === "string" ? n.title.trim() : "";
+    if (!title) {
+      skipped++;
+      continue;
+    }
+    items.push({
+      title,
+      content: typeof n!.content === "string" ? n!.content : `# ${title}\n`,
+      folder: typeof n!.folder === "string" ? n!.folder : "",
+      kind: n!.kind === "source" ? "source" : "note",
+    });
+  }
+  return { items, skipped };
 }
 
 // ---- sources ----
