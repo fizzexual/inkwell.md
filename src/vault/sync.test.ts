@@ -270,3 +270,20 @@ describe("moving a disk note (bug 6)", () => {
     expect(disk("b/n-1.md")).toBe("# N\n\nmine");
   });
 });
+
+describe("closing (bug 5)", () => {
+  it("closing the window saves edits still inside the 500ms debounce", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n" });
+    useVault.getState().updateContent("a.md", "# A\n\nlast words");
+    expect(h.closeHandler).toBeTypeOf("function");
+    await h.closeHandler!(); // Alt+F4 / the close button: Tauri awaits this, then destroys the window
+    expect(disk("a.md")).toBe("# A\n\nlast words");
+  });
+
+  it("closing the vault saves pending edits before forgetting the folder", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n" });
+    useVault.getState().updateContent("a.md", "# A\n\nbefore close");
+    await useVault.getState().closeVault();
+    expect(disk("a.md")).toBe("# A\n\nbefore close");
+  });
+});

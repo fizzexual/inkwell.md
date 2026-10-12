@@ -131,6 +131,16 @@ export function startDiskSync() {
     scheduleSync();
   });
   onBeforeVaultClose(flushDiskSync);
+  // Alt+F4 / the OS close button: Tauri awaits this handler, then destroys the window
+  import("@tauri-apps/api/window")
+    .then(({ getCurrentWindow }) =>
+      getCurrentWindow().onCloseRequested(async () => {
+        // never let a stuck disk hold the window open
+        const giveUp = new Promise<void>((r) => setTimeout(r, 3000));
+        await Promise.race([flushDiskSync().catch((e) => console.error("Inkwell: save on close failed", e)), giveUp]);
+      }),
+    )
+    .catch((e) => console.error("Inkwell: close handler failed", e));
 }
 
 // ---- external change watching (desktop only) ----
