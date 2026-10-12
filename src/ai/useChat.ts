@@ -3,6 +3,8 @@ import { useVault } from "../store/useVault";
 import { runVaultAgent, type ChatMsg, type AgentStep, type VaultAccess, type Proposal } from "./agent";
 import { PROVIDERS, getProvider, fetchModels } from "./providers";
 import { semanticSearch, isIndexWarm } from "../search/semantic";
+import { isTauri } from "../vault/disk";
+import { secretsGet, secretSet, secretDelete, migrateKeys } from "./keyStore";
 
 const stripMd = (md: string) =>
   md
@@ -37,6 +39,11 @@ function load(): Persisted {
   return {};
 }
 const saved = load();
+// Desktop app: keys live in the OS keychain and only in memory here. The browser build has no
+// keychain, so there they stay in localStorage as before.
+const desktop = isTauri();
+// plaintext keys still waiting to move into the keychain (kept in localStorage until they have)
+const unmigrated: Record<string, string> = desktop ? { ...(saved.keys ?? {}) } : {};
 const initialProvider = saved.provider && getProvider(saved.provider).id === saved.provider ? saved.provider : PROVIDERS[0].id;
 const initialModel =
   saved.model && getProvider(initialProvider).models.some((m) => m.id === saved.model)
@@ -75,13 +82,15 @@ interface ChatState {
 
 // debounce handle for live model fetching triggered by key edits
 let keyFetchTimer: ReturnType<typeof setTimeout> | undefined;
+// keychain writes run one after another, so the last key typed is the one that stays saved
+let keyWrites: Promise<void> = Promise.resolve();
 
 function persist(s: ChatState) {
   try {
     localStorage.setItem(
       KEY,
       JSON.stringify({
-        keys: s.keys,
+        keys: desktop ? (Object.keys(unmigrated).length ? unmigrated : undefined) : s.keys,
         provider: s.provider,
         model: s.model,
         // cap the stored transcript so a long chat never blows the localStorage quota
@@ -155,6 +164,17 @@ export const useChat = create<ChatState>((set, get) => ({
 
   setKey: (providerId, key) => {
     set((s) => ({ keys: { ...s.keys, [providerId]: key }, error: null }));
+    if (desktop) {
+      delete unmigrated[providerId]; // the keychain copy replaces any plaintext one
+      const id = providerId;
+      keyWrites = keyWrites
+        .then(() => (key.trim() ? secretSet(id, key) : secretDelete(id)))
+        .catch((e) =>
+          set({
+            error: `Couldn't save the ${getProvider(id).label} key to Windows Credential Manager: ${e instanceof Error ? e.message : String(e)}`,
+          }),
+        );
+    }
     persist(get());
     // debounce the live model fetch so typing/pasting a key doesn't hammer the /models endpoint
     if (keyFetchTimer) clearTimeout(keyFetchTimer);
@@ -272,3 +292,26 @@ export const useChat = create<ChatState>((set, get) => ({
     persist(get());
   },
 }));
+
+/** Desktop start-up: move plaintext keys into the keychain, then load every saved key into memory. */
+async function loadDesktopKeys(): Promise<void> {
+  for (const p of await migrateKeys(unmigrated)) delete unmigrated[p];
+  let stored: Record<string, string> = {};
+  try {
+    stored = await secretsGet(PROVIDERS.filter((p) => !p.keyless).map((p) => p.id));
+  } catch (e) {
+    console.error("Inkwell: couldn't read AI keys from the keychain", e);
+  }
+  // a key edited while this ran wins over the stored copy
+  useChat.setState((s) => ({ keys: { ...stored, ...s.keys } }));
+  persist(useChat.getState());
+  try {
+    localStorage.removeItem(OLD_KEY); // v2 now holds everything v1 had, minus the key
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Resolves once the desktop app has loaded its keys from the keychain (at once in the browser). */
+export const keysReady: Promise<void> = desktop ? loadDesktopKeys() : Promise.resolve();
+keyWrites = keysReady;
