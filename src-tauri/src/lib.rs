@@ -11,6 +11,8 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+mod secrets;
+
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
 
@@ -343,7 +345,10 @@ pub fn run() {
             rename_note,
             watch_vault,
             unwatch_vault,
-            arxiv_query
+            arxiv_query,
+            secrets::secret_set,
+            secrets::secrets_get,
+            secrets::secret_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

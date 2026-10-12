@@ -111,6 +111,12 @@
 .km-saved-bar b {
   color: var(--tx-1);
 }
+.km-error {
+  margin: -4px 18px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--danger, #d94a4a);
+}
 .km-key-btn {
   width: 30px;
   height: 30px;

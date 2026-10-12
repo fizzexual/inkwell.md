@@ -114,7 +114,18 @@ npm run dev            # web UI only, in a browser
 npm test               # unit tests (vitest)
 npm run build          # type-check + production bundle
 npm run tauri build    # package the Windows installer
+npm run ci             # local CI: tsc, vitest, vite build, cargo test, cargo clippy
+npm run hooks          # once per clone: run `npm run ci` before every `git push`
 ```
+
+`npm run ci` runs every check on your machine (no hosted CI), stops at the first
+failure with a non-zero exit, and ends with a table of each step, its result and
+how long it took. `npm run hooks` points git at [`.githooks/`](.githooks), whose
+`pre-push` hook runs it; skip it once with `git push --no-verify`.
+
+In the desktop app, AI provider keys are stored in Windows Credential Manager
+(service `com.fizzexual.inkwell.ai`), never in plain text. The browser build has
+no keychain, so there they stay in the browser's local storage.
 
 ## Roadmap
 

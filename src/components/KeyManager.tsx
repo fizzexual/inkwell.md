@@ -3,6 +3,7 @@ import { useChat } from "../ai/useChat";
 import { PROVIDERS } from "../ai/providers";
 import { Eye, EyeOff, Copy, Check, Trash2, KeyRound } from "lucide-react";
 import { listenEscape } from "../keys";
+import { isTauri } from "../vault/disk";
 import "./KeyManager.css";
 
 export default function KeyManager() {
@@ -18,6 +19,7 @@ export default function KeyManager() {
   const modelsLoading = useChat((s) => s.modelsLoading);
   const modelsError = useChat((s) => s.modelsError);
   const loadModels = useChat((s) => s.loadModels);
+  const error = useChat((s) => s.error);
 
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -36,6 +38,8 @@ export default function KeyManager() {
   if (!open) return null;
 
   const savedCount = PROVIDERS.filter((p) => !p.keyless && (keys[p.id] || "").trim()).length;
+  // the desktop app keeps keys in the OS keychain; the browser build can only use its own storage
+  const desktop = isTauri();
 
   const copyKey = async (id: string) => {
     const v = (keys[id] || "").trim();
@@ -76,12 +80,18 @@ export default function KeyManager() {
               <b>
                 {savedCount} key{savedCount === 1 ? "" : "s"} saved
               </b>{" "}
-              · kept in this browser and remembered across sessions — you won't need to re-enter them.
+              {desktop
+                ? "· Saved in Windows Credential Manager, not in plain text — you won't need to re-enter them."
+                : "· kept in this browser and remembered across sessions — you won't need to re-enter them."}
             </span>
           ) : (
-            <span>No keys saved yet. Add one below and it stays saved on this device (never uploaded).</span>
+            <span>
+              No keys saved yet. Add one below and it stays saved on this device
+              {desktop ? ", in Windows Credential Manager" : ""} (never uploaded).
+            </span>
           )}
         </div>
+        {error && <div className="km-error">{error}</div>}
 
         <div className="km-list">
           {PROVIDERS.map((p) => {
