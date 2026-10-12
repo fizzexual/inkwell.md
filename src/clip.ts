@@ -123,9 +123,6 @@ async function viaJina(url: string, signal?: AbortSignal): Promise<{ title: stri
   return clipToNote({ title, byline: null, markdown: text }, url);
 }
 
-/** True when clipping runs through the third-party fallback (browser build). */
-export const clipUsesThirdParty = () => !isTauri();
-
 /** Fetch `url` and turn it into a note (title + markdown body with frontmatter). */
 export function clipPage(url: string, signal?: AbortSignal): Promise<{ title: string; body: string }> {
   return isTauri() ? viaRust(url) : viaJina(url, signal);
