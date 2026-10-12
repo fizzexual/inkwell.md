@@ -44,13 +44,21 @@ function restoreCode(md: string, store: string[]): string {
 }
 
 const WIKILINK = /\[\[([^\]]+)\]\]/g;
+// the alias separator; `\|` is the form escaped inside a markdown table cell
+const ALIAS_SEP = /\\?\|/;
 
-/** Ordered, unique target note ids referenced by [[wikilinks]] in `md`. */
+/** The note title a wikilink's inner text points at: `Note`, `Note#Heading`, `Note|alias`, `Note\|alias`. */
+export function wikilinkTitle(inner: string): string {
+  return inner.split(ALIAS_SEP)[0].split("#")[0].trim();
+}
+
+/** Ordered, unique target note ids referenced by [[wikilinks]] in `md` (not counting code). */
 export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
-  for (const m of md.matchAll(WIKILINK)) {
-    const title = m[1].split("|")[0];
+  for (const m of protectCode(md, []).matchAll(WIKILINK)) {
+    const title = wikilinkTitle(m[1]);
+    if (!title) continue; // [[#Heading]] points inside the same note
     const id = resolve(title);
     if (id && !seen.has(id)) {
       seen.add(id);
@@ -93,8 +101,9 @@ export function parseTasks(md: string): Task[] {
 
 function expandWikilinks(md: string, resolve: Resolver): string {
   return md.replace(WIKILINK, (_m, inner: string) => {
-    const [rawTitle, rawAlias] = inner.split("|");
-    const id = resolve(rawTitle);
+    const [rawTitle, rawAlias] = inner.split(ALIAS_SEP);
+    const title = wikilinkTitle(rawTitle);
+    const id = title ? resolve(title) : undefined;
     const label = escapeHtml((rawAlias ?? rawTitle).trim());
     if (id) {
       const i = escapeHtml(id);

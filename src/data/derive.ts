@@ -79,10 +79,16 @@ export function aliasesOf(note: Note): string[] {
   return Array.isArray(a) ? a.map(String) : a ? [String(a)] : [];
 }
 
-/** Map of note title + aliases (lowercased) → id, for resolving [[wikilinks]]. */
+/**
+ * Map of note title + aliases (lowercased) → id, for resolving [[wikilinks]].
+ * Two notes with the same title: the first one in the vault keeps it (stable, never last-wins).
+ */
 export function titleResolver(notes: Note[]): Resolver {
   const map = new Map<string, string>();
-  for (const n of notes) map.set(n.title.toLowerCase(), n.id);
+  for (const n of notes) {
+    const key = n.title.toLowerCase();
+    if (!map.has(key)) map.set(key, n.id);
+  }
   // aliases fill gaps but never override a real title
   for (const n of notes) {
     for (const alias of aliasesOf(n)) {
