@@ -26,6 +26,7 @@ export default function SemanticSearch() {
   const [progress, setProgress] = useState<LoadProgress | null>(null);
   const [ready, setReady] = useState(isModelReady());
   const [ran, setRan] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const runId = useRef(0);
@@ -48,6 +49,7 @@ export default function SemanticSearch() {
     const my = ++runId.current;
     setBusy(true);
     setRan(true);
+    setError(null);
     try {
       const results = await semanticSearch(text, notes, 12, (p) => {
         if (my === runId.current) setProgress(p);
@@ -58,7 +60,8 @@ export default function SemanticSearch() {
     } catch (e) {
       if (my === runId.current) {
         console.error(e);
-        setProgress({ stage: "ready" });
+        setHits([]);
+        setError(e instanceof Error ? e.message : String(e));
       }
     } finally {
       if (my === runId.current) {
@@ -131,7 +134,16 @@ export default function SemanticSearch() {
           </div>
         )}
 
-        {!busy && ran && hits.length === 0 && <div className="sem-empty">No notes matched that meaning.</div>}
+        {!busy && error && (
+          <div className="sem-error" role="alert">
+            Couldn't {ready ? "search" : "load the on-device model"} — {error}. Check your connection and press
+            Enter to try again.
+          </div>
+        )}
+
+        {!busy && !error && ran && hits.length === 0 && (
+          <div className="sem-empty">No notes matched that meaning.</div>
+        )}
 
         {!busy && !ran && (
           <div className="sem-hint">
