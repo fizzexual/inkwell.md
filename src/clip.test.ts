@@ -134,3 +134,24 @@ describe("clipPage", () => {
     expect(fm.split("\n").filter((l) => l.startsWith("title:"))).toHaveLength(1);
   });
 });
+
+describe("protocol-relative URLs", () => {
+  it("are made absolute against the page (https) before Readability sees them", async () => {
+    // WebView2's DOMParser resolves `//host/…` against the app's own http://tauri.localhost origin, so
+    // a Wikipedia image (//thumb.wikimedia.org/…) came out as http://. jsdom gets it right either way,
+    // so check the attribute values handed to Readability, which is what both engines then keep.
+    const seen: string[] = [];
+    const readability = await import("@mozilla/readability");
+    const spy = vi.spyOn(readability.Readability.prototype, "parse").mockImplementation(function (this: any) {
+      const doc: Document = this._doc;
+      doc.querySelectorAll("img[src], a[href]").forEach((el) => seen.push(el.getAttribute("src") ?? el.getAttribute("href")!));
+      return null;
+    });
+    htmlToClip(
+      `<html><body><p><img src="//cdn.example.org/a.jpg" srcset="//cdn.example.org/a2.jpg 2x"> <a href="//other.example.org/x">x</a> <a href="/rel">r</a></p></body></html>`,
+      "https://site.example/page",
+    );
+    spy.mockRestore();
+    expect(seen).toEqual(["https://cdn.example.org/a.jpg", "https://other.example.org/x", "https://site.example/rel"]);
+  });
+});

@@ -44,6 +44,27 @@ export function htmlToClip(html: string, url: string): Clip {
   const baseEl = doc.createElement("base");
   baseEl.setAttribute("href", base);
   doc.head.prepend(baseEl);
+  // and resolve every link/image URL ourselves: WebView2's DOMParser resolves `//host/…` against
+  // the app's own http://tauri.localhost, so Wikipedia's //thumb.wikimedia.org images became http://
+  const abs = (u: string) => {
+    try {
+      return new URL(u, base).href;
+    } catch {
+      return u;
+    }
+  };
+  doc.querySelectorAll("[href]").forEach((el) => el.setAttribute("href", abs(el.getAttribute("href")!)));
+  doc.querySelectorAll("[src]").forEach((el) => el.setAttribute("src", abs(el.getAttribute("src")!)));
+  doc.querySelectorAll("[srcset]").forEach((el) =>
+    el.setAttribute(
+      "srcset",
+      el
+        .getAttribute("srcset")!
+        .split(",")
+        .map((part) => part.trim().replace(/^\S+/, (u) => abs(u)))
+        .join(", "),
+    ),
+  );
 
   const pageTitle = doc.title?.trim() ?? "";
   const article = new Readability(doc.cloneNode(true) as Document).parse();
