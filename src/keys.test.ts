@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { appShortcut, listenEscape, type KeyLike, type ShortcutState } from "./keys";
+import { appShortcut, editorShortcut, listenEscape, type KeyLike, type ShortcutState } from "./keys";
 
 const idle: ShortcutState = { zen: false, paletteOpen: false, editing: false, centerView: "article" };
 
@@ -46,6 +46,27 @@ describe("appShortcut", () => {
     expect(appShortcut(key({ key: "Escape", defaultPrevented: true }), idle)).toBeNull();
     expect(appShortcut(key({ key: "Escape", defaultPrevented: true }), { ...idle, editing: true })).toBeNull();
     expect(appShortcut(key({ key: "Escape", defaultPrevented: true }), { ...idle, zen: true })).toBeNull();
+  });
+});
+
+describe("editorShortcut", () => {
+  it("keeps Ctrl+B / Ctrl+I / Ctrl+F and Ctrl+K-with-selection", () => {
+    expect(editorShortcut(key({ key: "b", ctrlKey: true }), 0)).toBe("bold");
+    expect(editorShortcut(key({ key: "i", metaKey: true }), 0)).toBe("italic");
+    expect(editorShortcut(key({ key: "f", ctrlKey: true }), 0)).toBe("find");
+    expect(editorShortcut(key({ key: "k", ctrlKey: true }), 5)).toBe("inlineAi");
+  });
+
+  it("lets Ctrl+K without a selection reach the palette", () => {
+    expect(editorShortcut(key({ key: "k", ctrlKey: true }), 0)).toBeNull();
+  });
+
+  it("lets Ctrl+Shift+F reach semantic search", () => {
+    expect(editorShortcut(key({ key: "F", ctrlKey: true, shiftKey: true }), 0)).toBeNull();
+  });
+
+  it("lets Ctrl+Shift+K reach quick capture even with a selection", () => {
+    expect(editorShortcut(key({ key: "K", ctrlKey: true, shiftKey: true }), 5)).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@ import { fuzzyMatch } from "../fuzzy";
 import { parseTags } from "../markdown";
 import { Bold, Italic, Heading, ListIcon, Quote, Code, Link, Sparkles } from "../icons";
 import { INLINE_ACTIONS, completeText, type ActionSpec } from "../ai/complete";
+import { editorShortcut } from "../keys";
 import "./MarkdownEditor.css";
 
 interface Props {
@@ -372,29 +373,20 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && (e.key === "b" || e.key === "i")) {
+    const ta = ref.current;
+    const own = editorShortcut(e, ta ? ta.selectionEnd - ta.selectionStart : 0);
+    if (own) {
       e.preventDefault();
       e.stopPropagation();
-      surround(e.key === "b" ? "**" : "_");
+      if (own === "bold" || own === "italic") surround(own === "bold" ? "**" : "_");
+      else if (own === "find") {
+        setFr((f) => ({ ...f, open: true }));
+        requestAnimationFrame(() => frInputRef.current?.focus());
+      } else openAiMenu();
       return;
     }
-    if (mod && (e.key === "f" || e.key === "F")) {
-      e.preventDefault();
-      e.stopPropagation();
-      setFr((f) => ({ ...f, open: true }));
-      requestAnimationFrame(() => frInputRef.current?.focus());
-      return;
-    }
-    // ⌘K / Ctrl-K opens the inline AI menu — but only with a selection, else let the palette shortcut through
-    if (mod && (e.key === "k" || e.key === "K")) {
-      const ta = ref.current;
-      if (ta && ta.selectionEnd - ta.selectionStart >= 2) {
-        e.preventDefault();
-        e.stopPropagation();
-        openAiMenu();
-      }
-      return;
-    }
+    // any other ⌘K belongs to the app (palette / quick capture)
+    if (mod && (e.key === "k" || e.key === "K")) return;
     if (ai && e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();

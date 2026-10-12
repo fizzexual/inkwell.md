@@ -84,6 +84,25 @@ export function appShortcut(e: KeyLike, s: ShortcutState): AppAction | null {
   return null;
 }
 
+export type EditorAction = "bold" | "italic" | "find" | "inlineAi";
+
+/**
+ * Shortcuts the source editor keeps for itself. Anything else (null) falls through to the app,
+ * e.g. Ctrl+Shift+F → semantic search, Ctrl+Shift+K → quick capture, Ctrl+K without a selection → palette.
+ */
+export function editorShortcut(e: KeyLike, selectionLength: number): EditorAction | null {
+  const mod = e.metaKey || e.ctrlKey;
+  if (!mod) return null;
+  if (e.key === "b") return "bold";
+  if (e.key === "i") return "italic";
+  // the Shift variants belong to the app (semantic search, quick capture)
+  if (e.shiftKey) return null;
+  if (e.key === "f" || e.key === "F") return "find";
+  // ⌘K / Ctrl-K opens the inline AI menu — but only with a selection, else let the palette shortcut through
+  if ((e.key === "k" || e.key === "K") && selectionLength >= 2) return "inlineAi";
+  return null;
+}
+
 /**
  * Close an overlay on Esc. Listens in the capture phase so it runs before the app-wide
  * shortcut handler (which is registered earlier, on bubble), and marks the Esc as handled so
