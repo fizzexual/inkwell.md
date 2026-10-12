@@ -1,14 +1,17 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import type { SidebarView } from "../store/useVault";
 import type { TreeFolder } from "../data/derive";
 import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
 import { NoteIcon } from "../noteIcons";
-import { openVaultFolderFlow } from "../vault/sync";
-import { FolderOpen, Download, X as CloseX, Mic } from "lucide-react";
+import { openVaultFolderFlow, renameFolderFlow } from "../vault/sync";
+import { backupNowFlow } from "../vault/backup";
+import FolderMenu, { newFolderIn } from "./FolderMenu";
+import BackupModal from "./BackupModal";
+import { FolderOpen, Download, X as CloseX, Mic, Archive, ArchiveRestore } from "lucide-react";
 import { useSmoothScroll } from "../useSmoothScroll";
-import { vaultName } from "../folders";
+import { vaultName, withFolders } from "../folders";
 import SearchPanel from "./SearchPanel";
 import StatsPanel from "./StatsPanel";
 import {
@@ -82,44 +85,126 @@ function NoteRow({ note }: { note: Note }) {
   );
 }
 
+const NOTE_DRAG = "text/inkwell-note";
+const FOLDER_DRAG = "text/inkwell-folder";
+const canDrop = (e: React.DragEvent) =>
+  e.dataTransfer.types.includes(NOTE_DRAG) || e.dataTransfer.types.includes(FOLDER_DRAG);
+
+/** Move folder `from` into `parent` ("" = the vault root), keeping its name. */
+async function moveFolderInto(from: string, parent: string) {
+  const name = from.slice(from.lastIndexOf("/") + 1);
+  const to = parent ? `${parent}/${name}` : name;
+  if (to === from) return;
+  const err = await renameFolderFlow(from, to);
+  if (err) useVault.getState().toast(`Couldn't move “${name}”: ${err}`);
+}
+
+/** A note or folder dropped on `target` ("" = the vault root). */
+function dropInto(e: React.DragEvent, target: string) {
+  const note = e.dataTransfer.getData(NOTE_DRAG);
+  const folder = e.dataTransfer.getData(FOLDER_DRAG);
+  if (note) useVault.getState().moveNote(note, target);
+  else if (folder) void moveFolderInto(folder, target);
+}
+
+/** The folder's name as an input: Enter or leaving it saves, Esc cancels. */
+function FolderRename({ folder, depth }: { folder: TreeFolder; depth: number }) {
+  const setRenaming = useVault((s) => s.setRenamingFolder);
+  const [value, setValue] = useState(folder.name);
+  const done = useRef(false);
+  const commit = async () => {
+    if (done.current) return;
+    done.current = true;
+    setRenaming(null);
+    const name = value.trim();
+    if (!name || name === folder.name) return;
+    const toast = useVault.getState().toast;
+    if (name.includes("/")) {
+      toast("A folder name can't contain /");
+      return;
+    }
+    const parent = folder.path.includes("/") ? folder.path.slice(0, folder.path.lastIndexOf("/")) : "";
+    const err = await renameFolderFlow(folder.path, parent ? `${parent}/${name}` : name);
+    if (err) toast(`Couldn't rename “${folder.name}”: ${err}`);
+  };
+  return (
+    <div className="tree-item folder renaming" style={{ paddingLeft: 8 + depth * 14 }}>
+      <span className="chev" />
+      <Folder className="tree-icon" size={15} />
+      <input
+        className="tree-rename"
+        aria-label="Folder name"
+        value={value}
+        autoFocus
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void commit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            done.current = true;
+            setRenaming(null);
+          }
+        }}
+        onBlur={() => void commit()}
+      />
+    </div>
+  );
+}
+
 function FolderRow({ folder, depth }: { folder: TreeFolder; depth: number }) {
   const expanded = useVault((s) => s.expanded);
   const toggle = useVault((s) => s.toggleFolder);
-  const openPicker = useVault((s) => s.openPicker);
-  const moveNote = useVault((s) => s.moveNote);
+  const openFolderMenu = useVault((s) => s.openFolderMenu);
+  const renaming = useVault((s) => s.renamingFolder === folder.path);
   const color = useVault((s) => s.folderColors[folder.path]);
   const [dropping, setDropping] = useState(false);
   const open = expanded.has(folder.path);
   return (
     <div className="tree-folder">
-      <button
-        className={"tree-item folder" + (dropping ? " drop-target" : "")}
-        style={{ paddingLeft: 8 + depth * 14 }}
-        onClick={() => toggle(folder.path)}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          openPicker(e.clientX, e.clientY, "color", folder.path);
-        }}
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes("text/inkwell-note")) {
+      {renaming ? (
+        <FolderRename folder={folder} depth={depth} />
+      ) : (
+        <button
+          className={"tree-item folder" + (dropping ? " drop-target" : "")}
+          style={{ paddingLeft: 8 + depth * 14 }}
+          draggable
+          onDragStart={(e) => {
+            e.stopPropagation();
+            e.dataTransfer.setData(FOLDER_DRAG, folder.path);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+          onClick={() => toggle(folder.path)}
+          onContextMenu={(e) => {
             e.preventDefault();
-            setDropping(true);
-          }
-        }}
-        onDragLeave={() => setDropping(false)}
-        onDrop={(e) => {
-          const id = e.dataTransfer.getData("text/inkwell-note");
-          setDropping(false);
-          if (id) moveNote(id, folder.path);
-        }}
-        title={folder.name}
-      >
-        <span className={"chev" + (open ? " open" : "")}>
-          <ChevronRight size={13} />
-        </span>
-        <Folder className="tree-icon" size={15} style={color ? { color } : undefined} />
-        <span className="tree-label">{folder.name}</span>
-      </button>
+            openFolderMenu(e.clientX, e.clientY, folder.path);
+          }}
+          onDragOver={(e) => {
+            if (canDrop(e)) {
+              e.preventDefault();
+              e.stopPropagation();
+              setDropping(true);
+            }
+          }}
+          onDragLeave={() => setDropping(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDropping(false);
+            dropInto(e, folder.path);
+          }}
+          title={folder.name}
+        >
+          <span className={"chev" + (open ? " open" : "")}>
+            <ChevronRight size={13} />
+          </span>
+          <Folder className="tree-icon" size={15} style={color ? { color } : undefined} />
+          <span className="tree-label">{folder.name}</span>
+        </button>
+      )}
       {open && (
         <div className="tree-children">
           {folder.folders.map((f) => (
@@ -168,8 +253,43 @@ function PinnedSection() {
   );
 }
 
+/** The vault name's menu: open another folder; for a disk vault, back up and restore. */
+function VaultMenu({ x, y, onClose, onRestore }: { x: number; y: number; onClose: () => void; onRestore: () => void }) {
+  const onDisk = useVault((s) => !!s.loadedVault);
+  const run = (fn: () => void) => () => {
+    onClose();
+    fn();
+  };
+  return (
+    <>
+      <div className="tpl-overlay" onClick={onClose} />
+      <div className="ctx-menu" style={{ left: x, top: y }}>
+        <button className="ctx-item" onClick={run(openVaultFolderFlow)}>
+          <FolderOpen size={15} />
+          <span>Open a vault folder…</span>
+        </button>
+        {onDisk && (
+          <>
+            <div className="ctx-sep" />
+            <button className="ctx-item" onClick={run(() => void backupNowFlow())}>
+              <Archive size={15} />
+              <span>Back up now</span>
+            </button>
+            <button className="ctx-item" onClick={run(onRestore)}>
+              <ArchiveRestore size={15} />
+              <span>Restore a backup…</span>
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 export default function Sidebar() {
-  const tree = useVault((s) => s.tree);
+  const noteTree = useVault((s) => s.tree);
+  const folders = useVault((s) => s.folders);
+  const tree = useMemo(() => withFolders(noteTree, folders), [noteTree, folders]);
   const sidebarView = useVault((s) => s.sidebarView);
   const setSidebarView = useVault((s) => s.setSidebarView);
   const createNote = useVault((s) => s.createNote);
@@ -186,6 +306,9 @@ export default function Sidebar() {
   const treeRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(treeRef);
   const [tplOpen, setTplOpen] = useState(false);
+  const [vaultMenu, setVaultMenu] = useState<{ x: number; y: number } | null>(null);
+  const [backupsOpen, setBackupsOpen] = useState(false);
+  const [dropRoot, setDropRoot] = useState(false);
 
   const onImportPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -196,7 +319,15 @@ export default function Sidebar() {
   return (
     <aside className="sidebar" style={{ width, minWidth: width }}>
       <div className="vault-header">
-        <button className="vault-name" onClick={openVaultFolderFlow} title="Open a folder as your vault">
+        <button
+          className="vault-name"
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setVaultMenu({ x: r.left, y: r.bottom + 4 });
+          }}
+          title="Vault: open a folder, back up, restore"
+        >
           <span>{vaultName(vaultPath, tree.name)}</span>
           <ChevronDown size={14} className="vault-caret" />
         </button>
@@ -312,7 +443,7 @@ export default function Sidebar() {
                 </>
               )}
             </div>
-            <button className="ghost-btn sm" aria-label="New folder">
+            <button className="ghost-btn sm" aria-label="New folder" title="New folder" onClick={() => void newFolderIn("")}>
               <FolderPlus size={15} />
             </button>
             <button className="ghost-btn sm" aria-label="New note" onClick={() => createNote()}>
@@ -320,7 +451,24 @@ export default function Sidebar() {
             </button>
           </div>
 
-          <div className="tree-scroll" ref={treeRef}>
+          <div
+            className={"tree-scroll" + (dropRoot ? " drop-root" : "")}
+            ref={treeRef}
+            // dropped on the empty space below the tree: to the vault root
+            onDragOver={(e) => {
+              if (e.target === e.currentTarget && canDrop(e)) {
+                e.preventDefault();
+                setDropRoot(true);
+              }
+            }}
+            onDragLeave={() => setDropRoot(false)}
+            onDrop={(e) => {
+              setDropRoot(false);
+              if (e.target !== e.currentTarget) return;
+              e.preventDefault();
+              dropInto(e, "");
+            }}
+          >
             <PinnedSection />
             {tree.folders.map((f) => (
               <FolderRow key={f.path} folder={f} depth={0} />
@@ -331,6 +479,16 @@ export default function Sidebar() {
           </div>
         </>
       )}
+      <FolderMenu />
+      {vaultMenu && (
+        <VaultMenu
+          x={vaultMenu.x}
+          y={vaultMenu.y}
+          onClose={() => setVaultMenu(null)}
+          onRestore={() => setBackupsOpen(true)}
+        />
+      )}
+      {backupsOpen && <BackupModal onClose={() => setBackupsOpen(false)} />}
     </aside>
   );
 }

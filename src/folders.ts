@@ -86,6 +86,15 @@ export function folderMoveError(all: Set<string>, from: string, to: string): str
   return null;
 }
 
+/** `parent/New folder`, `parent/New folder 2`… — the first one not taken (case-insensitively). */
+export function freeFolderName(all: Set<string>, parent: string, base = "New folder"): string {
+  const taken = new Set([...all].map((p) => p.toLowerCase()));
+  const at = (name: string) => (parent ? `${parent}/${name}` : name);
+  let path = at(base);
+  for (let i = 2; taken.has(path.toLowerCase()); i++) path = at(`${base} ${i}`);
+  return path;
+}
+
 /** The note tree plus the explicit folders that hold no notes yet (a new tree; the input is untouched). */
 export function withFolders(tree: TreeFolder, folders: string[]): TreeFolder {
   if (!folders.length) return tree;
