@@ -69,3 +69,12 @@ export function checkVersions({ conf, cargo, pkg }) {
   }
   return conf;
 }
+
+/** Release notes: `--notes-file <path>` (multi-line; npm on Windows cuts a `--notes` argument at its
+ *  first newline), else `--notes "<text>"`, else "Inkwell <version>". */
+export function releaseNotes(args, version, readFile) {
+  const fileAt = args.indexOf("--notes-file");
+  if (fileAt >= 0 && args[fileAt + 1]) return readFile(args[fileAt + 1]).trim();
+  const at = args.indexOf("--notes");
+  return at >= 0 && args[at + 1] ? args[at + 1] : `Inkwell ${version}`;
+}

@@ -1,6 +1,7 @@
 // npm run release              → signed build + release/ folder (installer, .sig, latest.json, notes.md)
 // npm run release -- --publish → the same, then `gh release create` on github.com/fizzexual/inkwell.md
-// npm run release -- --notes "What changed"   (release notes; default "Inkwell <version>")
+// npm run release -- --notes "What changed"   (one-line notes; default "Inkwell <version>")
+// npm run release -- --notes-file notes.md    (multi-line notes — npm on Windows cuts --notes at a newline)
 //
 // The updater signing key never enters the repo: it is read from %USERPROFILE%\.tauri\ and handed
 // only to the child `tauri build` process (TAURI_SIGNING_PRIVATE_KEY[_PASSWORD]).
@@ -9,12 +10,11 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync,
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLatestJson, cargoVersion, checkVersions, ghReleaseArgs, ghReleaseCommand, pickInstaller } from "./latest-json.mjs";
+import { buildLatestJson, cargoVersion, checkVersions, ghReleaseArgs, ghReleaseCommand, pickInstaller, releaseNotes } from "./latest-json.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const publish = args.includes("--publish");
-const notesAt = args.indexOf("--notes");
 
 function fail(msg) {
   console.error(`\nrelease: ${msg}`);
@@ -33,7 +33,7 @@ try {
 } catch (e) {
   fail(e.message);
 }
-const notes = notesAt >= 0 && args[notesAt + 1] ? args[notesAt + 1] : `Inkwell ${version}`;
+const notes = releaseNotes(args, version, (p) => readFileSync(p, "utf8"));
 
 // 2. the signing key (outside the repo)
 const keyDir = join(homedir(), ".tauri");

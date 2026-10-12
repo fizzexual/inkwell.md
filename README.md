@@ -164,7 +164,8 @@ installer whose signature does not match the public key in `tauri.conf.json`.
    `package.json` (the script refuses if they disagree). Commit.
 2. `npm run release` builds a signed installer into `release/` with its `.sig`,
    `latest.json` and `notes.md`, and prints the `gh release create` command.
-   Add `-- --notes "What changed"` for release notes.
+   Add `-- --notes "What changed"` for one-line notes, or `-- --notes-file notes.md` for
+   multi-line notes (npm on Windows cuts a `--notes` argument at its first newline).
 3. `npm run release -- --publish` does the same and publishes `v<version>` with
    `gh`. Installed apps pick it up from `releases/latest/download/latest.json`.
 

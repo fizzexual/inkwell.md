@@ -79,3 +79,16 @@ describe("version consistency", () => {
     expect(cargoVersion(toml)).toBe("0.2.0");
   });
 });
+
+describe("releaseNotes", () => {
+  const read = (p) => (p === "notes.md" ? "Line one\n\n- point a\n- point b\n" : "");
+  it("reads multi-line notes from --notes-file (npm on Windows cuts a --notes argument at its first newline)", async () => {
+    const { releaseNotes } = await import("./latest-json.mjs");
+    expect(releaseNotes(["--publish", "--notes-file", "notes.md"], "0.3.0", read)).toBe("Line one\n\n- point a\n- point b");
+  });
+  it("falls back to --notes, then to a default", async () => {
+    const { releaseNotes } = await import("./latest-json.mjs");
+    expect(releaseNotes(["--notes", "Short"], "0.3.0", read)).toBe("Short");
+    expect(releaseNotes([], "0.3.0", read)).toBe("Inkwell 0.3.0");
+  });
+});
