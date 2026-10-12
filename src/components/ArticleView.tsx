@@ -7,6 +7,7 @@ import { noteRenderCtx, renderMermaid } from "../renderCtx";
 import MarkdownEditor from "./MarkdownEditor";
 import LiveEditor from "./LiveEditor";
 import PropertiesPanel from "./PropertiesPanel";
+import { onPdfLinkClick } from "../pdfLinks";
 import { useChat } from "../ai/useChat";
 import { History } from "lucide-react";
 import { Graph, Pencil, Doc, Sparkles } from "../icons";
@@ -29,6 +30,7 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const setCenterView = useVault((s) => s.setCenterView);
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
+  const openPdfLink = useVault((s) => s.openPdfLink);
   const updateContent = useVault((s) => s.updateContent);
   const scrollTarget = useVault((s) => s.scrollTarget);
   const clearScrollTarget = useVault((s) => s.clearScrollTarget);
@@ -112,6 +114,8 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const crumbs = note.folder ? note.folder.split("/") : [];
 
   const onPreviewClick = (e: MouseEvent<HTMLDivElement>) => {
+    // `[p. 12](#/pdf/Attachments/paper.pdf?page=12)` → that PDF at that page
+    if (onPdfLinkClick(e, (rel, page) => void openPdfLink(rel, page))) return;
     const tag = (e.target as HTMLElement).closest("a.tag") as HTMLElement | null;
     if (tag?.dataset.tag) {
       e.preventDefault();
