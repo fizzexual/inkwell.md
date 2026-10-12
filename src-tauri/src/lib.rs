@@ -317,6 +317,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // reopen where it was closed (monitor, size, maximized) — also after an update relaunch
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
         .manage(VaultRoot(Mutex::new(None)))
         .setup(|app| {
