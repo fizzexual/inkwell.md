@@ -9,6 +9,9 @@
   box-shadow: var(--shadow-pop);
   animation: ctx-in var(--dur-1) var(--ease-out);
   transform-origin: top left;
+  /* very small windows: scroll instead of running off-screen */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
 }
 @keyframes ctx-in {
   from {

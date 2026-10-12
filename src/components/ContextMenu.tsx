@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { placeMenu } from "../placeMenu";
 import { useVault } from "../store/useVault";
 import { useChat } from "../ai/useChat";
 import { Doc, Pencil, Copy, Graph, SplitView, Board, Pin, Palette, Trash, Sparkles } from "../icons";
@@ -29,6 +30,12 @@ export default function ContextMenu() {
   const pinned = useVault((s) => s.pinned);
   const openPicker = useVault((s) => s.openPicker);
   const toast = useVault((s) => s.toast);
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 224, h: 480 });
+  useLayoutEffect(() => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r && (r.width !== size.w || r.height !== size.h)) setSize({ w: r.width, h: r.height });
+  }, [menu, size.w, size.h]);
 
   useEffect(() => {
     if (!menu) return;
@@ -143,11 +150,12 @@ export default function ContextMenu() {
     },
   ];
 
-  const left = Math.min(menu.x, window.innerWidth - 224);
-  const top = Math.min(menu.y, window.innerHeight - 320);
+  // clamp with the menu's real size (measured after the first paint), so a menu opened low in the
+  // sidebar moves up instead of hiding "Delete note" below the window
+  const { left, top } = placeMenu(menu.x, menu.y, size.w, size.h, window.innerWidth, window.innerHeight);
 
   return (
-    <div className="ctx-menu" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
+    <div ref={ref} className="ctx-menu" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
       <div className="ctx-title">{note.title}</div>
       {items.map((it, i) =>
         it === "sep" ? (
