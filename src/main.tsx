@@ -6,6 +6,7 @@ import { startDiskSync, autoloadVault, startVaultWatch } from "./vault/sync";
 import { isTauri } from "./vault/disk";
 import { useVault } from "./store/useVault";
 import { startHistory } from "./useHistory";
+import { installLinkGuard } from "./links";
 import "@fontsource/inter/300.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
@@ -21,6 +22,16 @@ if ("serviceWorker" in navigator) {
     .then((rs) => rs.forEach((r) => r.unregister()))
     .catch(() => {});
 }
+
+// links in notes never navigate the app window: web links open in the system browser, anything
+// else (javascript:, file:, relative paths) is ignored
+installLinkGuard(document, (url) => {
+  if (isTauri()) {
+    import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(url)).catch(() => {});
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+});
 
 // on-disk vaults (desktop only; all no-op in the browser)
 startDiskSync();
