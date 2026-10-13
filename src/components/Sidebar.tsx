@@ -8,9 +8,10 @@ import { NoteIcon } from "../noteIcons";
 import { openPdfFile } from "../pdfOpen";
 import { openVaultFolderFlow, renameFolderFlow } from "../vault/sync";
 import { backupNowFlow } from "../vault/backup";
+import { useGitHistory, setGitHistoryFlow, commitNowFlow } from "../vault/gitHistory";
 import FolderMenu, { newFolderIn } from "./FolderMenu";
 import BackupModal from "./BackupModal";
-import { FolderOpen, Download, X as CloseX, Mic, Archive, ArchiveRestore } from "lucide-react";
+import { FolderOpen, Download, X as CloseX, Mic, Archive, ArchiveRestore, GitBranch, GitCommitHorizontal, Check } from "lucide-react";
 import { useSmoothScroll } from "../useSmoothScroll";
 import { vaultName, withFolders } from "../folders";
 import SearchPanel from "./SearchPanel";
@@ -254,9 +255,12 @@ function PinnedSection() {
   );
 }
 
-/** The vault name's menu: open another folder; for a disk vault, back up and restore. */
+/** The vault name's menu: open another folder; for a disk vault, back up, restore, and git history. */
 function VaultMenu({ x, y, onClose, onRestore }: { x: number; y: number; onClose: () => void; onRestore: () => void }) {
   const onDisk = useVault((s) => !!s.loadedVault);
+  const loadedVault = useVault((s) => s.loadedVault);
+  const gitOn = useGitHistory((s) => !!loadedVault && s.vaults.includes(loadedVault));
+  const branch = useGitHistory((s) => s.info?.branch);
   const run = (fn: () => void) => () => {
     onClose();
     fn();
@@ -280,6 +284,24 @@ function VaultMenu({ x, y, onClose, onRestore }: { x: number; y: number; onClose
               <ArchiveRestore size={15} />
               <span>Restore a backup…</span>
             </button>
+            <div className="ctx-sep" />
+            <button
+              className="ctx-item"
+              role="menuitemcheckbox"
+              aria-checked={gitOn}
+              onClick={run(() => void setGitHistoryFlow(!gitOn))}
+              title="Commit this vault's notes and attachments to a git repository in the vault folder (never pushed anywhere)"
+            >
+              <GitBranch size={15} />
+              <span>Keep git history{gitOn && branch ? ` · ${branch}` : ""}</span>
+              {gitOn && <Check size={14} style={{ marginLeft: "auto" }} />}
+            </button>
+            {gitOn && (
+              <button className="ctx-item" onClick={run(() => void commitNowFlow())}>
+                <GitCommitHorizontal size={15} />
+                <span>Commit now</span>
+              </button>
+            )}
           </>
         )}
       </div>
@@ -326,7 +348,7 @@ export default function Sidebar() {
             const r = e.currentTarget.getBoundingClientRect();
             setVaultMenu({ x: r.left, y: r.bottom + 4 });
           }}
-          title="Vault: open a folder, back up, restore"
+          title="Vault: open a folder, back up, restore, git history"
         >
           <span>{vaultName(vaultPath, tree.name)}</span>
           <ChevronDown size={14} className="vault-caret" />

@@ -163,3 +163,60 @@
   word-break: break-word;
   background: var(--bg-soft, var(--bg-app));
 }
+/* source switch (Snapshots / Git) and the git view's Changes / Text switch */
+.hist-views {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+.hist-views button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-3);
+}
+.hist-views button.on {
+  background: var(--bg-app);
+  color: var(--tx-1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.hist-preview-bar .hist-views {
+  margin-left: auto;
+  margin-right: 8px;
+}
+.hist-restore:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+/* what changed since a git version: − in that version only, + in the note now */
+.hist-diff-add {
+  color: var(--tl-green);
+  background: color-mix(in srgb, var(--tl-green) 12%, transparent);
+}
+.hist-diff-del {
+  color: var(--tl-red);
+  background: color-mix(in srgb, var(--tl-red) 12%, transparent);
+  text-decoration: line-through;
+}
+.hist-diff-fold {
+  color: var(--tx-4);
+  font-style: italic;
+}
+.hist-same {
+  color: var(--tx-3);
+}
+@media (max-width: 560px) {
+  .hist-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 40% 1fr;
+  }
+  .hist-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .hist-head {
+    flex-wrap: wrap;
+  }
+}
