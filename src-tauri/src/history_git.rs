@@ -133,6 +133,13 @@ fn in_scope(rel: &str) -> bool {
     md || (parts.len() > 1 && parts[0].eq_ignore_ascii_case("attachments"))
 }
 
+/// The root .gitignore is committed only when Inkwell wrote it (a repo it created); an owner's own
+/// .gitignore in an existing repository is never touched.
+fn is_inkwells_gitignore(root: &Path) -> bool {
+    let first = GITIGNORE.lines().next().unwrap_or_default();
+    fs::read_to_string(root.join(".gitignore")).is_ok_and(|t| t.starts_with(first))
+}
+
 /// The repository's own user.name/user.email when both are set, else "Inkwell <inkwell@local>".
 fn author_for(name: Option<String>, email: Option<String>) -> (String, String) {
     match (name, email) {
@@ -148,7 +155,7 @@ fn plural(n: usize, word: &str) -> String {
 /// "Inkwell: 2 notes, 1 attachment changed", a blank line, then the files (the first 50).
 fn message_for(files: &[String]) -> String {
     let notes = files.iter().filter(|f| f.to_lowercase().ends_with(".md")).count();
-    let attachments = files.len() - notes;
+    let attachments = files.iter().filter(|f| f.to_lowercase().starts_with("attachments/")).count();
     let mut what = Vec::new();
     if notes > 0 {
         what.push(plural(notes, "note"));
@@ -199,7 +206,7 @@ fn commit_in(root: &Path) -> Result<Option<Committed>, String> {
         .iter()
         .filter(|s| !s.status().contains(Status::IGNORED))
         .filter_map(|s| s.path().map(String::from))
-        .filter(|p| in_scope(p))
+        .filter(|p| in_scope(p) || (p == ".gitignore" && is_inkwells_gitignore(root)))
         .collect();
     paths.sort();
     paths.dedup();
@@ -396,9 +403,10 @@ mod tests {
         put(&root, ".obsidian/x.md", "hidden");
         put(&root, "Thumbs.db", "junk");
         let c = commit_in(&root).unwrap().expect("a first commit");
-        assert_eq!(c.files, vec!["Attachments/paper.pdf", "a.md", "sub/b.md"]);
+        // Inkwell's own .gitignore goes in with the first commit (else `git status` shows it untracked)
+        assert_eq!(c.files, vec![".gitignore", "Attachments/paper.pdf", "a.md", "sub/b.md"]);
         assert_eq!(c.summary, "Inkwell: 2 notes, 1 attachment changed");
-        assert_eq!(head_files(&root), vec!["Attachments/paper.pdf", "a.md", "sub/b.md"]);
+        assert_eq!(head_files(&root), vec![".gitignore", "Attachments/paper.pdf", "a.md", "sub/b.md"]);
         let repo = Repository::open(&root).unwrap();
         let head = repo.head().unwrap().peel_to_commit().unwrap();
         assert!(head.message().unwrap().contains("\n- sub/b.md"), "{:?}", head.message());
@@ -426,7 +434,7 @@ mod tests {
         fs::remove_file(root.join("sub/b.md")).unwrap();
         let c3 = commit_in(&root).unwrap().unwrap();
         assert_eq!(c3.files, vec!["sub/b.md"]);
-        assert_eq!(head_files(&root), vec!["Attachments/paper.pdf", "a.md"]);
+        assert_eq!(head_files(&root), vec![".gitignore", "Attachments/paper.pdf", "a.md"]);
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -472,6 +480,29 @@ mod tests {
         assert!(commit_in(&plain).is_err());
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&plain);
+    }
+
+    #[test]
+    fn only_inkwells_own_gitignore_is_ever_committed() {
+        // a repo Inkwell created: its .gitignore is committed, so `git status` is clean afterwards
+        let root = tmp_root("ignore-own");
+        enable_in(&root).unwrap();
+        put(&root, "a.md", "# A");
+        commit_in(&root).unwrap().expect("first commit");
+        let repo = Repository::open(&root).unwrap();
+        let dirty: Vec<String> = repo.statuses(None).unwrap().iter().filter_map(|s| s.path().map(String::from)).collect();
+        assert!(dirty.is_empty(), "{dirty:?}");
+        let _ = fs::remove_dir_all(&root);
+
+        // the owner's own .gitignore in an existing repo is never committed by Inkwell
+        let root = tmp_root("ignore-theirs");
+        Repository::init(&root).unwrap();
+        put(&root, ".gitignore", "*.log
+");
+        put(&root, "a.md", "# A");
+        let c = commit_in(&root).unwrap().expect("commit");
+        assert_eq!(c.files, vec!["a.md"]);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
