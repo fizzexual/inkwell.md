@@ -17,6 +17,7 @@ use tauri_plugin_dialog::DialogExt;
 mod secrets;
 mod backup;
 mod folders;
+mod offline_model;
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
@@ -321,6 +322,8 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
         .manage(VaultRoot(Mutex::new(None)))
+        .manage(offline_model::DownloadState::default())
+        .register_asynchronous_uri_scheme_protocol(offline_model::SCHEME, offline_model::serve)
         .setup(|app| {
             // system-wide hotkey: bring Inkwell to the front and open Quick Capture from anywhere
             #[cfg(desktop)]
@@ -368,7 +371,11 @@ pub fn run() {
             backup::backup_vault,
             backup::list_backups,
             backup::restore_backup,
-            backup::open_restored_vault
+            backup::open_restored_vault,
+            offline_model::offline_model_status,
+            offline_model::offline_model_download,
+            offline_model::offline_model_cancel,
+            offline_model::offline_model_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
