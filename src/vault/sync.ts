@@ -194,7 +194,8 @@ function keepDiskVersion(note: Note, content: string, extra: Note[]) {
 async function reconcile() {
   const path = syncedPath;
   if (!path) return;
-  const disk = await readVault();
+  // the folder list can fail on its own (null): then the folders shown stay as they are
+  const [disk, dirs] = await Promise.all([readVault(), readVaultDirs().catch(() => null)]);
   const v = useVault.getState();
   if (v.loadedVault !== path || syncedPath !== path) return; // vault was closed/switched while reading
   const diskByRel = new Map(disk.map((d) => [lc(d.rel), d]));
@@ -205,12 +206,19 @@ async function reconcile() {
   let changed = false;
   const conflicts: string[] = [];
   const extra: Note[] = [];
+  const vanished = new Set<string>();
   const next: Note[] = v.notes.map((n) => {
     const w = written.get(n.id);
-    const d = w && diskByRel.get(lc(w.rel));
-    // not on disk yet (or its file vanished): nothing to compare, and never adopt a file it doesn't own
-    if (!w || !d) return n;
+    // not on disk yet (a new note inside the save delay): nothing to compare — and never removed
+    if (!w) return n;
     const mem = n.content ?? "";
+    const d = diskByRel.get(lc(w.rel));
+    if (!d) {
+      // its file was there and another app removed it: the note goes too — unless it has edits
+      // that aren't saved yet, which the next write-out puts back on disk
+      if (mem === w.content) vanished.add(n.id);
+      return n;
+    }
     if (d.content === w.content) return n;
     if (d.content === mem) {
       written.set(n.id, { rel: w.rel, content: mem });
@@ -233,13 +241,22 @@ async function reconcile() {
     written.set(d.rel, { rel: d.rel, content: d.content });
     next.push(diskNoteToNote(d));
   }
-  // NB: deliberately do NOT auto-remove notes whose file vanished — a brand-new in-app note
-  // hasn't been flushed to disk yet, and dropping it here would lose unsynced work.
+  if (vanished.size) {
+    changed = true;
+    for (const id of vanished) written.delete(id);
+  }
   if (extra.length) {
     changed = true;
     next.push(...extra);
   }
-  if (changed) useVault.getState().reconcileDisk(next);
+  const folders = dirs && sameSet(dirs, v.folders) ? null : dirs;
+  if (changed || folders) {
+    useVault.getState().reconcileDisk(
+      vanished.size ? next.filter((n) => !vanished.has(n.id)) : next,
+      folders ?? undefined,
+    );
+  }
+  rememberMoves();
   if (conflicts.length) {
     // the user's text wins on disk at the next write-out; say so, and where the other version is
     scheduleSync();
@@ -254,6 +271,8 @@ async function reconcile() {
     useVault.getState().toast("Vault updated from disk");
   }
 }
+
+const sameSet = (a: string[], b: string[]) => a.length === b.length && b.every((x) => a.includes(x));
 
 async function runReconcile() {
   // a change reported while a re-read is running is not dropped: one more pass runs after it

@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   rootSet: false,
   fsCb: null as null | ((paths: string[]) => void),
   failNext: null as null | string,
+  dirsFail: false,
 }));
 
 vi.mock("./disk", async (orig) => {
@@ -36,7 +37,11 @@ vi.mock("./disk", async (orig) => {
       h.rootSet = false;
     },
     readVault: async () => (needRoot(), [...h.files.values()].map((f) => ({ ...f }))),
-    readVaultDirs: async () => (needRoot(), [...h.dirs.values()]),
+    readVaultDirs: async () => {
+      needRoot();
+      if (h.dirsFail) throw new Error("Access is denied. (os error 5)");
+      return [...h.dirs.values()];
+    },
     writeNoteFile: async (rel: string, content: string) => {
       needRoot();
       h.calls.push(`write ${rel}`);
@@ -154,6 +159,7 @@ beforeEach(() => {
   h.rootSet = false;
   h.fsCb = null;
   h.failNext = null;
+  h.dirsFail = false;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -266,5 +272,74 @@ describe("deleting a folder on disk", () => {
     h.failNext = "The file is open in another program";
     expect(await sync.deleteFolderFlow("Old")).toMatch(/another program/);
     expect(useVault.getState().notesById.has("Old/a.md")).toBe(true);
+  });
+});
+
+describe("changes made in Explorer / other apps (gap 2)", () => {
+  /** what another app does: remove a file or a whole folder behind Inkwell's back */
+  const rmOutside = (rel: string) => {
+    const lcRel = rel.toLowerCase();
+    for (const key of [...h.files.keys()]) if (key === lcRel || key.startsWith(lcRel + "/")) h.files.delete(key);
+    for (const key of [...h.dirs.keys()]) if (key === lcRel || key.startsWith(lcRel + "/")) h.dirs.delete(key);
+  };
+
+  it("a folder created outside shows up live, empty or not", async () => {
+    const { folderPaths } = await openVault({ "a.md": "# A\n" });
+    h.dirs.set("inbox", "Inbox");
+    h.dirs.set("inbox/later", "Inbox/Later");
+    await fsEvent("C:/vault/Inbox");
+    expect(folderPaths()).toEqual(["Inbox", "Inbox/Later"]);
+  });
+
+  it("a folder removed outside disappears with its notes, and nothing is written back", async () => {
+    const { useVault, folderPaths } = await openVault({ "Old/a.md": "# A\n", "keep.md": "# Keep\n" }, ["Empty"]);
+    rmOutside("Old");
+    rmOutside("Empty");
+    await fsEvent("C:/vault/Old", "C:/vault/Empty");
+    expect(useVault.getState().notes.map((n) => n.id)).toEqual(["keep.md"]);
+    expect(folderPaths()).toEqual([]);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(noteWrites()).toEqual([]);
+    expect([...h.files.keys()]).toEqual(["keep.md"]);
+  });
+
+  it("a note deleted outside disappears and its open tab closes, without being re-created", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n", "b.md": "# B\n" });
+    useVault.getState().openArticle("a.md");
+    rmOutside("a.md");
+    await fsEvent("C:/vault/a.md");
+    const s = useVault.getState();
+    expect(s.notes.map((n) => n.id)).toEqual(["b.md"]);
+    expect(s.selectedId).toBe("b.md");
+    expect(s.panes.flatMap((p) => p.tabs)).not.toContain("a.md");
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(noteWrites()).toEqual([]);
+    expect(disk("a.md")).toBeUndefined();
+  });
+
+  it("a just-created note that isn't saved yet is never removed by a re-read", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n" });
+    useVault.getState().createNoteWith("Fresh", "# Fresh\n");
+    await fsEvent("C:/vault/a.md"); // the re-read runs inside the 500ms save delay
+    expect(useVault.getState().notes.map((n) => n.title).sort()).toEqual(["A", "Fresh"]);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(disk("fresh.md")).toBe("# Fresh\n");
+  });
+
+  it("a note with unsaved edits whose file was deleted outside is kept and saved again", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n" });
+    useVault.getState().updateContent("a.md", "# A\n\nmine, not saved yet");
+    rmOutside("a.md");
+    await fsEvent("C:/vault/a.md");
+    expect(useVault.getState().notesById.get("a.md")?.content).toBe("# A\n\nmine, not saved yet");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(disk("a.md")).toBe("# A\n\nmine, not saved yet");
+  });
+
+  it("when the folder list can't be read, the folders shown stay as they were", async () => {
+    const { folderPaths } = await openVault({ "a.md": "# A\n" }, ["Empty"]);
+    h.dirsFail = true;
+    await fsEvent("C:/vault/a.md");
+    expect(folderPaths()).toEqual(["Empty"]);
   });
 });

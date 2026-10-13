@@ -17,6 +17,7 @@ use tauri_plugin_dialog::DialogExt;
 mod secrets;
 mod backup;
 mod folders;
+mod watch;
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
@@ -277,19 +278,15 @@ fn rename_note(from: String, to: String, state: State<VaultRoot>) -> Result<(), 
 }
 
 /// Start watching the open vault folder recursively; emits `vault-fs-change` with the changed `.md`
-/// paths whenever files are created, edited, or removed by anything on the system.
+/// paths, and folders that appeared or went away, whenever anything on the system changes them.
 #[tauri::command]
 fn watch_vault(app: AppHandle, roots: State<VaultRoot>, state: State<WatcherState>) -> Result<(), String> {
     let root = current_root(&roots)?;
     let handle = app.clone();
+    let watched = root.clone();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(event) = res {
-            let touched: Vec<String> = event
-                .paths
-                .iter()
-                .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
-                .map(|p| p.to_string_lossy().to_string())
-                .collect();
+            let touched = watch::reported(&watched, &event.kind, &event.paths);
             if !touched.is_empty() {
                 let _ = handle.emit("vault-fs-change", touched);
             }

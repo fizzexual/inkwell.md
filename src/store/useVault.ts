@@ -131,6 +131,19 @@ function withTab(panes: Pane[], paneIdx: number, id: string): Pane[] {
   );
 }
 
+/** Close the tabs of notes that are `gone` (as deleting a note does); `fallback` is shown instead. */
+function closeTabs(panes: Pane[], activePane: number, gone: Set<string>, fallback: string) {
+  let next = panes
+    .map((p) => {
+      const tabs = p.tabs.filter((t) => !gone.has(t));
+      return { tabs, active: tabs.includes(p.active) ? p.active : tabs[tabs.length - 1] ?? fallback };
+    })
+    .filter((p, i) => i === 0 || p.tabs.length > 0);
+  if (!next.length) next = [{ tabs: fallback ? [fallback] : [], active: fallback }];
+  const pane = Math.min(activePane, next.length - 1);
+  return { panes: next, activePane: pane, selectedId: next[pane]?.active ?? fallback };
+}
+
 function openInPane(panes: Pane[], activePane: number, id: string) {
   return {
     panes: withTab(panes, activePane, id),
@@ -296,8 +309,11 @@ interface VaultState extends Derived {
   /** the disk vault whose notes are loaded (null until the folder has been read). */
   loadedVault: string | null;
   loadDiskVault: (path: string, notes: Note[], folders?: string[]) => void;
-  /** apply an externally-changed note set from disk, keeping the user's current note & scroll. */
-  reconcileDisk: (notes: Note[]) => void;
+  /**
+   * apply an externally-changed note set (and folder list) from disk, keeping the user's current
+   * note & scroll; tabs of notes that are gone close.
+   */
+  reconcileDisk: (notes: Note[], folders?: string[]) => void;
   closeVault: () => void;
   // ---- self-hosted remote sync (connect to an Inkwell sync server) ----
   sidebarWidth: number;
@@ -464,11 +480,15 @@ export const useVault = create<VaultState>((set, get) => ({
     const first = notes[0];
     if (first) get().openArticle(first.id);
   },
-  reconcileDisk: (notes) =>
+  reconcileDisk: (notes, folders) =>
     set((s) => {
       // external edit landed: swap the note set in place but stay on the note the user is reading
-      const keep = notes.some((n) => n.id === s.selectedId) ? s.selectedId : notes[0]?.id ?? s.selectedId;
-      return { notes, ...derive(notes), selectedId: keep };
+      const ids = new Set(notes.map((n) => n.id));
+      // tabs whose note is not in the vault any more (removed on disk, or left from before the load)
+      const gone = new Set(s.panes.flatMap((p) => p.tabs).filter((t) => !ids.has(t)));
+      const keep = ids.has(s.selectedId) ? s.selectedId : notes[0]?.id ?? s.selectedId;
+      const tabs = gone.size ? closeTabs(s.panes, s.activePane, gone, keep) : null;
+      return { notes, ...derive(notes), selectedId: keep, ...tabs, ...(folders ? { folders } : {}) };
     }),
   closeVault: async () => {
     await beforeVaultClose().catch((e) => console.error("Inkwell: saving before close failed", e));
