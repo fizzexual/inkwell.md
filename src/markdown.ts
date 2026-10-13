@@ -52,13 +52,21 @@ export function wikilinkTitle(inner: string): string {
   return inner.split(ALIAS_SEP)[0].split("#")[0].trim();
 }
 
-/** Ordered, unique target note ids referenced by [[wikilinks]] in `md` (not counting code). */
-export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
-  const ids: string[] = [];
-  const seen = new Set<string>();
+/** The note titles [[wikilinks]] in `md` point at, in order (not counting code or `[[#Heading]]`). */
+export function parseWikilinkTitles(md: string): string[] {
+  const titles: string[] = [];
   for (const m of protectCode(md, []).matchAll(WIKILINK)) {
     const title = wikilinkTitle(m[1]);
-    if (!title) continue; // [[#Heading]] points inside the same note
+    if (title) titles.push(title); // [[#Heading]] points inside the same note
+  }
+  return titles;
+}
+
+/** Resolve link titles (from parseWikilinkTitles) to ordered, unique note ids. */
+export function resolveLinkTitles(titles: string[], resolve: Resolver): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const title of titles) {
     const id = resolve(title);
     if (id && !seen.has(id)) {
       seen.add(id);
@@ -66,6 +74,11 @@ export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
     }
   }
   return ids;
+}
+
+/** Ordered, unique target note ids referenced by [[wikilinks]] in `md` (not counting code). */
+export function parseWikilinkIds(md: string, resolve: Resolver): string[] {
+  return resolveLinkTitles(parseWikilinkTitles(md), resolve);
 }
 
 /**

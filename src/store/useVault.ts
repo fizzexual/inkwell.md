@@ -7,8 +7,11 @@ import {
   buildLinkMap,
   buildBacklinks,
   buildCiteMap,
+  buildTagCounts,
   titleResolver,
   noteTitle,
+  noteFacts,
+  noteLinks,
   type TreeFolder,
   type Citation,
 } from "../data/derive";
@@ -172,7 +175,16 @@ interface Derived {
   notesById: Map<string, Note>;
   citeMap: Map<string, Citation>;
   resolve: Resolver;
+  /** tag → how many notes carry it */
+  tagCounts: Map<string, number>;
+  /**
+   * Changes whenever something a ```query can see changes: the note set, a title, folder, tag or
+   * frontmatter. Plain typing leaves it alone, so query results only re-run when they could differ.
+   */
+  metaRev: number;
 }
+
+let metaSeq = 0;
 
 function derive(notes: Note[]): Derived {
   const resolve = titleResolver(notes);
@@ -185,7 +197,63 @@ function derive(notes: Note[]): Derived {
     notesById: new Map(notes.map((n) => [n.id, n])),
     citeMap: buildCiteMap(notes),
     resolve,
+    tagCounts: buildTagCounts(notes),
+    metaRev: ++metaSeq,
   };
+}
+
+const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/**
+ * derive() after one note's text changed (a keystroke): only what that text can affect is rebuilt,
+ * and everything else keeps its identity so nothing subscribed to it re-renders. Same result as
+ * derive(notes) — the store tests check that.
+ */
+function deriveEdit(s: Derived, notes: Note[], prev: Note, next: Note): Derived {
+  const before = noteFacts(prev);
+  const after = noteFacts(next);
+  const notesById = new Map(s.notesById).set(next.id, next);
+  const exists = (id: string) => notesById.has(id);
+  let { tree, graph, linkMap, backlinkMap, citeMap, resolve, tagCounts, metaRev } = s;
+  const relinked = new Map<string, string[]>();
+  const relink = (n: Note) => {
+    const links = noteLinks(n, resolve, exists);
+    if (!sameList(links, linkMap.get(n.id) ?? [])) relinked.set(n.id, links);
+  };
+
+  // a new title or alias re-points only the links that name the old or new title/alias
+  const retitled = prev.title !== next.title || !sameList(before.aliases, after.aliases);
+  if (retitled) {
+    resolve = titleResolver(notes);
+    const keys = new Set(
+      [prev.title, next.title, ...before.aliases, ...after.aliases].map((k) => k.trim().toLowerCase()),
+    );
+    for (const n of notes)
+      if (n !== next && noteFacts(n).linkTitles.some((t) => keys.has(t.trim().toLowerCase()))) relink(n);
+    tree = buildTree(notes, vault.name);
+  }
+  relink(next);
+  if (relinked.size) {
+    linkMap = new Map(linkMap);
+    for (const [id, links] of relinked) linkMap.set(id, links);
+    backlinkMap = buildBacklinks(linkMap);
+  }
+  if (relinked.size || retitled) graph = buildGraph(notes, linkMap);
+
+  const fmChanged = JSON.stringify(before.frontmatter) !== JSON.stringify(after.frontmatter);
+  if (fmChanged || retitled) citeMap = buildCiteMap(notes);
+  const tagsChanged = !sameList(before.tags, after.tags);
+  if (tagsChanged) {
+    tagCounts = new Map(tagCounts);
+    for (const t of before.tags) {
+      const c = (tagCounts.get(t) ?? 0) - 1;
+      if (c > 0) tagCounts.set(t, c);
+      else tagCounts.delete(t);
+    }
+    for (const t of after.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+  }
+  if (retitled || fmChanged || tagsChanged) metaRev = ++metaSeq;
+  return { tree, graph, linkMap, backlinkMap, notesById, citeMap, resolve, tagCounts, metaRev };
 }
 
 const seedContents = buildContents(vault);
@@ -822,11 +890,11 @@ export const useVault = create<VaultState>((set, get) => ({
       const coalesce = undoMeta.kind === "edit" && undoMeta.id === id && now - undoMeta.time < 900;
       undoMeta = { kind: "edit", id, time: now };
       const undoStack = coalesce ? s.undoStack : [...s.undoStack, snap(s)].slice(-UNDO_LIMIT);
-      const heading = noteTitle(md);
-      const notes = s.notes.map((n) =>
-        n.id === id ? { ...n, content: md, title: heading || n.title } : n,
-      );
-      return { notes, ...derive(notes), undoStack, redoStack: [] };
+      const prev = s.notesById.get(id);
+      if (!prev) return {};
+      const next = { ...prev, content: md, title: noteTitle(md) || prev.title };
+      const notes = s.notes.map((n) => (n.id === id ? next : n));
+      return { notes, ...deriveEdit(s, notes, prev, next), undoStack, redoStack: [] };
     }),
   undoStack: [],
   redoStack: [],
