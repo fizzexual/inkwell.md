@@ -4,6 +4,7 @@ import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { startDiskSync, autoloadVault, startVaultWatch } from "./vault/sync";
 import { startAutoBackup } from "./vault/backup";
+import { startGitHistory } from "./vault/gitHistory";
 import { isTauri } from "./vault/disk";
 import { useVault } from "./store/useVault";
 import { startHistory } from "./useHistory";
@@ -38,6 +39,7 @@ installLinkGuard(document, (url) => {
 startDiskSync();
 startVaultWatch();
 startAutoBackup(); // a zip of the vault when it opens and the last one is a day old
+startGitHistory(); // opt-in per vault: commits to a git repo in the vault folder, 2 min after the last change
 autoloadVault();
 // per-note version history (auto-snapshots as you edit)
 startHistory();

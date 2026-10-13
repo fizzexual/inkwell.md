@@ -306,6 +306,29 @@ describe("closing (bug 5)", () => {
     await useVault.getState().closeVault();
     expect(disk("a.md")).toBe("# A\n\nbefore close");
   });
+
+  it("close hooks (git history's last commit) run after the edits reach disk, on window and vault close", async () => {
+    const { useVault, sync } = await openVault({ "a.md": "# A\n" });
+    const seen: string[] = [];
+    sync.onAfterCloseFlush(async () => void seen.push(disk("a.md") ?? "missing"));
+    useVault.getState().updateContent("a.md", "# A\n\none");
+    await h.closeHandler!();
+    expect(seen).toEqual(["# A\n\none"]);
+    useVault.getState().updateContent("a.md", "# A\n\ntwo");
+    await useVault.getState().closeVault();
+    expect(seen).toEqual(["# A\n\none", "# A\n\ntwo"]);
+  });
+
+  it("a failing or stuck close hook never holds the close", async () => {
+    const { sync } = await openVault({ "a.md": "# A\n" });
+    sync.onAfterCloseFlush(async () => {
+      throw new Error("git broke");
+    });
+    sync.onAfterCloseFlush(() => new Promise<void>(() => {})); // never settles
+    const closing = sync.flushOnClose();
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(closing).resolves.toBeUndefined();
+  });
 });
 
 /** Quit and start again: fresh modules (same localStorage + folder), the vault re-read from disk. */
