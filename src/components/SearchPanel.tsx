@@ -2,26 +2,18 @@ import { useMemo } from "react";
 import { useVault } from "../store/useVault";
 import { parseTags } from "../markdown";
 import { Search } from "../icons";
+import { makeSnippet, type Snippet } from "../search/snippet";
+import { searchPdfText } from "../search/pdfText";
+import { usePdfIndex } from "../search/pdfIndex";
+import PdfSearchStatus, { useSyncPdfIndex } from "./PdfSearchStatus";
 import "./SearchPanel.css";
 
 interface Hit {
   id: string;
   title: string;
   folder: string;
-  snippet: { before: string; match: string; after: string } | null;
+  snippet: Snippet | null;
   inTitle: boolean;
-}
-
-function makeSnippet(content: string, q: string) {
-  const i = content.toLowerCase().indexOf(q.toLowerCase());
-  if (i < 0) return null;
-  const start = Math.max(0, i - 32);
-  const end = Math.min(content.length, i + q.length + 48);
-  return {
-    before: (start > 0 ? "…" : "") + content.slice(start, i),
-    match: content.slice(i, i + q.length),
-    after: content.slice(i + q.length, end) + (end < content.length ? "…" : ""),
-  };
 }
 
 export default function SearchPanel() {
@@ -33,6 +25,9 @@ export default function SearchPanel() {
   const savedSearches = useVault((s) => s.savedSearches);
   const addSavedSearch = useVault((s) => s.addSavedSearch);
   const removeSavedSearch = useVault((s) => s.removeSavedSearch);
+  const openPdfLink = useVault((s) => s.openPdfLink);
+  const pdfDocs = usePdfIndex((s) => s.docs);
+  useSyncPdfIndex();
 
   const hits = useMemo<Hit[]>(() => {
     const q = query.trim();
@@ -56,6 +51,10 @@ export default function SearchPanel() {
       .sort((a, b) => Number(b.inTitle) - Number(a.inTitle));
   }, [notes, query]);
 
+  // the same words inside the vault's PDFs: one hit per page
+  const pdfHits = useMemo(() => searchPdfText(pdfDocs, query), [pdfDocs, query]);
+  const total = hits.length + pdfHits.length;
+
   const tags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const note of notes) for (const t of parseTags(note.content ?? "")) counts.set(t, (counts.get(t) ?? 0) + 1);
@@ -76,7 +75,7 @@ export default function SearchPanel() {
       {query && (
         <div className="search-meta">
           <span className="search-count">
-            {hits.length} {hits.length === 1 ? "result" : "results"}
+            {total} {total === 1 ? "result" : "results"}
           </span>
           <button
             className="search-save"
@@ -90,6 +89,8 @@ export default function SearchPanel() {
           </button>
         </div>
       )}
+
+      {query && <PdfSearchStatus />}
 
       {!query && savedSearches.length > 0 && (
         <div className="saved-searches">
@@ -151,7 +152,25 @@ export default function SearchPanel() {
             {h.folder && <div className="hit-folder">{h.folder}</div>}
           </button>
         ))}
-        {query && hits.length === 0 && <div className="search-empty">No matches.</div>}
+        {pdfHits.map((h, i) => (
+          <button
+            key={`${h.rel}#${h.page}`}
+            className="search-hit"
+            style={{ animationDelay: `${Math.min((hits.length + i) * 22, 320)}ms` }}
+            onClick={() => void openPdfLink(h.rel, h.page)}
+          >
+            <div className="hit-title">
+              {h.name} · p. {h.page}
+            </div>
+            <div className="hit-snippet">
+              {h.snippet.before}
+              <mark>{h.snippet.match}</mark>
+              {h.snippet.after}
+            </div>
+            <div className="hit-folder">PDF</div>
+          </button>
+        ))}
+        {query && total === 0 && <div className="search-empty">No matches.</div>}
       </div>
     </div>
   );
