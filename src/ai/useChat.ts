@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { useVault } from "../store/useVault";
-import { runVaultAgent, type ChatMsg, type AgentStep, type VaultAccess, type Proposal } from "./agent";
+import { runVaultAgent, toPdfHits, type ChatMsg, type AgentStep, type VaultAccess, type Proposal } from "./agent";
 import { PROVIDERS, getProvider, fetchModels } from "./providers";
 import { semanticSearch, isIndexWarm } from "../search/semantic";
 import { isTauri } from "../vault/disk";
@@ -231,7 +231,7 @@ export const useChat = create<ChatState>((set, get) => ({
     // to the question by MEANING and hand them to the agent (no model download / added latency here)
     if (isIndexWarm()) {
       try {
-        const hits = await semanticSearch(t, st.notes, 6);
+        const hits = await semanticSearch(t, st.notes, 8); // notes and PDF passages compete for these
         vault.semanticHits = hits
           .map((h) => {
             const n = st.notesById.get(h.id);
@@ -240,6 +240,8 @@ export const useChat = create<ChatState>((set, get) => ({
               : null;
           })
           .filter((x): x is NonNullable<typeof x> => !!x);
+        // passages of the vault's PDFs, cited back as [p. N](#/pdf/…) links
+        vault.pdfHits = toPdfHits(hits);
       } catch {
         /* semantic retrieval failed — the agent still has keyword search + the map */
       }

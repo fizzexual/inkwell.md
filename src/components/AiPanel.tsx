@@ -4,6 +4,7 @@ import { renderAnswer } from "../ai/renderAnswer";
 import { foldContext, lineDiff } from "../ai/lineDiff";
 import { useVault } from "../store/useVault";
 import { getProvider } from "../ai/providers";
+import { onPdfLinkClick } from "../pdfLinks";
 import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette, Clock, Pencil } from "../icons";
 import "./AiPanel.css";
 
@@ -73,6 +74,8 @@ export default function AiPanel() {
   };
 
   const onLinkClick = (e: React.MouseEvent) => {
+    // a cited PDF page, `[p. 3](#/pdf/…?page=3)` → that PDF at that page
+    if (onPdfLinkClick(e, (rel, page) => void useVault.getState().openPdfLink(rel, page))) return;
     const a = (e.target as HTMLElement).closest(".ai-link") as HTMLElement | null;
     if (!a) return;
     e.preventDefault();
