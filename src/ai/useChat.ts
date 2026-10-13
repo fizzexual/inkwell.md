@@ -5,6 +5,8 @@ import { PROVIDERS, getProvider, fetchModels } from "./providers";
 import { semanticSearch, isIndexWarm } from "../search/semantic";
 import { isTauri } from "../vault/disk";
 import { secretsGet, secretSet, secretDelete, migrateKeys } from "./keyStore";
+import { offlineUnavailableReason, useOfflineModel } from "./offline/model";
+import { sendOffline } from "./offline/send";
 
 const stripMd = (md: string) =>
   md
@@ -57,6 +59,8 @@ interface ChatState {
   messages: ChatMsg[];
   steps: AgentStep[];
   status: "idle" | "running";
+  /** the answer so far while the offline model streams it ("" otherwise) */
+  streaming: string;
   error: string | null;
   controller: AbortController | null;
   keyManagerOpen: boolean;
@@ -110,6 +114,7 @@ export const useChat = create<ChatState>((set, get) => ({
   messages: saved.messages ?? [],
   steps: [],
   status: "idle",
+  streaming: "",
   error: null,
   controller: null,
   keyManagerOpen: false,
@@ -122,6 +127,7 @@ export const useChat = create<ChatState>((set, get) => ({
 
   loadModels: async (providerId, force) => {
     const provider = getProvider(providerId);
+    if (provider.kind === "offline") return; // one fixed on-device model, nothing to list
     const key = (get().keys[providerId] || "").trim();
     if (!key && !provider.keyless) return; // need a key (or local) to list models
     if (!force && get().fetchedModels[providerId]) return; // cached
@@ -206,6 +212,38 @@ export const useChat = create<ChatState>((set, get) => ({
       return;
     }
 
+    // the on-device model: single-shot RAG over local search, streamed, no tools and no network
+    if (provider.kind === "offline") {
+      if (useOfflineModel.getState().status === "unknown") await useOfflineModel.getState().refresh();
+      const why = offlineUnavailableReason(useOfflineModel.getState());
+      if (why) {
+        set({ error: why, keyManagerOpen: true });
+        return;
+      }
+      const history = get().messages;
+      const controller = new AbortController();
+      set({ messages: [...history, { role: "user", content: t }], status: "running", steps: [], error: null, controller, streaming: "" });
+      const startedAt = performance.now();
+      // after Stop (or a newer question) this run no longer owns the chat
+      const mine = () => get().controller === controller;
+      try {
+        const out = await sendOffline(t, history, (tok) => mine() && set((s) => ({ streaming: s.streaming + tok })), controller.signal);
+        const content = out.aborted ? (out.text ? `${out.text} …(stopped)` : "") : out.text;
+        set((p) => ({
+          messages:
+            content && (mine() || !p.controller)
+              ? [...p.messages, { role: "assistant", content, meta: { ms: Math.round(performance.now() - startedAt), tokens: out.tokens } }]
+              : p.messages,
+          sessionTokens: p.sessionTokens + out.tokens,
+          ...(mine() ? { status: "idle", controller: null, streaming: "" } : {}),
+        }));
+        persist(get());
+      } catch (e) {
+        if (mine()) set({ error: e instanceof Error ? e.message : String(e), status: "idle", controller: null, streaming: "" });
+      }
+      return;
+    }
+
     const messages: ChatMsg[] = [...get().messages, { role: "user", content: t }];
     const controller = new AbortController();
     set({ messages, status: "running", steps: [], error: null, controller });
@@ -283,12 +321,12 @@ export const useChat = create<ChatState>((set, get) => ({
   stop: () => {
     get().controller?.abort();
     // drop any write proposals queued by the run the user just cancelled
-    set({ status: "idle", controller: null, proposals: [] });
+    set({ status: "idle", controller: null, proposals: [], streaming: "" });
   },
 
   clear: () => {
     get().controller?.abort();
-    set({ messages: [], steps: [], error: null, status: "idle", controller: null, sessionTokens: 0, proposals: [] });
+    set({ messages: [], steps: [], error: null, status: "idle", controller: null, sessionTokens: 0, proposals: [], streaming: "" });
     persist(get());
   },
 }));
