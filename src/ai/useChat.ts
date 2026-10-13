@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { useVault } from "../store/useVault";
-import { runVaultAgent, type ChatMsg, type AgentStep, type VaultAccess, type Proposal } from "./agent";
-import { PROVIDERS, getProvider, fetchModels } from "./providers";
+import { runVaultAgent, contextNotes, vaultMap, type ChatMsg, type AgentStep, type VaultAccess, type Proposal, type AgentResult } from "./agent";
+import { PROVIDERS, getProvider, fetchModels, type CliFound } from "./providers";
+import { buildCliPrompt, detectClis, runCli } from "./cli";
 import { semanticSearch, isIndexWarm } from "../search/semantic";
 import { isTauri } from "../vault/disk";
 import { secretsGet, secretSet, secretDelete, migrateKeys } from "./keyStore";
@@ -57,6 +58,10 @@ interface ChatState {
   messages: ChatMsg[];
   steps: AgentStep[];
   status: "idle" | "running";
+  /** the answer so far while a CLI provider streams it ("" otherwise). */
+  partial: string;
+  /** Claude Code / Codex found on PATH by the desktop app (null in the browser / until checked). */
+  cli: CliFound;
   error: string | null;
   controller: AbortController | null;
   keyManagerOpen: boolean;
@@ -110,6 +115,8 @@ export const useChat = create<ChatState>((set, get) => ({
   messages: saved.messages ?? [],
   steps: [],
   status: "idle",
+  partial: "",
+  cli: null,
   error: null,
   controller: null,
   keyManagerOpen: false,
@@ -122,6 +129,7 @@ export const useChat = create<ChatState>((set, get) => ({
 
   loadModels: async (providerId, force) => {
     const provider = getProvider(providerId);
+    if (provider.kind === "cli") return; // the CLI picks its own model
     const key = (get().keys[providerId] || "").trim();
     if (!key && !provider.keyless) return; // need a key (or local) to list models
     if (!force && get().fetchedModels[providerId]) return; // cached
@@ -201,6 +209,15 @@ export const useChat = create<ChatState>((set, get) => ({
     if (!t || get().status === "running") return;
     const provider = getProvider(get().provider);
     const apiKey = (get().keys[provider.id] || "").trim();
+    if (provider.kind === "cli" && !(provider.cli && get().cli?.[provider.cli])) {
+      const bin = provider.cli ?? "";
+      set({
+        error: desktop
+          ? `${provider.label} isn't installed — no \`${bin}\` found on PATH. Install it, log in once in a terminal, then restart Inkwell.`
+          : `${provider.label} only works in the Inkwell desktop app.`,
+      });
+      return;
+    }
     if (!apiKey && !provider.keyless) {
       set({ error: `Add a ${provider.label} API key to start.`, keyManagerOpen: true });
       return;
@@ -211,7 +228,8 @@ export const useChat = create<ChatState>((set, get) => ({
     set({ messages, status: "running", steps: [], error: null, controller });
 
     const st = useVault.getState();
-    const canWrite = get().canWrite;
+    // CLI providers answer in one shot from the notes Inkwell picks — no tools, so no proposals
+    const canWrite = get().canWrite && provider.kind !== "cli";
     const vault: VaultAccess = {
       notes: st.notes,
       resolve: (title) => st.resolve(title),
@@ -246,17 +264,30 @@ export const useChat = create<ChatState>((set, get) => ({
     }
 
     const startedAt = performance.now();
+    const onStep = (s: AgentStep) => set((p) => ({ steps: [...p.steps, s] }));
     try {
-      const result = await runVaultAgent({
-        provider,
-        apiKey,
-        canWrite,
-        model: get().model,
-        messages,
-        vault,
-        onStep: (s) => set((p) => ({ steps: [...p.steps, s] })),
-        signal: controller.signal,
-      });
+      let result: AgentResult;
+      if (provider.kind === "cli") {
+        const notes = contextNotes(vault, t, 5);
+        if (notes.length) onStep({ kind: "read", detail: notes.map((n) => n.title).join(", ") });
+        result = await runCli({
+          provider,
+          prompt: buildCliPrompt(messages, notes, vaultMap(vault, 150)),
+          onText: (chunk) => set((p) => ({ partial: p.partial + chunk })),
+          signal: controller.signal,
+        });
+      } else {
+        result = await runVaultAgent({
+          provider,
+          apiKey,
+          canWrite,
+          model: get().model,
+          messages,
+          vault,
+          onStep,
+          signal: controller.signal,
+        });
+      }
       set((p) => ({
         messages: [
           ...p.messages,
@@ -268,27 +299,28 @@ export const useChat = create<ChatState>((set, get) => ({
         ],
         sessionTokens: p.sessionTokens + result.tokens,
         status: "idle",
+        partial: "",
         controller: null,
       }));
       persist(get());
     } catch (e) {
       if (controller.signal.aborted) {
-        set({ status: "idle", controller: null });
+        set({ status: "idle", controller: null, partial: "" });
         return;
       }
-      set({ error: e instanceof Error ? e.message : String(e), status: "idle", controller: null });
+      set({ error: e instanceof Error ? e.message : String(e), status: "idle", controller: null, partial: "" });
     }
   },
 
   stop: () => {
     get().controller?.abort();
     // drop any write proposals queued by the run the user just cancelled
-    set({ status: "idle", controller: null, proposals: [] });
+    set({ status: "idle", controller: null, proposals: [], partial: "" });
   },
 
   clear: () => {
     get().controller?.abort();
-    set({ messages: [], steps: [], error: null, status: "idle", controller: null, sessionTokens: 0, proposals: [] });
+    set({ messages: [], steps: [], error: null, status: "idle", controller: null, sessionTokens: 0, proposals: [], partial: "" });
     persist(get());
   },
 }));
@@ -315,3 +347,10 @@ async function loadDesktopKeys(): Promise<void> {
 /** Resolves once the desktop app has loaded its keys from the keychain (at once in the browser). */
 export const keysReady: Promise<void> = desktop ? loadDesktopKeys() : Promise.resolve();
 keyWrites = keysReady;
+
+/** Resolves once the desktop app has looked for Claude Code / Codex on PATH (at once in the browser). */
+export const clisReady: Promise<void> = desktop
+  ? detectClis()
+      .then((cli) => useChat.setState({ cli: { claude: cli.claude ?? null, codex: cli.codex ?? null } }))
+      .catch(() => useChat.setState({ cli: { claude: null, codex: null } }))
+  : Promise.resolve();
