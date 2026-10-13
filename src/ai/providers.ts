@@ -1,9 +1,11 @@
+import chatModel from "../ml/chat-model.json";
+
 /** A model endpoint the assistant can talk to. */
 export interface Provider {
   id: string;
   label: string;
-  /** request/response dialect: Anthropic Messages, OpenAI Chat Completions, or a CLI the desktop app runs. */
-  kind: "anthropic" | "openai" | "cli";
+  /** request/response dialect: Anthropic Messages, OpenAI Chat Completions, a CLI the desktop app runs, or "offline" (runs in the app). */
+  kind: "anthropic" | "openai" | "cli" | "offline";
   /** kind "cli": which installed CLI runs it (desktop app only, see src-tauri/src/cli_ai.rs). */
   cli?: "claude" | "codex";
   baseUrl: string;
@@ -148,6 +150,19 @@ export const PROVIDERS: Provider[] = [
       { id: "deepseek-r1", label: "DeepSeek R1" },
     ],
     note: "Runs models on YOUR machine — free, private, offline. Needs `ollama serve` (set OLLAMA_ORIGINS=* for browser access).",
+  },
+  {
+    // the downloaded on-device model (src/ai/offline/): no key, no network, no vault tools
+    id: "inkwell-offline",
+    label: "Inkwell offline (on this PC)",
+    kind: "offline",
+    baseUrl: "",
+    free: true,
+    keyless: true,
+    keyUrl: "",
+    keyHint: "",
+    models: [{ id: chatModel.id, label: `${chatModel.label} · on this PC` }],
+    note: "Runs a small model on your own computer — fully offline after a one-time download. Answers from the notes local search finds; it cannot edit notes.",
   },
   {
     id: "anthropic",

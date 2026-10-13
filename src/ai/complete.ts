@@ -1,6 +1,9 @@
 import { getProvider, type Provider } from "./providers";
 import { useChat } from "./useChat";
 import { cliComplete } from "./cli";
+import { offlineChat } from "./offline/host";
+import { offlineUnavailableReason, useOfflineModel } from "./offline/model";
+import { stripThinking } from "./offline/chat";
 
 /** The inline editor actions. Each maps to an instruction + whether it replaces the selection or appends after it. */
 export type InlineAction = "rephrase" | "grammar" | "shorten" | "expand" | "continue" | "custom";
@@ -146,6 +149,19 @@ export async function completeText(instruction: string, selection: string, signa
   if (!apiKey && !provider.keyless) throw new Error(`Add a ${provider.label} API key in the assistant first.`);
 
   const user = `Instruction: ${instruction}\n\nSelected text:\n"""\n${selection}\n"""`;
+  if (provider.kind === "offline") {
+    const why = offlineUnavailableReason(useOfflineModel.getState());
+    if (why) throw new Error(why);
+    const messages = [
+      { role: "system" as const, content: SYSTEM },
+      { role: "user" as const, content: user },
+    ];
+    const out = await offlineChat.generate(messages, 1024, () => {}, signal);
+    if (out.aborted) throw new DOMException("Stopped", "AbortError");
+    const text = clean(stripThinking(out.text));
+    if (!text) throw new Error("The model returned nothing.");
+    return text;
+  }
   const raw =
     provider.kind === "cli"
       ? await cliComplete(provider, instruction, selection, signal)

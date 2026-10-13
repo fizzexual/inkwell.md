@@ -6,6 +6,8 @@ import { useVault } from "../store/useVault";
 import { getProvider } from "../ai/providers";
 import { onPdfLinkClick } from "../pdfLinks";
 import { Sparkles, Send, Stop, Trash, Search, Graph, Doc, ChevronRight, Palette, Clock, Pencil } from "../icons";
+import { stripThinking } from "../ai/offline/chat";
+import { offlineUnavailableReason, useOfflineModel } from "../ai/offline/model";
 import "./AiPanel.css";
 
 const EXAMPLES = [
@@ -31,6 +33,7 @@ export default function AiPanel() {
   const steps = useChat((s) => s.steps);
   const status = useChat((s) => s.status);
   const partial = useChat((s) => s.partial);
+  const streaming = useChat((s) => s.streaming);
   const sessionTokens = useChat((s) => s.sessionTokens);
   const error = useChat((s) => s.error);
   const canWrite = useChat((s) => s.canWrite);
@@ -48,9 +51,17 @@ export default function AiPanel() {
   const loadModels = useChat((s) => s.loadModels);
 
   const provider = getProvider(providerId);
-  const hasKey = !!provider.keyless || !!(keys[providerId] || "").trim();
+  const offline = provider.kind === "offline";
+  const offlineStatus = useOfflineModel((s) => s.status);
+  const refreshOffline = useOfflineModel((s) => s.refresh);
+  const offlineWhy = offline ? offlineUnavailableReason({ status: offlineStatus }) : null;
+  const hasKey = (!!provider.keyless && !offlineWhy) || !!(keys[providerId] || "").trim();
   // Claude Code / Codex answer from the notes Inkwell gives them, with no tools: nothing to propose
   const isCli = provider.kind === "cli";
+
+  useEffect(() => {
+    if (offline) void refreshOffline();
+  }, [offline, refreshOffline]);
 
   // show the provider's LIVE model list once loaded; fall back to the curated one
   const modelOptions = useMemo(() => {
@@ -68,7 +79,7 @@ export default function AiPanel() {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, steps, status, partial]);
+  }, [messages, steps, status, partial, streaming]);
 
   const submit = () => {
     if (!draft.trim()) return;
@@ -106,20 +117,22 @@ export default function AiPanel() {
               </option>
             ))}
           </select>
-          <button
-            className={"ai-icon-btn" + (canWrite && !isCli ? " on" : "")}
-            title={
-              isCli
-                ? `Edit proposals aren't available with ${provider.label} — it only reads the notes Inkwell gives it`
-                : canWrite
-                  ? "Allow edits: ON (agent can propose changes)"
-                  : "Allow edits: OFF (read-only)"
-            }
-            disabled={isCli}
-            onClick={() => setCanWrite(!canWrite)}
-          >
-            <Pencil size={14} />
-          </button>
+          {!offline && (
+            <button
+              className={"ai-icon-btn" + (canWrite && !isCli ? " on" : "")}
+              title={
+                isCli
+                  ? `Edit proposals aren't available with ${provider.label} — it only reads the notes Inkwell gives it`
+                  : canWrite
+                    ? "Allow edits: ON (agent can propose changes)"
+                    : "Allow edits: OFF (read-only)"
+              }
+              disabled={isCli}
+              onClick={() => setCanWrite(!canWrite)}
+            >
+              <Pencil size={14} />
+            </button>
+          )}
           <button className="ai-icon-btn" title="API keys & providers" onClick={() => setKeyManagerOpen(true)}>
             <Palette size={14} />
           </button>
@@ -138,12 +151,13 @@ export default function AiPanel() {
             <Sparkles size={22} />
             <p className="ai-empty-lead">Ask anything about your vault.</p>
             <p className="ai-empty-sub">
-              I navigate your notes through the knowledge graph — reading only the few that matter, not the
-              whole vault.
+              {offline
+                ? "Runs on this PC, fully offline: local search picks the relevant notes and the model answers from them. It can't edit notes."
+                : "I navigate your notes through the knowledge graph — reading only the few that matter, not the whole vault."}
             </p>
             {!hasKey ? (
               <button className="ai-setup" onClick={() => setKeyManagerOpen(true)}>
-                Set up an API key — free options available
+                {offline ? offlineWhy : "Set up an API key — free options available"}
               </button>
             ) : (
               <div className="ai-examples">
@@ -212,13 +226,16 @@ export default function AiPanel() {
           </div>
         ))}
 
-        {status === "running" && partial && (
+        {status === "running" && (partial || streaming) && (
           <div className="ai-bot-wrap">
-            <div className="ai-msg ai-bot" dangerouslySetInnerHTML={{ __html: renderAnswer(partial) }} />
+            <div
+              className="ai-msg ai-bot"
+              dangerouslySetInnerHTML={{ __html: renderAnswer(partial || stripThinking(streaming)) }}
+            />
           </div>
         )}
 
-        {status === "running" && (
+        {status === "running" && !partial && !streaming && (
           <div className="ai-steps">
             {steps.map((s, i) => {
               const Icon = STEP_ICON[s.kind];
@@ -256,7 +273,7 @@ export default function AiPanel() {
         <textarea
           value={draft}
           rows={1}
-          placeholder={hasKey ? `Ask your vault… · ${provider.label}` : "Add a key to start…"}
+          placeholder={hasKey ? `Ask your vault… · ${provider.label}` : offline ? "Download the offline model to start…" : "Add a key to start…"}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {

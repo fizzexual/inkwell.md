@@ -31,7 +31,7 @@
         "img-src": "'self' asset: http://asset.localhost data: blob: https: http:",
         "font-src": "'self' data:",
         "media-src": "'self' blob: data:",
-        "connect-src": "'self' ipc: http://ipc.localhost blob: data: https://api.groq.com https://api.cerebras.ai https://generativelanguage.googleapis.com https://api.mistral.ai https://openrouter.ai http://localhost:11434 http://127.0.0.1:11434 https://api.anthropic.com https://api.openai.com https://api.deepseek.com https://api.x.ai https://api.together.xyz https://api.perplexity.ai https://api.crossref.org https://export.arxiv.org",
+        "connect-src": "'self' ipc: http://ipc.localhost http://inkmodel.localhost blob: data: https://api.groq.com https://api.cerebras.ai https://generativelanguage.googleapis.com https://api.mistral.ai https://openrouter.ai http://localhost:11434 http://127.0.0.1:11434 https://api.anthropic.com https://api.openai.com https://api.deepseek.com https://api.x.ai https://api.together.xyz https://api.perplexity.ai https://api.crossref.org https://export.arxiv.org",
         "object-src": "'none'",
         "frame-src": "'none'",
         "base-uri": "'self'",

@@ -23,6 +23,14 @@ describe("Content-Security-Policy", () => {
     }
   });
 
+  it("the offline chat model is read only through the app's own inkmodel scheme (Rust downloads it)", () => {
+    expect(sources("connect-src")).toContain("http://inkmodel.localhost");
+    // no general file access: the asset protocol stays off and no wildcard origin is allowed
+    const security = conf.app.security as Record<string, unknown>;
+    expect(security.assetProtocol).toBeUndefined();
+    expect(sources("connect-src").some((s) => s.includes("*"))).toBe(false);
+  });
+
   it("sends clipped URLs to no third party (the desktop app fetches pages in Rust)", () => {
     expect(csp["connect-src"]).not.toContain("r.jina.ai");
   });

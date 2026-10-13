@@ -50,7 +50,34 @@ Some features do use the network. Plainly:
   *Install & restart*.
 - **The AI assistant** talks to a cloud provider (Groq, OpenAI, Anthropic, …)
   only if you add an API key for it — and then the notes you ask about are sent
-  to that provider. With Ollama it stays on your machine.
+  to that provider. With Ollama or **Inkwell offline** it stays on your machine.
+- **Offline chat model download**: only when you click *Download offline chat
+  model* (AI providers → Inkwell offline), the desktop app downloads the pinned
+  model files (~580 MB, one time) from Hugging Face. After that, chatting with
+  it makes no network requests at all; *Delete model* removes the files.
+
+### Offline chat
+
+*Inkwell offline (on this PC)* is an AI provider that needs no key and no
+internet. It runs [Qwen3-0.6B](https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX)
+(4-bit, `q4f16`) on your own computer.
+
+- **Size**: ~580 MB, downloaded once on demand (not part of the installer). The
+  files are pinned to a fixed revision and each one is checked against its size
+  and SHA-256 before it is used; a download can be cancelled and resumed.
+- **Speed**: on a GPU (WebGPU, picked automatically) answers stream quickly. With
+  no usable GPU it falls back to the CPU: expect a few words per second and a
+  pause of several seconds before the first one. Measured on an i9-10900F CPU in
+  Node: ~5–6 tokens/s, first token after ~1–4 s.
+- **How it answers**: Inkwell's local semantic search picks the most relevant
+  notes for your question and puts them in one prompt; the model answers from
+  those and every answer ends with `[[links]]` to them. A small model is less
+  reliable than a cloud one — check important answers against the notes.
+- **What it can't do**: it has no vault tools — it can't browse the link graph or
+  create or edit notes. For that, use a cloud provider.
+- **Where the files live**: `%APPDATA%\com.fizzexual.inkwell\models\`. The app
+  reads them through its own `inkmodel` scheme, which serves only those pinned
+  files.
 
 ## Highlights
 
