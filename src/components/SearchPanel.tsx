@@ -161,7 +161,7 @@ export default function SearchPanel() {
             Show {more} more
           </button>
         )}
-                {pdfHits.map((h, i) => (
+        {pdfHits.map((h, i) => (
           <button
             key={`${h.rel}#${h.page}`}
             className="search-hit"
