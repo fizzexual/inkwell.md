@@ -92,3 +92,14 @@ describe("releaseNotes", () => {
     expect(releaseNotes([], "0.3.0", read)).toBe("Inkwell 0.3.0");
   });
 });
+
+describe("verifyNote (release page text for the unsigned installer)", () => {
+  it("explains the SmartScreen warning and gives the installer's SHA-256 with the command to check it", async () => {
+    const { verifyNote } = await import("./latest-json.mjs");
+    const md = verifyNote("Inkwell_0.3.0_x64-setup.exe", "ab".repeat(32));
+    expect(md).toContain("More info");
+    expect(md).toContain("Run anyway");
+    expect(md).toContain("ab".repeat(32));
+    expect(md).toContain("Get-FileHash .\\Inkwell_0.3.0_x64-setup.exe");
+  });
+});

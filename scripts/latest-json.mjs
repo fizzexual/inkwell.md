@@ -78,3 +78,20 @@ export function releaseNotes(args, version, readFile) {
   const at = args.indexOf("--notes");
   return at >= 0 && args[at + 1] ? args[at + 1] : `Inkwell ${version}`;
 }
+
+/** Release-page text for the installer: why Windows warns (it isn't Authenticode-signed — an open-source
+ *  choice) and how to check the download against its SHA-256. */
+export function verifyNote(installerName, sha256) {
+  return [
+    "## Windows may warn you",
+    "The installer isn't code-signed with a paid certificate, so Windows SmartScreen may show " +
+      "\"Windows protected your PC\". Click **More info → Run anyway**. Updates are still signed: the app " +
+      "only installs updates that carry Inkwell's own signature.",
+    "",
+    "To check the download is genuine, compare its SHA-256 in PowerShell:",
+    "```powershell",
+    `Get-FileHash .\\${installerName}`,
+    "```",
+    `Expected: \`${sha256}\``,
+  ].join("\n");
+}

@@ -151,6 +151,18 @@ hub at runtime (browser-cached). The ONNX runtime `.wasm` comes from
 [Releases](https://github.com/fizzexual/inkwell.md/releases) and run it. It
 installs for your user only (no admin prompt) and adds a Start-menu shortcut.
 
+**Windows may warn you.** Inkwell is open source and its installer isn't code-signed
+with a paid certificate, so SmartScreen can show "Windows protected your PC". Click
+**More info → Run anyway**. To check the download is genuine, compare its SHA-256
+with the one on the release page:
+
+```powershell
+Get-FileHash .\Inkwell_<version>_x64-setup.exe
+```
+
+Updates don't depend on this: the app only installs updates that carry Inkwell's
+own update signature.
+
 **Updates.** The installed app checks for a newer release about 10 seconds after
 launch (silently — you only hear about it if there is one) and whenever you pick
 **Appearance → Check for updates**. When one exists, a banner offers

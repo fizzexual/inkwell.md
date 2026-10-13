@@ -10,7 +10,8 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync,
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLatestJson, cargoVersion, checkVersions, ghReleaseArgs, ghReleaseCommand, pickInstaller, releaseNotes } from "./latest-json.mjs";
+import { createHash } from "node:crypto";
+import { buildLatestJson, cargoVersion, checkVersions, ghReleaseArgs, ghReleaseCommand, pickInstaller, releaseNotes, verifyNote } from "./latest-json.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -73,7 +74,9 @@ const latest = buildLatestJson({
   installerName: picked.installer,
 });
 writeFileSync(join(out, "latest.json"), JSON.stringify(latest, null, 2) + "\n");
-writeFileSync(join(out, "notes.md"), notes + "\n");
+// the release page also says why Windows may warn (unsigned installer) and gives the SHA-256 to check
+const sha256 = createHash("sha256").update(readFileSync(join(out, picked.installer))).digest("hex");
+writeFileSync(join(out, "notes.md"), `${notes}\n\n${verifyNote(picked.installer, sha256)}\n`);
 
 console.log("\nrelease: ready in release/");
 for (const f of readdirSync(out)) console.log(`  ${f.padEnd(40)} ${statSync(join(out, f)).size.toLocaleString()} bytes`);
