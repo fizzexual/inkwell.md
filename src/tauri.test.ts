@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({ order: [] as string[], release: () => {} }));
 
 vi.mock("./vault/sync", () => ({
-  flushDiskSync: () =>
+  flushOnClose: () =>
     new Promise<void>((r) => {
       h.order.push("flush started");
       h.release = () => {
@@ -17,7 +17,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 describe("windowControl('close')", () => {
-  it("waits for pending note edits to reach disk before closing", async () => {
+  it("waits for pending note edits (and the close hooks) to finish before closing", async () => {
     const { windowControl } = await import("./tauri");
     const closing = windowControl("close");
     await new Promise((r) => setTimeout(r, 10));

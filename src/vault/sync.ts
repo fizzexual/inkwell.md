@@ -116,6 +116,25 @@ export async function flushDiskSync() {
   await serial(syncNow);
 }
 
+const closeHooks: (() => Promise<void>)[] = [];
+/** Run `fn` after the close flush (window or vault closing), e.g. git history's last commit. */
+export function onAfterCloseFlush(fn: () => Promise<void>) {
+  closeHooks.push(fn);
+}
+
+/** Closing: the last edits reach disk, then the close hooks run (a failing or stuck one never holds the close). */
+export async function flushOnClose() {
+  await flushDiskSync();
+  const giveUp = new Promise<void>((r) => setTimeout(r, 3000));
+  const hooks = closeHooks.map((fn) => fn().catch((e) => console.error("Inkwell: close hook failed", e)));
+  await Promise.race([Promise.all(hooks), giveUp]);
+}
+
+/** The file a note was last written to / read from in the open disk vault (null: not on disk yet). */
+export function diskRelOf(id: string): string | null {
+  return written.get(id)?.rel ?? null;
+}
+
 /** Subscribe once; writes to disk (debounced) whenever notes change while a disk vault is open. */
 export function startDiskSync() {
   if (!isTauri()) return;
@@ -135,14 +154,14 @@ export function startDiskSync() {
     }
     scheduleSync();
   });
-  onBeforeVaultClose(flushDiskSync);
+  onBeforeVaultClose(flushOnClose);
   // Alt+F4 / the OS close button: Tauri awaits this handler, then destroys the window
   import("@tauri-apps/api/window")
     .then(({ getCurrentWindow }) =>
       getCurrentWindow().onCloseRequested(async () => {
         // never let a stuck disk hold the window open
         const giveUp = new Promise<void>((r) => setTimeout(r, 3000));
-        await Promise.race([flushDiskSync().catch((e) => console.error("Inkwell: save on close failed", e)), giveUp]);
+        await Promise.race([flushOnClose().catch((e) => console.error("Inkwell: save on close failed", e)), giveUp]);
       }),
     )
     .catch((e) => console.error("Inkwell: close handler failed", e));
