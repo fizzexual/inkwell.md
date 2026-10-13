@@ -3,6 +3,8 @@
 // path (desktop with a vault folder) or just its file name (browser build / no vault).
 
 const PREFIX = "#/pdf/";
+/** CSS selector for a rendered in-app PDF link. */
+export const PDF_LINK = `a[href^="${PREFIX}"]`;
 
 /** Encode one path segment for a markdown link destination (parens too, so `(`/`)` can't end it). */
 const enc = (seg: string) => encodeURIComponent(seg).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -77,7 +79,7 @@ export function onPdfLinkClick(
   e: { target: EventTarget | null; preventDefault: () => void },
   open: (rel: string, page: number) => void,
 ): boolean {
-  const a = (e.target as Element | null)?.closest?.(`a[href^="${PREFIX}"]`);
+  const a = (e.target as Element | null)?.closest?.(PDF_LINK);
   if (!a) return false;
   e.preventDefault();
   const t = parsePdfHref(a.getAttribute("href") ?? "");

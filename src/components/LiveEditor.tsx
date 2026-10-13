@@ -3,6 +3,7 @@ import { useVault } from "../store/useVault";
 import { useMath } from "../math/useMath";
 import { renderMarkdown } from "../markdown";
 import { noteRenderCtx, renderMermaid } from "../renderCtx";
+import { onPdfLinkClick, PDF_LINK } from "../pdfLinks";
 import "./LiveEditor.css";
 
 interface Props {
@@ -79,6 +80,7 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
   const theme = useVault((s) => s.theme);
   const citeMap = useVault((s) => s.citeMap);
   const openArticle = useVault((s) => s.openArticle);
+  const openPdfLink = useVault((s) => s.openPdfLink);
   const mathResult = useMath((s) => s.result);
 
   // the block currently being edited, identified by its (stable) start offset + live text
@@ -172,6 +174,8 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
   };
 
   const onBlockClick = (e: React.MouseEvent, b: Blk) => {
+    // a page link `[p. 3](#/pdf/…)` is followed (by the click handler below), not edited
+    if ((e.target as Element).closest?.(PDF_LINK)) return;
     // in live-edit mode a click means "edit this block", not "follow the link"
     e.preventDefault();
     activate(b);
@@ -203,6 +207,8 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
 
   // keep other rendered blocks' links navigable-looking but inert; only the doc container handles it
   const onContainerClick = (e: React.MouseEvent) => {
+    // `[p. 12](#/pdf/Attachments/paper.pdf?page=12)` → that PDF at that page, as in reading view
+    if (onPdfLinkClick(e, (rel, page) => void openPdfLink(rel, page))) return;
     if (active) return;
     const a = (e.target as HTMLElement).closest("a.wikilink, a.embed-head, a.cite") as HTMLElement | null;
     if (a?.dataset.note) {
