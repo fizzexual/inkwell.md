@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
+    "bench": "vitest bench --run",
     "ci": "node scripts/ci.mjs",
     "hooks": "git config core.hooksPath .githooks",
     "release": "node scripts/release.mjs"

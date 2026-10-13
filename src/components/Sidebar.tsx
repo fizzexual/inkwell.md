@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import type { SidebarView } from "../store/useVault";
-import type { TreeFolder } from "../data/derive";
+import type { TreeFolder, TreeNote } from "../data/derive";
 import type { Note } from "../data/vault";
 import { TEMPLATES } from "../templates";
 import { NoteIcon } from "../noteIcons";
@@ -60,7 +60,7 @@ const VIEWS: { id: SidebarView; Icon: typeof BarChart; label: string }[] = [
   { id: "search", Icon: Search, label: "Search" },
 ];
 
-function NoteRow({ note }: { note: Note }) {
+function NoteRow({ note }: { note: TreeNote }) {
   const selectedId = useVault((s) => s.selectedId);
   const openArticle = useVault((s) => s.openArticle);
   const openMenu = useVault((s) => s.openMenu);

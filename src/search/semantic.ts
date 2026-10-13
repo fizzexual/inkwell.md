@@ -60,6 +60,18 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+// a note's text hash, once per note object (notes are never changed in place: an edit makes a new
+// object), so checking an unchanged 5,000-note vault for changes doesn't re-read every note
+const hashes = new WeakMap<Note, number>();
+function noteHash(n: Note): number {
+  let h = hashes.get(n);
+  if (h === undefined) {
+    h = hash(noteText(n));
+    hashes.set(n, h);
+  }
+  return h;
+}
+
 // Stored vectors are only valid for the exact model + text recipe that made them; bump
 // TEXT_VERSION when noteText() changes so every stored vector is thrown away.
 const TEXT_VERSION = 1;
@@ -130,14 +142,14 @@ async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void)
   for (const id of gone) index.delete(id);
   void store.remove(gone);
 
-  const todo: { id: string; text: string }[] = [
-    ...notes.map((n) => ({ id: n.id, text: noteText(n) })),
-    ...[...pdf].map(([id, p]) => ({ id, text: p.embedText })),
-  ].filter(({ id, text }) => index.get(id)?.hash !== hash(text));
+  const todo: { id: string; hash: number; text: () => string }[] = [
+    ...notes.map((n) => ({ id: n.id, hash: noteHash(n), text: () => noteText(n) })),
+    ...[...pdf].map(([id, p]) => ({ id, hash: hash(p.embedText), text: () => p.embedText })),
+  ].filter(({ id, hash: h }) => index.get(id)?.hash !== h);
 
   let done = 0;
-  for (const { id, text } of todo) {
-    const entry = { hash: hash(text), vec: await embed(text, onProgress) };
+  for (const { id, hash: h, text } of todo) {
+    const entry = { hash: h, vec: await embed(text(), onProgress) };
     index.set(id, entry);
     void store.put(id, entry);
     done++;

@@ -1,5 +1,43 @@
 import type { Note } from "./vault";
-import { parseWikilinkIds, parseFrontmatter, parseCitations, type Resolver } from "../markdown";
+import {
+  parseWikilinkTitles,
+  resolveLinkTitles,
+  parseFrontmatter,
+  parseCitations,
+  parseTags,
+  type FrontmatterData,
+  type Resolver,
+} from "../markdown";
+
+/** What the vault-wide derived data needs from one note's text. */
+export interface NoteFacts {
+  /** titles its [[wikilinks]] point at, in order (unresolved) */
+  linkTitles: string[];
+  tags: string[];
+  frontmatter: FrontmatterData;
+  aliases: string[];
+}
+
+// Parsed once per note object. Notes are never changed in place (an edit makes a new object and
+// keeps every other note's object), so a rebuild after a keystroke re-parses only the edited note.
+const factsCache = new WeakMap<Note, NoteFacts>();
+
+export function noteFacts(note: Note): NoteFacts {
+  let f = factsCache.get(note);
+  if (!f) {
+    const md = note.content ?? "";
+    const frontmatter = parseFrontmatter(md).data;
+    const a = frontmatter.aliases;
+    f = {
+      linkTitles: parseWikilinkTitles(md),
+      tags: parseTags(md),
+      frontmatter,
+      aliases: Array.isArray(a) ? a.map(String) : a ? [String(a)] : [],
+    };
+    factsCache.set(note, f);
+  }
+  return f;
+}
 
 const escBib = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -18,7 +56,7 @@ export interface Citation {
 export function buildCiteMap(notes: Note[]): Map<string, Citation> {
   const map = new Map<string, Citation>();
   for (const n of notes) {
-    const fm = parseFrontmatter(n.content ?? "").data;
+    const fm = noteFacts(n).frontmatter;
     const key = typeof fm.citekey === "string" ? fm.citekey : "";
     if (!key) continue;
     const authors = Array.isArray(fm.authors) ? fm.authors.join(", ") : String(fm.authors ?? "");
@@ -65,12 +103,15 @@ export function buildBibliography(md: string, citeMap: Map<string, Citation>): s
   return `<div class="bib"><ol class="bib-list">${items}</ol></div>`;
 }
 
+/** A note as the folder tree shows it — no content, so a tree kept across keystrokes is never stale. */
+export type TreeNote = Pick<Note, "id" | "title" | "folder" | "kind">;
+
 export interface TreeFolder {
   type: "folder";
   name: string;
   path: string;
   folders: TreeFolder[];
-  notes: Note[];
+  notes: TreeNote[];
 }
 
 /** A note's title: its first `# ` heading, ignoring frontmatter and fenced code (a `# comment` there). */
@@ -83,8 +124,7 @@ export function noteTitle(md: string): string | undefined {
 
 /** aliases declared in a note's frontmatter. */
 export function aliasesOf(note: Note): string[] {
-  const a = parseFrontmatter(note.content ?? "").data.aliases;
-  return Array.isArray(a) ? a.map(String) : a ? [String(a)] : [];
+  return noteFacts(note).aliases;
 }
 
 /**
@@ -107,16 +147,24 @@ export function titleResolver(notes: Note[]): Resolver {
   return (title) => map.get(title.trim().toLowerCase());
 }
 
+/** The ordered unique ids `note` links to (never itself; only ids `exists` knows). */
+export function noteLinks(note: Note, resolve: Resolver, exists: (id: string) => boolean): string[] {
+  return resolveLinkTitles(noteFacts(note).linkTitles, resolve).filter((id) => id !== note.id && exists(id));
+}
+
 /** id → ordered unique target ids, parsed from each note's content. */
 export function buildLinkMap(notes: Note[], resolve: Resolver): Map<string, string[]> {
   const out = new Map<string, string[]>();
   const valid = new Set(notes.map((n) => n.id));
-  for (const note of notes) {
-    const ids = parseWikilinkIds(note.content ?? "", resolve).filter(
-      (id) => id !== note.id && valid.has(id),
-    );
-    out.set(note.id, ids);
-  }
+  const exists = (id: string) => valid.has(id);
+  for (const note of notes) out.set(note.id, noteLinks(note, resolve, exists));
+  return out;
+}
+
+/** tag → how many notes carry it. */
+export function buildTagCounts(notes: Note[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const n of notes) for (const t of noteFacts(n).tags) out.set(t, (out.get(t) ?? 0) + 1);
   return out;
 }
 
@@ -141,7 +189,7 @@ export function buildTree(notes: Note[], vaultName: string): TreeFolder {
     return cur;
   };
 
-  for (const note of notes) folderFor(note.folder).notes.push(note);
+  for (const { id, title, folder, kind } of notes) folderFor(folder).notes.push({ id, title, folder, kind });
 
   const sortFolder = (f: TreeFolder) => {
     f.folders.sort((a, b) => a.name.localeCompare(b.name));
@@ -168,21 +216,21 @@ export function buildGraph(
   notes: Note[],
   linkMap: Map<string, string[]>,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const seen = new Set<string>();
   const edges: GraphEdge[] = [];
   const degree = new Map<string, number>();
   const bump = (id: string) => degree.set(id, (degree.get(id) ?? 0) + 1);
+  const order = new Map(notes.map((n, i) => [n.id, i]));
 
-  for (const note of notes) {
+  notes.forEach((note, i) => {
     for (const target of linkMap.get(note.id) ?? []) {
-      const key = [note.id, target].sort().join("|");
-      if (seen.has(key)) continue;
-      seen.add(key);
+      // A→B and B→A are one edge, kept where it's first met: the earlier note's list
+      const j = order.get(target);
+      if (j !== undefined && j < i && linkMap.get(target)?.includes(note.id)) continue;
       edges.push({ source: note.id, target });
       bump(note.id);
       bump(target);
     }
-  }
+  });
 
   const nodes: GraphNode[] = notes.map((nt) => ({
     id: nt.id,

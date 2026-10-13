@@ -1,10 +1,11 @@
-import { useMemo, useEffect, useRef, useState } from "react";
+import { memo, useMemo, useEffect, useRef, useState } from "react";
 import { useVault } from "../store/useVault";
 import type { Note } from "../data/vault";
-import { parseTags, parseHeadings, parseCitations } from "../markdown";
+import { parseTags, parseHeadings, parseCitations, type Heading } from "../markdown";
 import { toBibtex, aliasesOf } from "../data/derive";
 import { relatedNotes, isIndexWarm, whenIndexLoaded, type SemanticHit, type LoadProgress } from "../search/semantic";
 import { suggestTags, suggestTitle } from "../ai/suggest";
+import { findMentions, mentionText } from "../mentions";
 import { ArrowRight, OpenExternal, Copy, Link, Sparkles } from "../icons";
 import "./Inspector.css";
 
@@ -13,6 +14,34 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function kindLabel(n: Note) {
   return n.kind === "source" ? "Source" : "Article";
 }
+
+const sameHeadings = (a: Heading[], b: Heading[]) =>
+  a.length === b.length && a.every((h, i) => h.slug === b[i].slug && h.text === b[i].text && h.level === b[i].level);
+
+/** "On this page": redrawn only when the headings change, not on every keystroke in a long note. */
+const Outline = memo(
+  function Outline({ headings }: { headings: Heading[] }) {
+    const scrollToHeading = useVault((s) => s.scrollToHeading);
+    return (
+      <section className="link-section">
+        <div className="section-label">On this page</div>
+        <div className="outline">
+          {headings.map((h, i) => (
+            <button
+              key={`${h.slug}-${i}`}
+              className="outline-row"
+              style={{ paddingLeft: 2 + (h.level - 2) * 14 }}
+              onClick={() => scrollToHeading(h.slug)}
+            >
+              {h.text}
+            </button>
+          ))}
+        </div>
+      </section>
+    );
+  },
+  (prev, next) => sameHeadings(prev.headings, next.headings),
+);
 
 function LinkRow({ note, index }: { note: Note; index: number }) {
   const openArticle = useVault((s) => s.openArticle);
@@ -33,7 +62,6 @@ function LinkRow({ note, index }: { note: Note; index: number }) {
 
 /** Notes most similar in MEANING to the current one, via the on-device embedding index. */
 export function RelatedNotes({ noteId }: { noteId: string }) {
-  const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const openArticle = useVault((s) => s.openArticle);
   const [hits, setHits] = useState<SemanticHit[]>([]);
@@ -46,7 +74,7 @@ export function RelatedNotes({ noteId }: { noteId: string }) {
     setStatus("loading");
     setProgress(null);
     try {
-      const results = await relatedNotes(noteId, notes, 6, (p) => {
+      const results = await relatedNotes(noteId, useVault.getState().notes, 6, (p) => {
         if (my === runId.current) setProgress(p);
       });
       if (my !== runId.current) return;
@@ -134,7 +162,7 @@ export function RelatedNotes({ noteId }: { noteId: string }) {
 
 /** One-click AI suggestions for the current note: topical tags and a better title. */
 function AiSuggest({ note }: { note: Note }) {
-  const notes = useVault((s) => s.notes);
+  const tagCounts = useVault((s) => s.tagCounts);
   const updateContent = useVault((s) => s.updateContent);
   const toast = useVault((s) => s.toast);
   const [tags, setTags] = useState<string[] | null>(null);
@@ -142,11 +170,7 @@ function AiSuggest({ note }: { note: Note }) {
   const [busy, setBusy] = useState<"" | "tags" | "title">("");
   const [err, setErr] = useState<string | null>(null);
 
-  const existingTags = useMemo(() => {
-    const s = new Set<string>();
-    for (const n of notes) for (const t of parseTags(n.content ?? "")) s.add(t);
-    return [...s];
-  }, [notes]);
+  const existingTags = useMemo(() => [...tagCounts.keys()], [tagCounts]);
   const noteTags = new Set(parseTags(note.content ?? ""));
 
   const runTags = async () => {
@@ -224,34 +248,32 @@ function AiSuggest({ note }: { note: Note }) {
 
 export default function Inspector() {
   const selectedId = useVault((s) => s.selectedId);
-  const notes = useVault((s) => s.notes);
-  const notesById = useVault((s) => s.notesById);
+  const note = useVault((s) => s.notesById.get(s.selectedId));
+  // titles to look for: graph nodes are rebuilt only when titles or links change, not per keystroke
+  const titles = useVault((s) => s.graph.nodes);
   const linksOf = useVault((s) => s.linksOf);
   const backlinksOf = useVault((s) => s.backlinksOf);
   const openArticle = useVault((s) => s.openArticle);
   const openTag = useVault((s) => s.openTag);
   const updateContent = useVault((s) => s.updateContent);
-  const scrollToHeading = useVault((s) => s.scrollToHeading);
   const citeMap = useVault((s) => s.citeMap);
   const toast = useVault((s) => s.toast);
 
   const width = useVault((s) => s.inspectorWidth);
-  const note = notesById.get(selectedId);
 
   // unlinked mentions: other note titles that appear as plain prose but aren't linked yet.
   // Ignore code blocks, inline code, frontmatter and existing links when detecting.
-  const mentions = useMemo(() => {
-    if (!note) return [];
-    const stripped = (note.content ?? "")
-      .replace(/^---\n[\s\S]*?\n---\n/, "")
-      .replace(/```[\s\S]*?```/g, "")
-      .replace(/`[^`\n]+`/g, "")
-      .replace(/\[\[[^\]]+\]\]/g, "");
-    return notes
-      .filter((n) => n.id !== note.id && n.title.length >= 4)
-      .filter((n) => new RegExp(`(^|[^\\w[])${escapeRe(n.title)}(?![\\w\\]])`, "i").test(stripped))
-      .slice(0, 8);
-  }, [note, notes]);
+  const content = note?.content ?? "";
+  const noteId = note?.id ?? "";
+  const mentions = useMemo(
+    () => (noteId ? findMentions(mentionText(content), titles, noteId) : []),
+    [content, noteId, titles],
+  );
+
+  // parsed once per text, not on every render
+  const tags = useMemo(() => parseTags(content), [content]);
+  const headings = useMemo(() => parseHeadings(content).filter((h) => h.level > 1), [content]);
+  const citeKeys = useMemo(() => parseCitations(content), [content]);
 
   if (!note) return <aside className="inspector" style={{ width, minWidth: width }} />;
 
@@ -281,9 +303,7 @@ export default function Inspector() {
 
   const links = linksOf(note.id);
   const backlinks = backlinksOf(note.id);
-  const tags = parseTags(note.content ?? "");
-  const headings = parseHeadings(note.content ?? "").filter((h) => h.level > 1);
-  const citations = parseCitations(note.content ?? "")
+  const citations = citeKeys
     .map((k) => citeMap.get(k))
     .filter((c): c is NonNullable<typeof c> => !!c);
 
@@ -323,23 +343,7 @@ export default function Inspector() {
           </div>
         )}
 
-        {headings.length >= 2 && (
-          <section className="link-section">
-            <div className="section-label">On this page</div>
-            <div className="outline">
-              {headings.map((h, i) => (
-                <button
-                  key={`${h.slug}-${i}`}
-                  className="outline-row"
-                  style={{ paddingLeft: 2 + (h.level - 2) * 14 }}
-                  onClick={() => scrollToHeading(h.slug)}
-                >
-                  {h.text}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
+        {headings.length >= 2 && <Outline headings={headings} />}
 
         {citations.length > 0 && (
           <section className="link-section">
