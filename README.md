@@ -124,6 +124,7 @@ npm test               # unit tests (vitest)
 npm run build          # fetch models + type-check + production bundle
 npm run tauri build    # package the Windows installer
 npm run ci             # local CI: tsc, vitest, vite build, cargo test, cargo clippy
+npm run bench          # 5,000-note benchmark (load, keystroke, search); `node scripts/gen-vault.mjs <new-folder>` writes that vault
 npm run hooks          # once per clone: run `npm run ci` before every `git push`
 ```
 

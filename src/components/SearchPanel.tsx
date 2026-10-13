@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useVault } from "../store/useVault";
-import { parseTags } from "../markdown";
 import { Search } from "../icons";
 import "./SearchPanel.css";
+
+/** Rows drawn at a time: a query matching thousands of notes shouldn't draw thousands of rows. */
+const PAGE = 100;
 
 interface Hit {
   id: string;
@@ -56,11 +58,13 @@ export default function SearchPanel() {
       .sort((a, b) => Number(b.inTitle) - Number(a.inTitle));
   }, [notes, query]);
 
-  const tags = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const note of notes) for (const t of parseTags(note.content ?? "")) counts.set(t, (counts.get(t) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [notes]);
+  const tagCounts = useVault((s) => s.tagCounts);
+  const tags = useMemo(() => [...tagCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])), [tagCounts]);
+
+  // how many hits are drawn; back to one page whenever the query changes
+  const [shown, setShown] = useState({ query, count: PAGE });
+  const limit = shown.query === query ? shown.count : PAGE;
+  const more = Math.min(PAGE, hits.length - limit);
 
   return (
     <div className="search-panel">
@@ -132,7 +136,7 @@ export default function SearchPanel() {
       )}
 
       <div className="search-results">
-        {hits.map((h, i) => (
+        {hits.slice(0, limit).map((h, i) => (
           <button
             key={h.id}
             className="search-hit"
@@ -151,6 +155,11 @@ export default function SearchPanel() {
             {h.folder && <div className="hit-folder">{h.folder}</div>}
           </button>
         ))}
+        {more > 0 && (
+          <button className="search-more" onClick={() => setShown({ query, count: limit + PAGE })}>
+            Show {more} more
+          </button>
+        )}
         {query && hits.length === 0 && <div className="search-empty">No matches.</div>}
       </div>
     </div>

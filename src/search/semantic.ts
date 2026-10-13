@@ -57,6 +57,18 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+// a note's text hash, once per note object (notes are never changed in place: an edit makes a new
+// object), so checking an unchanged 5,000-note vault for changes doesn't re-read every note
+const hashes = new WeakMap<Note, number>();
+function noteHash(n: Note): number {
+  let h = hashes.get(n);
+  if (h === undefined) {
+    h = hash(noteText(n));
+    hashes.set(n, h);
+  }
+  return h;
+}
+
 // Stored vectors are only valid for the exact model + text recipe that made them; bump
 // TEXT_VERSION when noteText() changes so every stored vector is thrown away.
 const TEXT_VERSION = 1;
@@ -93,17 +105,11 @@ async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void)
     void store.remove(gone);
   }
 
-  const todo = notes.filter((n) => {
-    const text = noteText(n);
-    const h = hash(text);
-    const cached = index.get(n.id);
-    return !cached || cached.hash !== h;
-  });
+  const todo = notes.filter((n) => index.get(n.id)?.hash !== noteHash(n));
 
   let done = 0;
   for (const n of todo) {
-    const text = noteText(n);
-    const entry = { hash: hash(text), vec: await embed(text, onProgress) };
+    const entry = { hash: noteHash(n), vec: await embed(noteText(n), onProgress) };
     index.set(n.id, entry);
     void store.put(n.id, entry);
     done++;

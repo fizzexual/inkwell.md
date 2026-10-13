@@ -36,6 +36,8 @@ const longBase = notes.find((n) => n.id === LONG)!.content!;
 console.error = () => {};
 
 const load = () => useVault.getState().loadDiskVault("bench-vault", notes);
+/** Opening the vault cold: fresh note objects, as read from disk (nothing parsed yet). */
+const loadFresh = () => useVault.getState().loadDiskVault("bench-vault", files.map(diskNoteToNote));
 
 let typed = 0;
 /** One keystroke: append a character to the end of the long note. */
@@ -76,12 +78,16 @@ function mountApp(mode: "source" | "live") {
 }
 
 describe("vault of 5,000 notes", () => {
-  bench("load + derive (loadDiskVault)", load, { iterations: 5, time: 0, warmupIterations: 1 });
+  bench("load + derive (loadDiskVault)", loadFresh, { iterations: 5, time: 0, warmupIterations: 1 });
   bench("keystroke in a 20k-word note: store update", keystroke, {
     iterations: 30,
     time: 0,
     setup: load,
   });
+  let retitles = 0;
+  bench("keystroke in the title of a 20k-word note (retitles it)", () => {
+    useVault.getState().updateContent(LONG, longBase.replace("# Long Read 1", `# Long Read 1${"x".repeat(++retitles % 50)}`));
+  }, { iterations: 30, time: 0, setup: load });
 });
 
 describe("keystroke with the app rendered (sidebar all expanded, 2 panes, inspector)", () => {
