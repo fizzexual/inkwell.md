@@ -37,3 +37,7 @@ tauri-plugin-window-state = "2"
 # optional per-vault git history; libgit2 is built in, so users need no git install (no https/ssh: never pushes or pulls)
 git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2"] }
 
+[target.'cfg(windows)'.dependencies]
+# a Job Object, so stopping a Claude Code / Codex run also ends every process it started
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+

@@ -84,17 +84,26 @@ const stripBody = (md: string) =>
 
 /** Compact index of the whole vault: title, folder, tags and the link graph (→). Cheap to send. */
 function buildMap(v: VaultAccess): string {
+  return vaultMap(v);
+}
+
+/** The vault map, optionally capped at `max` notes (a single-shot prompt can't take a huge vault). */
+export function vaultMap(v: VaultAccess, max = Infinity): string {
   // kept deliberately lean — this is re-sent on every loop call, so cap tags/links per note
-  return v.notes
-    .map((n) => {
-      const tags = parseTags(n.content ?? "").slice(0, 3);
-      const links = v.linksOf(n.id).map((l) => l.title);
-      const t = tags.length ? " " + tags.map((x) => "#" + x).join(" ") : "";
-      const shown = links.slice(0, 6);
-      const l = links.length ? ` → ${shown.join(", ")}${links.length > 6 ? ` +${links.length - 6}` : ""}` : "";
-      return `- ${n.title} [${n.folder || "/"}]${t}${l}`;
-    })
-    .join("\n");
+  const more = v.notes.length > max ? `\n…and ${v.notes.length - max} more notes` : "";
+  return (
+    v.notes
+      .slice(0, max)
+      .map((n) => {
+        const tags = parseTags(n.content ?? "").slice(0, 3);
+        const links = v.linksOf(n.id).map((l) => l.title);
+        const t = tags.length ? " " + tags.map((x) => "#" + x).join(" ") : "";
+        const shown = links.slice(0, 6);
+        const l = links.length ? ` → ${shown.join(", ")}${links.length > 6 ? ` +${links.length - 6}` : ""}` : "";
+        return `- ${n.title} [${n.folder || "/"}]${t}${l}`;
+      })
+      .join("\n") + more
+  );
 }
 
 function systemPrompt(v: VaultAccess, canWrite: boolean): string {
@@ -425,17 +434,24 @@ interface OAIUsage {
 }
 
 /**
+ * The notes to put in a single-shot prompt for `question`: the on-device semantic shortlist
+ * (retrieval by meaning) when there is one, else keyword ranking.
+ */
+export function contextNotes(v: VaultAccess, question: string, k: number): Note[] {
+  const semantic = (v.semanticHits ?? [])
+    .map((h) => v.getNote(h.id))
+    .filter((n): n is Note => !!n)
+    .slice(0, k);
+  return semantic.length ? semantic : rankNotes(v, question, k);
+}
+
+/**
  * No-tools fallback for models that can't reliably agentic-tool-call (e.g. small Llama on Groq):
  * rank notes locally for the question, stuff the top few in the prompt, ask once. Classic RAG.
  */
 async function answerWithContext(o: LoopOpts, headers: Record<string, string>, priorTokens: number): Promise<AgentResult> {
   const question = [...o.messages].reverse().find((m) => m.role === "user")?.content ?? "";
-  // prefer the on-device semantic shortlist (retrieval by meaning); fall back to keyword ranking
-  const semantic = (o.vault.semanticHits ?? [])
-    .map((h) => o.vault.getNote(h.id))
-    .filter((n): n is Note => !!n)
-    .slice(0, 5);
-  const hits = semantic.length ? semantic : rankNotes(o.vault, question, 5);
+  const hits = contextNotes(o.vault, question, 5);
   if (hits.length) o.onStep({ kind: "read", detail: hits.map((n) => n.title).join(", ") });
   const context = hits.length
     ? hits.map((n) => `### ${n.title} [${n.folder || "/"}]\n${(n.content ?? "").slice(0, 2000)}`).join("\n\n---\n\n")
@@ -545,6 +561,8 @@ async function loopOpenAI(o: LoopOpts, system: string): Promise<AgentResult> {
  * Dispatches to the right API dialect for the chosen provider.
  */
 export function runVaultAgent(o: LoopOpts): Promise<AgentResult> {
+  // CLI providers have no tool loop — useChat sends them through ./cli instead
+  if (o.provider.kind === "cli") return Promise.reject(new Error(`${o.provider.label} runs through the desktop app, not the agent loop.`));
   const system = systemPrompt(o.vault, !!o.canWrite);
   return o.provider.kind === "anthropic" ? loopAnthropic(o, system) : loopOpenAI(o, system);
 }

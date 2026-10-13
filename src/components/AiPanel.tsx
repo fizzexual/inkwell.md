@@ -30,6 +30,7 @@ export default function AiPanel() {
   const messages = useChat((s) => s.messages);
   const steps = useChat((s) => s.steps);
   const status = useChat((s) => s.status);
+  const partial = useChat((s) => s.partial);
   const sessionTokens = useChat((s) => s.sessionTokens);
   const error = useChat((s) => s.error);
   const canWrite = useChat((s) => s.canWrite);
@@ -48,6 +49,8 @@ export default function AiPanel() {
 
   const provider = getProvider(providerId);
   const hasKey = !!provider.keyless || !!(keys[providerId] || "").trim();
+  // Claude Code / Codex answer from the notes Inkwell gives them, with no tools: nothing to propose
+  const isCli = provider.kind === "cli";
 
   // show the provider's LIVE model list once loaded; fall back to the curated one
   const modelOptions = useMemo(() => {
@@ -65,7 +68,7 @@ export default function AiPanel() {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, steps, status]);
+  }, [messages, steps, status, partial]);
 
   const submit = () => {
     if (!draft.trim()) return;
@@ -104,8 +107,15 @@ export default function AiPanel() {
             ))}
           </select>
           <button
-            className={"ai-icon-btn" + (canWrite ? " on" : "")}
-            title={canWrite ? "Allow edits: ON (agent can propose changes)" : "Allow edits: OFF (read-only)"}
+            className={"ai-icon-btn" + (canWrite && !isCli ? " on" : "")}
+            title={
+              isCli
+                ? `Edit proposals aren't available with ${provider.label} — it only reads the notes Inkwell gives it`
+                : canWrite
+                  ? "Allow edits: ON (agent can propose changes)"
+                  : "Allow edits: OFF (read-only)"
+            }
+            disabled={isCli}
             onClick={() => setCanWrite(!canWrite)}
           >
             <Pencil size={14} />
@@ -201,6 +211,12 @@ export default function AiPanel() {
             </div>
           </div>
         ))}
+
+        {status === "running" && partial && (
+          <div className="ai-bot-wrap">
+            <div className="ai-msg ai-bot" dangerouslySetInnerHTML={{ __html: renderAnswer(partial) }} />
+          </div>
+        )}
 
         {status === "running" && (
           <div className="ai-steps">

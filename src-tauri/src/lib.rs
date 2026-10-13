@@ -5,6 +5,7 @@
 // file this side saved), and every note path is checked to stay inside it and end in `.md`.
 mod attachments;
 mod pdf_list;
+mod cli_ai;
 mod web;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -354,6 +355,9 @@ pub fn run() {
             watch_vault,
             unwatch_vault,
             arxiv_query,
+            cli_ai::cli_ai_detect,
+            cli_ai::cli_ai_run,
+            cli_ai::cli_ai_cancel,
             secrets::secret_set,
             secrets::secrets_get,
             secrets::secret_delete,

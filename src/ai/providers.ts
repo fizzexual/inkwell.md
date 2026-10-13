@@ -2,8 +2,10 @@
 export interface Provider {
   id: string;
   label: string;
-  /** request/response dialect: Anthropic Messages vs OpenAI Chat Completions. */
-  kind: "anthropic" | "openai";
+  /** request/response dialect: Anthropic Messages, OpenAI Chat Completions, or a CLI the desktop app runs. */
+  kind: "anthropic" | "openai" | "cli";
+  /** kind "cli": which installed CLI runs it (desktop app only, see src-tauri/src/cli_ai.rs). */
+  cli?: "claude" | "codex";
   baseUrl: string;
   /** has a genuinely usable free tier (no card needed unless noted). */
   free: boolean;
@@ -256,7 +258,40 @@ export const PROVIDERS: Provider[] = [
     ],
     note: "Paid, web-connected models (answers from your vault via the one-shot path).",
   },
+  {
+    id: "claude-code",
+    label: "Claude Code (your subscription)",
+    kind: "cli",
+    cli: "claude",
+    baseUrl: "",
+    free: false,
+    keyless: true,
+    keyUrl: "https://docs.anthropic.com/en/docs/claude-code/setup",
+    keyHint: "",
+    models: [{ id: "default", label: "Claude Code's default model" }],
+    note: "Uses the Claude Code you already have installed and logged in. Runs without tools — it can only read the notes Inkwell gives it.",
+  },
+  {
+    id: "codex-cli",
+    label: "Codex CLI (your subscription)",
+    kind: "cli",
+    cli: "codex",
+    baseUrl: "",
+    free: false,
+    keyless: true,
+    keyUrl: "https://github.com/openai/codex",
+    keyHint: "",
+    models: [{ id: "default", label: "Codex's default model" }],
+    note: "Uses the Codex you already have installed and logged in. Runs without tools — it can only read the notes Inkwell gives it.",
+  },
 ];
+
+/** Which CLIs the desktop app found on PATH (version, or null); null = not checked / browser. */
+export type CliFound = { claude: string | null; codex: string | null } | null;
+
+/** The providers to offer: CLI ones only in the desktop app, and only when that CLI is installed. */
+export const visibleProviders = (cli: CliFound): Provider[] =>
+  PROVIDERS.filter((p) => p.kind !== "cli" || (!!cli && !!p.cli && !!cli[p.cli]));
 
 export const getProvider = (id: string): Provider =>
   PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0];

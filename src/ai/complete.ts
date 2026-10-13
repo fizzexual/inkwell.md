@@ -1,5 +1,6 @@
 import { getProvider, type Provider } from "./providers";
 import { useChat } from "./useChat";
+import { cliComplete } from "./cli";
 
 /** The inline editor actions. Each maps to an instruction + whether it replaces the selection or appends after it. */
 export type InlineAction = "rephrase" | "grammar" | "shorten" | "expand" | "continue" | "custom";
@@ -146,9 +147,11 @@ export async function completeText(instruction: string, selection: string, signa
 
   const user = `Instruction: ${instruction}\n\nSelected text:\n"""\n${selection}\n"""`;
   const raw =
-    provider.kind === "anthropic"
-      ? await runAnthropic(provider, apiKey, s.model, user, signal)
-      : await runOpenAI(provider, apiKey, s.model, user, signal);
+    provider.kind === "cli"
+      ? await cliComplete(provider, instruction, selection, signal)
+      : provider.kind === "anthropic"
+        ? await runAnthropic(provider, apiKey, s.model, user, signal)
+        : await runOpenAI(provider, apiKey, s.model, user, signal);
   const out = clean(raw);
   if (!out) throw new Error("The model returned nothing.");
   return out;
