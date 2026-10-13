@@ -1,11 +1,14 @@
 // Fully-local semantic search: embeds notes with a small transformer (all-MiniLM-L6-v2, ~23MB,
 // shipped with the app) that runs in the on-device ML worker (src/ml/), off the main thread.
 // No API, no server — embeddings and search all happen on-device.
+// The vault's PDFs (src/search/pdfIndex.ts) are indexed alongside the notes, one vector per passage.
 import type { Note } from "../data/vault";
 import { loadOnce } from "../loadOnce";
 import { ml } from "../ml/host";
 import models from "../ml/models.json";
 import { openVectorStore, type StoredVector } from "./vectorStore";
+import { parsePassageKey, passageKey, usePdfIndex } from "./pdfIndex";
+import { pdfName } from "./pdfText";
 
 export interface LoadProgress {
   stage: "download" | "ready" | "embedding";
@@ -82,30 +85,49 @@ function dot(a: Float32Array, b: Float32Array): number {
   return s;
 }
 
-/** Embed every note that's new or changed since the last call (others are reused from cache). */
+/** The vault's PDF passages: index id → what was found (file, page, text) and the text we embed. */
+function pdfPassages(): Map<string, { rel: string; page: number; text: string; embedText: string }> {
+  const out = new Map<string, { rel: string; page: number; text: string; embedText: string }>();
+  for (const d of usePdfIndex.getState().docs) {
+    for (const p of d.passages) {
+      out.set(passageKey(d.rel, p.page, p.idx), {
+        rel: d.rel,
+        page: p.page,
+        text: p.text,
+        embedText: `${pdfName(d.rel)}, page ${p.page}\n\n${p.text}`,
+      });
+    }
+  }
+  return out;
+}
+
+const isPdfId = (id: string) => parsePassageKey(id) !== null;
+
+/** Embed every note and PDF passage that's new or changed since the last call (others are reused). */
 async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void): Promise<void> {
   await hydrated;
+  const pdf = pdfPassages();
+  const gone: string[] = [];
   // drop removed notes — but an empty list is a vault that hasn't loaded yet, not "delete everything"
   if (notes.length) {
     const live = new Set(notes.map((n) => n.id));
-    const gone = [...index.keys()].filter((id) => !live.has(id));
-    for (const id of gone) index.delete(id);
-    void store.remove(gone);
+    gone.push(...[...index.keys()].filter((id) => !isPdfId(id) && !live.has(id)));
   }
+  // same for PDFs: only once the PDF index reflects this vault's Attachments/ folder
+  if (usePdfIndex.getState().ready) gone.push(...[...index.keys()].filter((id) => isPdfId(id) && !pdf.has(id)));
+  for (const id of gone) index.delete(id);
+  void store.remove(gone);
 
-  const todo = notes.filter((n) => {
-    const text = noteText(n);
-    const h = hash(text);
-    const cached = index.get(n.id);
-    return !cached || cached.hash !== h;
-  });
+  const todo: { id: string; text: string }[] = [
+    ...notes.map((n) => ({ id: n.id, text: noteText(n) })),
+    ...[...pdf].map(([id, p]) => ({ id, text: p.embedText })),
+  ].filter(({ id, text }) => index.get(id)?.hash !== hash(text));
 
   let done = 0;
-  for (const n of todo) {
-    const text = noteText(n);
+  for (const { id, text } of todo) {
     const entry = { hash: hash(text), vec: await embed(text, onProgress) };
-    index.set(n.id, entry);
-    void store.put(n.id, entry);
+    index.set(id, entry);
+    void store.put(id, entry);
     done++;
     onProgress?.({ stage: "embedding", ratio: done / todo.length });
   }
@@ -113,8 +135,11 @@ async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void)
 }
 
 export interface SemanticHit {
+  /** a note id — or, for a PDF passage, its passage key (see `pdf`). */
   id: string;
   score: number;
+  /** set when the hit is a passage of a PDF in the vault. */
+  pdf?: { rel: string; page: number; text: string };
 }
 
 /** Make sure every note is embedded (new/changed ones only). Public wrapper around the index build. */
@@ -141,8 +166,16 @@ export async function semanticSearch(
   if (!q) return [];
   await buildIndex(notes, onProgress);
   const qv = await embed(q);
+  // PDF vectors not in the current PDF index (another vault, not listed yet) are never shown
+  const pdf = pdfPassages();
   return [...index.entries()]
-    .map(([id, e]) => ({ id, score: dot(qv, e.vec) }))
+    .filter(([id]) => !isPdfId(id) || pdf.has(id))
+    .map(([id, e]): SemanticHit => {
+      const p = pdf.get(id);
+      const hit: SemanticHit = { id, score: dot(qv, e.vec) };
+      if (p) hit.pdf = { rel: p.rel, page: p.page, text: p.text };
+      return hit;
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
 }
@@ -158,7 +191,7 @@ export async function relatedNotes(
   const self = index.get(id);
   if (!self) return [];
   return [...index.entries()]
-    .filter(([nid]) => nid !== id)
+    .filter(([nid]) => nid !== id && !isPdfId(nid))
     .map(([nid, e]) => ({ id: nid, score: dot(self.vec, e.vec) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
