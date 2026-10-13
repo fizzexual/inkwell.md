@@ -301,7 +301,7 @@ pub(crate) async fn backup_vault(app: AppHandle, state: State<'_, VaultRoot>) ->
 }
 
 /// The open vault's backups, newest first.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn list_backups(app: AppHandle, state: State<VaultRoot>) -> Result<Vec<BackupInfo>, String> {
     let vault = current_root(&state)?;
     list_in(&backups_dir(&app)?, &vault)

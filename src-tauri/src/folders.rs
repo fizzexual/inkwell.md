@@ -130,25 +130,25 @@ fn delete_in(root: &Path, rel: &str) -> Result<(), String> {
 }
 
 /// Every folder in the open vault (vault-relative, forward-slashed), including empty ones.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn read_vault_dirs(state: State<VaultRoot>) -> Result<Vec<String>, String> {
     list_in(&current_root(&state)?)
 }
 
 /// Make a folder (and any missing parents) inside the open vault; refuses one that exists.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn create_folder(rel: String, state: State<VaultRoot>) -> Result<(), String> {
     create_in(&current_root(&state)?, &rel)
 }
 
 /// Rename or move a folder inside the open vault. Never replaces anything, never into itself.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn rename_folder(from: String, to: String, state: State<VaultRoot>) -> Result<(), String> {
     rename_in(&current_root(&state)?, &from, &to)
 }
 
 /// Move a folder — with every note in it — to the recycle bin.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn delete_folder(rel: String, state: State<VaultRoot>) -> Result<(), String> {
     delete_in(&current_root(&state)?, &rel)
 }

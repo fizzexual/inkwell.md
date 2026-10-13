@@ -81,12 +81,33 @@ pub(crate) fn current_root(state: &State<VaultRoot>) -> Result<PathBuf, String> 
 }
 
 fn read_in(root: &Path) -> Result<Vec<DiskNote>, String> {
-    let mut out: Vec<DiskNote> = Vec::new();
-    walk(root, root, &mut out).map_err(|e| e.to_string())?;
-    Ok(out)
+    let mut paths: Vec<PathBuf> = Vec::new();
+    walk(root, &mut paths).map_err(|e| e.to_string())?;
+    paths.sort();
+    // read the files in parallel: a first open of a 5,000-note vault took ~31 s reading one file after
+    // another, and (as a main-thread command) froze the window and every other call meanwhile
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let slots: Vec<Mutex<Option<DiskNote>>> = paths.iter().map(|_| Mutex::new(None)).collect();
+    let workers = std::thread::available_parallelism().map_or(4, |n| n.get()).clamp(1, 16);
+    std::thread::scope(|s| {
+        for _ in 0..workers {
+            s.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let Some(p) = paths.get(i) else { break };
+                if let Ok(content) = fs::read_to_string(p) {
+                    let rel = p.strip_prefix(root).unwrap_or(p).to_string_lossy().replace('\\', "/");
+                    if let Ok(mut slot) = slots[i].lock() {
+                        *slot = Some(DiskNote { rel, content });
+                    }
+                }
+            });
+        }
+    });
+    Ok(slots.into_iter().filter_map(|m| m.into_inner().ok().flatten()).collect())
 }
 
-fn walk(dir: &Path, root: &Path, out: &mut Vec<DiskNote>) -> std::io::Result<()> {
+/// Every `.md` file under `dir` (hidden entries, node_modules and symlinks/junctions skipped).
+fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let p = entry.path();
@@ -101,20 +122,13 @@ fn walk(dir: &Path, root: &Path, out: &mut Vec<DiskNote>) -> std::io::Result<()>
             continue;
         }
         if ft.is_dir() {
-            walk(&p, root, out)?;
+            walk(&p, out)?;
         } else if p
             .extension()
             .and_then(|e| e.to_str())
             .is_some_and(|e| e.eq_ignore_ascii_case("md"))
         {
-            if let Ok(content) = fs::read_to_string(&p) {
-                let rel = p
-                    .strip_prefix(root)
-                    .unwrap_or(&p)
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                out.push(DiskNote { rel, content });
-            }
+            out.push(p);
         }
     }
     Ok(())
@@ -225,7 +239,7 @@ fn arxiv_id_ok(id: &str) -> bool {
 }
 
 /// arXiv's export API sends no CORS headers, so the webview can't read it; fetch it here.
-#[tauri::command]
+#[tauri::command(async)]
 fn arxiv_query(id: String) -> Result<String, String> {
     if !arxiv_id_ok(&id) {
         return Err(format!("Not an arXiv id: {id}"));
@@ -258,32 +272,32 @@ fn close_vault(app: AppHandle, state: State<VaultRoot>) -> Result<(), String> {
 }
 
 /// Every `.md` file in the open vault: vault-relative path (forward-slashed) and text.
-#[tauri::command]
+#[tauri::command(async)]
 fn read_vault(state: State<VaultRoot>) -> Result<Vec<DiskNote>, String> {
     read_in(&current_root(&state)?)
 }
 
 /// Write (creating parent dirs) one note file inside the open vault.
-#[tauri::command]
+#[tauri::command(async)]
 fn write_note(rel: String, content: String, state: State<VaultRoot>) -> Result<(), String> {
     write_in(&current_root(&state)?, &rel, &content)
 }
 
 /// Delete one note file inside the open vault (a missing file is not an error).
-#[tauri::command]
+#[tauri::command(async)]
 fn delete_note(rel: String, state: State<VaultRoot>) -> Result<(), String> {
     delete_in(&current_root(&state)?, &rel)
 }
 
 /// Move/rename a note file inside the open vault; refuses to replace an existing file.
-#[tauri::command]
+#[tauri::command(async)]
 fn rename_note(from: String, to: String, state: State<VaultRoot>) -> Result<(), String> {
     rename_in(&current_root(&state)?, &from, &to)
 }
 
 /// Start watching the open vault folder recursively; emits `vault-fs-change` with the changed `.md`
 /// paths, and folders that appeared or went away, whenever anything on the system changes them.
-#[tauri::command]
+#[tauri::command(async)]
 fn watch_vault(app: AppHandle, roots: State<VaultRoot>, state: State<WatcherState>) -> Result<(), String> {
     let root = current_root(&roots)?;
     let handle = app.clone();
@@ -540,5 +554,36 @@ mod arxiv_tests {
         for bad in ["", "1706.03762&max_results=9999", "x?y", "a#b", "../etc", "a b", "http://evil", &"9".repeat(41)] {
             assert!(!arxiv_id_ok(bad), "{bad}");
         }
+    }
+}
+
+#[cfg(test)]
+mod read_tests {
+    use super::*;
+
+    #[test]
+    fn parallel_read_returns_every_note_once_sorted_by_path() {
+        let root = std::env::temp_dir().join(format!("inkwell-read-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for i in 0..600 {
+            let rel = format!("f{}/sub{}/n{:04}.md", i % 7, i % 3, i);
+            let p = root.join(&rel);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, format!("# Note {i}")).unwrap();
+        }
+        fs::create_dir_all(root.join(".hidden")).unwrap();
+        fs::write(root.join(".hidden/x.md"), "hidden").unwrap();
+        fs::write(root.join("bad.md"), [0xff_u8, 0xfe, 0x00]).unwrap(); // not UTF-8: skipped, not fatal
+        fs::write(root.join("notes.txt"), "not a note").unwrap();
+        let root = root.canonicalize().unwrap();
+
+        let notes = read_in(&root).unwrap();
+        assert_eq!(notes.len(), 600);
+        let rels: Vec<&str> = notes.iter().map(|n| n.rel.as_str()).collect();
+        let mut sorted = rels.clone();
+        sorted.sort();
+        assert_eq!(rels, sorted, "results are in a stable, sorted order");
+        assert!(notes.iter().all(|n| n.content == format!("# Note {}", n.rel[n.rel.len() - 7..n.rel.len() - 3].parse::<u32>().unwrap())));
+        let _ = fs::remove_dir_all(&root);
     }
 }

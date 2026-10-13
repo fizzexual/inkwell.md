@@ -421,7 +421,7 @@ pub fn offline_model_cancel(state: tauri::State<'_, DownloadState>) {
 }
 
 /// Remove the model folder (finished and partial files); returns the bytes freed.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn offline_model_delete(app: AppHandle, state: tauri::State<'_, DownloadState>) -> Result<u64, String> {
     if state.busy.load(Ordering::SeqCst) {
         return Err("Cancel the download first".into());
