@@ -3,6 +3,7 @@
 // streams the answer back. This side only decides WHAT the CLI may read: the few notes Inkwell's
 // own retrieval picked, inside one clearly marked untrusted block. No tool loop, no edit proposals.
 import type { Note } from "../data/vault";
+import { answeredOnly } from "./history";
 import type { AgentResult, ChatMsg } from "./agent";
 import type { CliFound, Provider } from "./providers";
 
@@ -19,8 +20,7 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "\n…(tr
 export function buildCliPrompt(messages: ChatMsg[], notes: Note[], map = ""): string {
   const lastUser = messages.map((m) => m.role).lastIndexOf("user");
   const question = lastUser >= 0 ? messages[lastUser].content : "";
-  const history = messages
-    .slice(0, Math.max(0, lastUser))
+  const history = answeredOnly(messages.slice(0, Math.max(0, lastUser)))
     .slice(-HISTORY_MSGS)
     .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${fenceSafe(clip(m.content, HISTORY_CHARS))}`);
   const body = notes.length

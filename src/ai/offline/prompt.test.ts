@@ -93,3 +93,24 @@ describe("offline chat prompt", () => {
     expect(promptBudgetChars(32768, 512)).toBeGreaterThan(3000);
   });
 });
+
+describe("history after a stopped answer", () => {
+  it("drops a question that never got an answer, so the model answers the NEW question", () => {
+    // found in the desktop app: after Stop, the unanswered essay request stayed in the history and
+    // Qwen3-0.6B wrote the essay instead of answering the next question
+    const { messages } = buildOfflinePrompt({
+      question: "How should pasta water be prepared?",
+      notes: [note("Cooking", "Pasta needs salted boiling water.")],
+      budgetChars: 4000,
+      history: [
+        { role: "user", content: "What are my notes about?" },
+        { role: "assistant", content: "Cooking and linking." },
+        { role: "user", content: "Write a 1500-word essay about every note." },
+      ],
+    });
+    const text = messages.map((m) => m.content).join("\n");
+    expect(text).not.toContain("1500-word essay");
+    expect(text).toContain("What are my notes about?");
+    expect(messages.at(-1)!.content).toContain("How should pasta water be prepared?");
+  });
+});

@@ -2,6 +2,8 @@
 // tool-using vault agent, so the app picks the relevant notes itself (local semantic search) and
 // hands them over in one prompt that fits the model's context window.
 
+import { answeredOnly } from "../history";
+
 export interface ChatTurn {
   role: "system" | "user" | "assistant";
   content: string;
@@ -69,7 +71,7 @@ export function buildOfflinePrompt(input: OfflinePromptInput): { messages: ChatT
   // history: the latest few turns, but never more than a quarter of what's left
   const history: ChatTurn[] = [];
   let historyLeft = Math.floor(left / 4);
-  for (const t of (input.history ?? []).slice(-MAX_HISTORY_TURNS).reverse()) {
+  for (const t of answeredOnly(input.history ?? []).slice(-MAX_HISTORY_TURNS).reverse()) {
     const content = clip(t.content, MAX_TURN_CHARS);
     if (content.length > historyLeft) break;
     history.unshift({ role: t.role, content });

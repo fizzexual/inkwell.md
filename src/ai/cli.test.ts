@@ -160,3 +160,20 @@ describe("running a CLI provider", () => {
     expect(await detectClis()).toEqual({ claude: "2.1.289 (Claude Code)", codex: null });
   });
 });
+
+describe("CLI prompt after a stopped answer", () => {
+  it("leaves out a question that never got an answer", () => {
+    const p = buildCliPrompt(
+      [
+        { role: "user", content: "What are my notes about?" },
+        { role: "assistant", content: "Cooking and linking." },
+        { role: "user", content: "Write a 1500-word essay about every note." },
+        { role: "user", content: "How should pasta water be prepared?" },
+      ],
+      [],
+    );
+    expect(p).not.toContain("1500-word essay");
+    expect(p).toContain("What are my notes about?");
+    expect(p).toContain("How should pasta water be prepared?");
+  });
+});
