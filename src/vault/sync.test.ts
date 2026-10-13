@@ -51,6 +51,26 @@ vi.mock("./disk", async (orig) => {
       h.files.delete(k(from));
       h.files.set(k(to), { rel: to, content: src.content });
     },
+    readVaultDirs: async () => {
+      needRoot();
+      const dirs = new Set<string>();
+      for (const f of h.files.values()) {
+        const parts = f.rel.split("/").slice(0, -1);
+        for (let i = 1; i <= parts.length; i++) dirs.add(parts.slice(0, i).join("/"));
+      }
+      return [...dirs];
+    },
+    renameFolderOnDisk: async (from: string, to: string) => {
+      needRoot();
+      h.calls.push(`mvdir ${from} ${to}`);
+      const inside = (p: string) => k(p).startsWith(k(from) + "/");
+      for (const [key, f] of [...h.files]) {
+        if (!inside(f.rel)) continue;
+        h.files.delete(key);
+        const rel = to + f.rel.slice(from.length);
+        h.files.set(k(rel), { rel, content: f.content });
+      }
+    },
     watchVault: async () => {
       needRoot();
       h.calls.push("watch");
@@ -285,5 +305,104 @@ describe("closing (bug 5)", () => {
     useVault.getState().updateContent("a.md", "# A\n\nbefore close");
     await useVault.getState().closeVault();
     expect(disk("a.md")).toBe("# A\n\nbefore close");
+  });
+});
+
+/** Quit and start again: fresh modules (same localStorage + folder), the vault re-read from disk. */
+async function restart() {
+  await vi.advanceTimersByTimeAsync(0); // let the stores' debounced saves land
+  vi.resetModules();
+  const { useVault } = await import("../store/useVault");
+  const { useHistory } = await import("../useHistory");
+  const { useFlashcards } = await import("../useFlashcards");
+  const sync = await import("./sync");
+  sync.startDiskSync();
+  await sync.autoloadVault();
+  await vi.advanceTimersByTimeAsync(0);
+  return { useVault, useHistory, useFlashcards, sync };
+}
+
+describe("per-note data follows a moved note across a restart (gap 1)", () => {
+  it("pin, icon, canvas card, version history and flashcard reviews stay on a note moved into a folder", async () => {
+    const body = "# A\n\nQ :: Ans";
+    const { useVault, useHistory } = await openVault({ "a.md": body, "b.md": "# B\n" });
+    const { useFlashcards } = await import("../useFlashcards");
+    const { parseCards } = await import("../flashcards");
+    const s = useVault.getState();
+    s.togglePin("a.md");
+    s.togglePin("b.md");
+    s.setNoteIcon("a.md", "Star");
+    s.addToCanvas("a.md");
+    useHistory.getState().record("a.md", "# A\n\nolder", 1);
+    useFlashcards.getState().grade(parseCards("a.md", body)[0].id, "good");
+
+    useVault.getState().moveNote("a.md", "Sub");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(disk("Sub/a.md")).toBe(body);
+
+    const after = await restart();
+    const v = after.useVault.getState();
+    expect(v.notes.map((n) => n.id).sort()).toEqual(["Sub/a.md", "b.md"]);
+    expect(v.pinned.sort()).toEqual(["Sub/a.md", "b.md"]);
+    expect(v.noteIcons).toEqual({ "Sub/a.md": "Star" });
+    expect(v.canvas.cards.map((c) => c.id)).toContain("Sub/a.md");
+    expect(v.canvas.cards.map((c) => c.id)).not.toContain("a.md");
+    expect(after.useHistory.getState().versions["Sub/a.md"]?.[0]?.content).toBe("# A\n\nolder");
+    expect(after.useHistory.getState().versions["a.md"]).toBeUndefined();
+    const card = parseCards("Sub/a.md", body)[0].id;
+    expect(after.useFlashcards.getState().reviews[card]?.interval).toBe(1);
+  });
+
+  it("notes inside a renamed folder keep their pins after a restart", async () => {
+    const { useVault, sync } = await openVault({ "Old/n.md": "# N\n", "Old/deep/m.md": "# M\n" });
+    useVault.getState().togglePin("Old/n.md");
+    useVault.getState().setNoteIcon("Old/deep/m.md", "Flag");
+    expect(await sync.renameFolderFlow("Old", "New")).toBeNull();
+
+    const v = (await restart()).useVault.getState();
+    expect(v.pinned).toEqual(["New/n.md"]);
+    expect(v.noteIcons).toEqual({ "New/deep/m.md": "Flag" });
+  });
+
+  it("a note made in the app keeps its pin once it is read back from its file", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n" });
+    useVault.getState().createNoteWith("Plan", "# Plan\n");
+    const id = useVault.getState().selectedId;
+    expect(id).not.toMatch(/\.md$/);
+    useVault.getState().togglePin(id);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(disk("plan.md")).toBe("# Plan\n");
+
+    const v = (await restart()).useVault.getState();
+    expect(v.pinned).toEqual(["plan.md"]);
+  });
+
+  it("the move is applied once: a later note at the old path keeps its own pin", async () => {
+    const { useVault } = await openVault({ "a.md": "# A\n" });
+    useVault.getState().togglePin("a.md");
+    useVault.getState().moveNote("a.md", "Sub");
+    await vi.advanceTimersByTimeAsync(600);
+    await restart();
+    seedDisk({ "a.md": "# A again\n" }); // another app writes a new a.md
+    const v = (await restart()).useVault.getState();
+    expect(v.pinned).toEqual(["Sub/a.md"]);
+  });
+
+  it("two notes that swapped places keep their own data", async () => {
+    const { useVault } = await openVault({ "x/n.md": "# One\n", "y/n.md": "# Two\n" });
+    useVault.getState().setNoteIcon("x/n.md", "Star");
+    useVault.getState().setNoteIcon("y/n.md", "Flag");
+    // x/n.md → tmp, y/n.md → x, tmp → y  (three moves; the sync engine never overwrites a file)
+    useVault.getState().moveNote("x/n.md", "tmp");
+    await vi.advanceTimersByTimeAsync(600);
+    useVault.getState().moveNote("y/n.md", "x");
+    await vi.advanceTimersByTimeAsync(600);
+    useVault.getState().moveNote("x/n.md", "y");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(disk("y/n.md")).toBe("# One\n");
+    expect(disk("x/n.md")).toBe("# Two\n");
+
+    const v = (await restart()).useVault.getState();
+    expect(v.noteIcons).toEqual({ "y/n.md": "Star", "x/n.md": "Flag" });
   });
 });

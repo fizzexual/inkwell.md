@@ -11,6 +11,8 @@ vi.mock("mermaid", () => ({
   },
 }));
 
+const openPdfLink = vi.hoisted(() => vi.fn(async () => true));
+const openArticle = vi.hoisted(() => vi.fn());
 const NOTES = vi.hoisted(() => [
   { id: "a", title: "Alpha", folder: "", kind: "note", links: [], content: "# Alpha\n#ml" },
   { id: "src", title: "Deep Learning", folder: "Sources", kind: "source", links: [], content: "---\ncitekey: lecun2015\n---\n# Deep Learning" },
@@ -25,7 +27,8 @@ vi.mock("../store/useVault", () => {
     citeMap: new Map([
       ["lecun2015", { id: "src", key: "lecun2015", label: "LeCun 2015", authors: "LeCun", year: "2015", title: "Deep Learning" }],
     ]),
-    openArticle: () => {},
+    openArticle,
+    openPdfLink,
     theme: "light",
   }));
   return { useVault };
@@ -102,5 +105,56 @@ describe("LiveEditor renders the same blocks as reading view", () => {
     expect(host.querySelector(".mermaid-src.mermaid-done svg.fake-diagram")).not.toBeNull();
     // drawn once more at most when the editor opened (the block moved below the textarea), never per keystroke
     expect(render.mock.calls.length).toBeLessThanOrEqual(calls + 1);
+  });
+});
+
+describe("LiveEditor page links (gap 3)", () => {
+  const md = "Intro\n\n> quote\n>\n> — [p. 3](#/pdf/Attachments/My%20Paper.pdf?page=3)";
+  /** a real mouse click: press, release, click — each bubbling through the rendered block */
+  const clickOn = (el: Element) => {
+    act(() => {
+      el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    });
+    const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+    act(() => {
+      el.dispatchEvent(ev);
+    });
+    return ev;
+  };
+  const pageLink = () => [...host.querySelectorAll("a")].find((a) => a.textContent === "p. 3")!;
+
+  beforeEach(() => {
+    openPdfLink.mockClear();
+    window.location.hash = "";
+  });
+
+  it("clicking p. 3 opens the PDF at page 3, never just the URL hash, and doesn't open the block for editing", async () => {
+    await show(md);
+    expect(pageLink()).toBeTruthy();
+    const ev = clickOn(pageLink());
+    await flush();
+    expect(openPdfLink).toHaveBeenCalledWith("Attachments/My Paper.pdf", 3);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(window.location.hash).toBe("");
+    expect(host.querySelector("textarea")).toBeNull();
+  });
+
+  it("works while another block is being edited", async () => {
+    await show(md);
+    clickOn(host.querySelector(".live-block")!); // "Intro" opens for editing
+    await flush();
+    expect(host.querySelector("textarea")).not.toBeNull();
+    const ev = clickOn(pageLink());
+    await flush();
+    expect(openPdfLink).toHaveBeenCalledWith("Attachments/My Paper.pdf", 3);
+    expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it("a click on the block's text (not the link) still opens it for editing", async () => {
+    await show(md);
+    clickOn(host.querySelectorAll(".live-block")[1]);
+    await flush();
+    expect(host.querySelector("textarea")?.value).toContain("[p. 3]");
+    expect(openPdfLink).not.toHaveBeenCalled();
   });
 });

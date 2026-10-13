@@ -30,13 +30,32 @@ fn stamp(t: NaiveDateTime) -> String {
     t.format("%Y%m%d-%H%M%S").to_string()
 }
 
-/// The vault folder's own name: backups are `<label>-YYYYMMDD-HHMMSS.zip`.
+/// The vault folder's own name (restores go to `<label>-restored-YYYYMMDD-HHMMSS`).
 fn vault_label(vault: &Path) -> String {
     vault
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .filter(|n| !n.is_empty())
         .unwrap_or_else(|| "vault".into())
+}
+
+/// What this vault's backups are named after: its folder name plus a short hash of its full path,
+/// so two vaults with the same folder name never share (or prune) each other's backups.
+fn vault_key(vault: &Path) -> String {
+    // FNV-1a (stable across Rust versions, unlike std's hasher) of the path as Windows compares it:
+    // case-insensitive, without the `\\?\` prefix canonicalize adds; folded to 32 bits / 8 hex
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in display(vault).to_lowercase().bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{}-{:08x}", vault_label(vault), (h ^ (h >> 32)) as u32)
+}
+
+/// One of this vault's backups: `<key>-…` (made by this version), or an older `<label>-…` one
+/// (made before backups were keyed by path; listed and restorable, never pruned).
+fn backup_of(file_name: &str, vault: &Path) -> Option<(NaiveDateTime, u32)> {
+    parse_backup(file_name, &vault_key(vault)).or_else(|| parse_backup(file_name, &vault_label(vault)))
 }
 
 /// `<label>-YYYYMMDD-HHMMSS[-N].zip` → (time, N); None for anything else (other vaults' backups too).
@@ -89,15 +108,15 @@ fn backup_files(dir: &Path, root: &Path, in_attachments: bool, out: &mut Vec<Pat
     Ok(())
 }
 
-/// This vault's backups in `dir`, newest first.
-fn backups_of(dir: &Path, label: &str) -> Vec<(NaiveDateTime, u32, PathBuf)> {
+/// The backups in `dir` whose names `parse` accepts, newest first.
+fn backups_of(dir: &Path, parse: impl Fn(&str) -> Option<(NaiveDateTime, u32)>) -> Vec<(NaiveDateTime, u32, PathBuf)> {
     let mut found: Vec<_> = fs::read_dir(dir)
         .into_iter()
         .flatten()
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
-            let (t, n) = parse_backup(&name, label)?;
+            let (t, n) = parse(&name)?;
             e.file_type().ok().filter(|ft| ft.is_file())?;
             Some((t, n, e.path()))
         })
@@ -150,14 +169,14 @@ fn write_zip(vault: &Path, files: &[PathBuf], part: &Path, now: NaiveDateTime) -
 }
 
 fn create_in(vault: &Path, dir: &Path, now: NaiveDateTime) -> Result<BackupInfo, String> {
-    let label = vault_label(vault);
+    let key = vault_key(vault);
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let mut files = Vec::new();
     backup_files(vault, vault, false, &mut files).map_err(|e| e.to_string())?;
     files.sort();
 
     // a name no backup has yet (two in one second get `-1`, `-2`…)
-    let base = format!("{label}-{}", stamp(now));
+    let base = format!("{key}-{}", stamp(now));
     let mut name = format!("{base}.zip");
     for i in 1.. {
         if !dir.join(&name).exists() {
@@ -173,16 +192,17 @@ fn create_in(vault: &Path, dir: &Path, now: NaiveDateTime) -> Result<BackupInfo,
         let _ = fs::remove_file(&part);
         return Err(e);
     }
-    // keep this vault's newest KEEP; these are our own files, so a plain delete
-    for (_, _, old) in backups_of(dir, &label).into_iter().skip(KEEP) {
+    // keep this vault's newest KEEP; these are our own files, so a plain delete. Old-format
+    // `<label>-…` backups may belong to another vault with the same folder name: never pruned.
+    for (_, _, old) in backups_of(dir, |n| parse_backup(n, &key)).into_iter().skip(KEEP) {
         let _ = fs::remove_file(old);
     }
     info_of(&path, now)
 }
 
-fn list_in(dir: &Path, label: &str) -> Result<Vec<BackupInfo>, String> {
+fn list_in(dir: &Path, vault: &Path) -> Result<Vec<BackupInfo>, String> {
     // a zip that can't be read couldn't be restored either, so it isn't offered
-    Ok(backups_of(dir, label)
+    Ok(backups_of(dir, |n| backup_of(n, vault))
         .into_iter()
         .filter_map(|(t, _, p)| info_of(&p, t).ok())
         .collect())
@@ -211,7 +231,7 @@ fn safe_entry(name: &str) -> Option<PathBuf> {
 fn restore_in(dir: &Path, vault: &Path, name: &str, now: NaiveDateTime) -> Result<PathBuf, String> {
     let label = vault_label(vault);
     // only one of this vault's backups, by its plain file name
-    if name.contains(['/', '\\', ':']) || parse_backup(name, &label).is_none() {
+    if name.contains(['/', '\\', ':']) || backup_of(name, vault).is_none() {
         return Err(format!("Not a backup of this vault: {name}"));
     }
     let file = fs::File::open(dir.join(name)).map_err(|e| e.to_string())?;
@@ -284,7 +304,7 @@ pub(crate) async fn backup_vault(app: AppHandle, state: State<'_, VaultRoot>) ->
 #[tauri::command]
 pub(crate) fn list_backups(app: AppHandle, state: State<VaultRoot>) -> Result<Vec<BackupInfo>, String> {
     let vault = current_root(&state)?;
-    list_in(&backups_dir(&app)?, &vault_label(&vault))
+    list_in(&backups_dir(&app)?, &vault)
 }
 
 /// Extract one of the open vault's backups into a new folder next to it; returns that folder.
@@ -376,10 +396,10 @@ mod tests {
         put(&vault, "node_modules/y.md", "deps");
         put(&vault, "notes.txt", "not a note");
         let info = create_in(&vault, &dir, at(12, 21, 30, 5)).unwrap();
-        assert_eq!(info.name, "My Notes-20261012-213005.zip");
+        assert_eq!(info.name, format!("{}-20261012-213005.zip", vault_key(&vault)));
         assert_eq!(info.notes, 2);
         assert!(info.size > 0);
-        assert_eq!(list_in(&dir, "My Notes").unwrap(), vec![info.clone()]);
+        assert_eq!(list_in(&dir, &vault).unwrap(), vec![info.clone()]);
 
         let out = restore_in(&dir, &vault, &info.name, at(13, 8, 0, 0)).unwrap();
         assert_eq!(out, base.join("My Notes-restored-20261013-080000"));
@@ -400,11 +420,12 @@ mod tests {
         for day in 1..=15 {
             create_in(&vault, &dir, at(day, 9, 0, 0)).unwrap();
         }
-        let list = list_in(&dir, "My Notes").unwrap();
+        let list = list_in(&dir, &vault).unwrap();
         assert_eq!(list.len(), KEEP);
-        assert_eq!(list[0].name, "My Notes-20261015-090000.zip", "newest first");
-        assert_eq!(list[13].name, "My Notes-20261002-090000.zip");
-        assert!(!dir.join("My Notes-20261001-090000.zip").exists());
+        let key = vault_key(&vault);
+        assert_eq!(list[0].name, format!("{key}-20261015-090000.zip"), "newest first");
+        assert_eq!(list[13].name, format!("{key}-20261002-090000.zip"));
+        assert!(!dir.join(format!("{key}-20261001-090000.zip")).exists());
         assert!(dir.join("Other-20200101-000000.zip").exists());
         let _ = fs::remove_dir_all(&base);
     }
@@ -417,7 +438,7 @@ mod tests {
         put(&vault, "a.md", "two");
         let second = create_in(&vault, &dir, at(12, 10, 0, 0)).unwrap();
         assert_ne!(first.name, second.name);
-        assert_eq!(list_in(&dir, "My Notes").unwrap()[0].name, second.name, "newest first");
+        assert_eq!(list_in(&dir, &vault).unwrap()[0].name, second.name, "newest first");
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -459,6 +480,64 @@ mod tests {
         for bad in ["Other-20261012-090000.zip", "../My Notes-20261012-090000.zip", "nope.zip", ""] {
             assert!(restore_in(&dir, &vault, bad, at(12, 11, 0, 0)).is_err(), "{bad}");
         }
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn backups_are_named_per_vault_path_not_just_folder_name() {
+        let (base, vault, _) = tmp("key");
+        fs::create_dir_all(base.join("elsewhere").join("My Notes")).unwrap();
+        let twin = base.join("elsewhere").join("My Notes").canonicalize().unwrap();
+        let key = vault_key(&vault);
+        assert!(key.starts_with("My Notes-"), "{key}");
+        let hash = &key["My Notes-".len()..];
+        assert!(hash.len() == 8 && hash.bytes().all(|b| b.is_ascii_hexdigit()), "{key}");
+        assert_eq!(key, vault_key(&vault), "stable for the same folder");
+        assert_ne!(key, vault_key(&twin), "another folder with the same name gets another key");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn two_vaults_with_the_same_name_keep_separate_backups() {
+        let (base, a, dir) = tmp("twins");
+        let b = base.join("elsewhere").join("My Notes");
+        fs::create_dir_all(&b).unwrap();
+        let b = b.canonicalize().unwrap();
+        put(&a, "a.md", "# from A");
+        put(&b, "b.md", "# from B");
+        let from_b = create_in(&b, &dir, at(1, 8, 0, 0)).unwrap();
+        // A makes 15: retention trims A to 14, and never touches B's backup
+        for day in 1..=15 {
+            create_in(&a, &dir, at(day, 9, 0, 0)).unwrap();
+        }
+        let list_a = list_in(&dir, &a).unwrap();
+        assert_eq!(list_a.len(), KEEP);
+        assert!(list_a.iter().all(|i| i.name != from_b.name));
+        assert_eq!(list_in(&dir, &b).unwrap(), vec![from_b.clone()]);
+        // A can't restore B's backup
+        assert!(restore_in(&dir, &a, &from_b.name, at(20, 9, 0, 0)).is_err());
+        let out = restore_in(&dir, &b, &from_b.name, at(20, 9, 0, 0)).unwrap();
+        assert_eq!(files_under(&out), vec!["b.md"]);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn old_format_backups_are_still_listed_restored_and_never_pruned() {
+        let (base, vault, dir) = tmp("legacy");
+        put(&vault, "a.md", "# old");
+        // a backup made by the previous version: `<folder name>-YYYYMMDD-HHMMSS.zip`
+        let made = create_in(&vault, &dir, at(1, 7, 0, 0)).unwrap();
+        let legacy = "My Notes-20260901-070000.zip";
+        fs::rename(dir.join(&made.name), dir.join(legacy)).unwrap();
+        put(&vault, "a.md", "# new");
+        for day in 1..=15 {
+            create_in(&vault, &dir, at(day, 9, 0, 0)).unwrap();
+        }
+        let list = list_in(&dir, &vault).unwrap();
+        assert_eq!(list.len(), KEEP + 1, "14 new ones plus the old-format one");
+        assert_eq!(list.last().unwrap().name, legacy, "oldest last");
+        let out = restore_in(&dir, &vault, legacy, at(20, 9, 0, 0)).unwrap();
+        assert_eq!(fs::read_to_string(out.join("a.md")).unwrap(), "# old");
         let _ = fs::remove_dir_all(&base);
     }
 
