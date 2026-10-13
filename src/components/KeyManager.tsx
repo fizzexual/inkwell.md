@@ -4,6 +4,7 @@ import { PROVIDERS } from "../ai/providers";
 import { Eye, EyeOff, Copy, Check, Trash2, KeyRound } from "lucide-react";
 import { listenEscape } from "../keys";
 import { isTauri } from "../vault/disk";
+import OfflineModelRow from "./OfflineModelRow";
 import "./KeyManager.css";
 
 export default function KeyManager() {
@@ -122,7 +123,9 @@ export default function KeyManager() {
                   )}
                 </div>
                 <p className="km-note">{p.note}</p>
-                {p.keyless ? (
+                {p.kind === "offline" ? (
+                  <OfflineModelRow />
+                ) : p.keyless ? (
                   <div className="km-key-row" onClick={(e) => e.stopPropagation()}>
                     <span className="km-local">No API key needed — runs on your machine.</span>
                     <a href={p.keyUrl} target="_blank" rel="noreferrer">
