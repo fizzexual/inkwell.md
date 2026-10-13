@@ -34,4 +34,6 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-window-state = "2"
+# optional per-vault git history; libgit2 is built in, so users need no git install (no https/ssh: never pushes or pulls)
+git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2"] }
 

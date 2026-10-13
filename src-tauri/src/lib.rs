@@ -17,6 +17,7 @@ use tauri_plugin_dialog::DialogExt;
 mod secrets;
 mod backup;
 mod folders;
+mod history_git;
 
 /// Holds the live folder watcher so it keeps running; replacing it stops the previous watch.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
@@ -31,7 +32,7 @@ struct DiskNote {
 }
 
 /// `rel` as a path inside `root`, or an error if it could leave the vault or isn't a `.md` file.
-fn resolve_rel(root: &Path, rel: &str) -> Result<PathBuf, String> {
+pub(crate) fn resolve_rel(root: &Path, rel: &str) -> Result<PathBuf, String> {
     let rel_path = Path::new(rel);
     let mut parts = 0;
     for c in rel_path.components() {
@@ -368,7 +369,12 @@ pub fn run() {
             backup::backup_vault,
             backup::list_backups,
             backup::restore_backup,
-            backup::open_restored_vault
+            backup::open_restored_vault,
+            history_git::git_info,
+            history_git::git_enable,
+            history_git::git_commit,
+            history_git::git_log,
+            history_git::git_show
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
