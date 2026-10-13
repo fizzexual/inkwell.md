@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useVault } from "../store/useVault";
-import { useMath } from "../math/useMath";
-import { renderMarkdown } from "../markdown";
-import { noteRenderCtx, renderMermaid } from "../renderCtx";
+import { renderMermaid } from "../renderCtx";
+import { useNoteHtml } from "../useNoteHtml";
 import "./LiveEditor.css";
 
 interface Props {
@@ -73,13 +72,8 @@ function parseBlocks(md: string): Blk[] {
 }
 
 export default function LiveEditor({ value, onChange, noteId }: Props) {
-  const resolve = useVault((s) => s.resolve);
-  const notes = useVault((s) => s.notes);
-  const notesById = useVault((s) => s.notesById);
   const theme = useVault((s) => s.theme);
-  const citeMap = useVault((s) => s.citeMap);
   const openArticle = useVault((s) => s.openArticle);
-  const mathResult = useMath((s) => s.result);
 
   // the block currently being edited, identified by its (stable) start offset + live text
   const [active, setActive] = useState<{ start: number; text: string } | null>(null);
@@ -88,18 +82,16 @@ export default function LiveEditor({ value, onChange, noteId }: Props) {
 
   const blocks = useMemo(() => parseBlocks(value), [value]);
 
-  // same context as reading view: links, embeds, citations, math, ```query, ```bibliography
-  const ctx = useMemo(
-    () => noteRenderCtx({ md: value, noteId, notes, notesById, resolve, citeMap, mathResult }),
-    [value, noteId, notes, notesById, resolve, citeMap, mathResult],
-  );
+  // same rendering as reading view (links, embeds, citations, math, ```query, ```bibliography),
+  // each block redone only when its text or something it read changed — not on every keystroke
+  const render = useNoteHtml(noteId, value);
 
   // React 19 rewrites innerHTML whenever the {__html} object changes, which would wipe drawn
   // diagrams on every keystroke. Reuse last render's object while a block's HTML is unchanged.
   const lastHtml = useRef(new Map<string, { __html: string }>());
   const nextHtml = new Map<string, { __html: string }>();
   const htmlOf = (text: string) => {
-    const html = text.trim() ? renderMarkdown(text, ctx) : "<p></p>";
+    const html = text.trim() ? render(text) : "<p></p>";
     const key = `${theme}|${html}`; // a theme switch redraws diagrams in the new theme
     const obj = lastHtml.current.get(key) ?? { __html: html };
     nextHtml.set(key, obj);

@@ -1,10 +1,8 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { Note } from "../data/vault";
 import { useVault } from "../store/useVault";
 import { detectWikiTrigger } from "../autocomplete";
 import { getCaretCoordinates } from "../caret";
 import { fuzzyMatch } from "../fuzzy";
-import { parseTags } from "../markdown";
 import { Bold, Italic, Heading, ListIcon, Quote, Code, Link, Sparkles } from "../icons";
 import { INLINE_ACTIONS, completeText, type ActionSpec } from "../ai/complete";
 import { editorShortcut } from "../keys";
@@ -13,7 +11,6 @@ import "./MarkdownEditor.css";
 interface Props {
   value: string;
   onChange: (v: string) => void;
-  notes: Note[];
   selfId: string;
 }
 
@@ -84,7 +81,7 @@ function detectCite(value: string, caret: number): { query: string; from: number
 const PAIRS: Record<string, string> = { "(": ")", "[": "]", "{": "}", '"': '"', "`": "`" };
 const CLOSERS = new Set(Object.values(PAIRS));
 
-export default function MarkdownEditor({ value, onChange, notes, selfId }: Props) {
+export default function MarkdownEditor({ value, onChange, selfId }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const frInputRef = useRef<HTMLInputElement>(null);
   const aiCtrl = useRef<AbortController | null>(null);
@@ -100,11 +97,9 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
     () => [...citeMap.values()].map((c) => ({ key: c.key, label: c.label, title: c.title })),
     [citeMap],
   );
-  const allTags = useMemo(() => {
-    const s = new Set<string>();
-    for (const n of notes) for (const t of parseTags(n.content ?? "")) s.add(t);
-    return [...s].sort();
-  }, [notes]);
+  // the vault's tags, kept by the store (re-sorted only when the set of tags changes)
+  const tagCounts = useVault((s) => s.tagCounts);
+  const allTags = useMemo(() => [...tagCounts.keys()].sort(), [tagCounts]);
 
   const insertImage = (dataUrl: string) => {
     const ta = ref.current;
@@ -258,8 +253,9 @@ export default function MarkdownEditor({ value, onChange, notes, selfId }: Props
 
     const wiki = detectWikiTrigger(ta.value, caret);
     if (wiki) {
-      const items = notes
-        .filter((n) => n.id !== selfId)
+      const items = useVault
+        .getState()
+        .notes.filter((n) => n.id !== selfId)
         .map((n) => ({ n, m: fuzzyMatch(wiki.query, n.title) }))
         .filter((x) => x.m)
         .sort((a, b) => b.m!.score - a.m!.score)

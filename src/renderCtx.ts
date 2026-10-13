@@ -1,6 +1,6 @@
 // What a note needs to render (links, embeds, citations, math, queries, bibliography, diagrams) —
 // shared by the reading view and the live editor so both show the same thing.
-import type { RenderCtx, Resolver } from "./markdown";
+import { renderMarkdown, type RenderCtx, type Resolver } from "./markdown";
 import type { Note } from "./data/vault";
 import type { Citation } from "./data/derive";
 import type { MathResult } from "./math/engine";
@@ -34,6 +34,83 @@ export function noteRenderCtx(i: NoteRenderInput): RenderCtx {
     query: (src) => runQuery(src, i.notes, i.noteId),
     bibliography: () => buildBibliography(i.md, i.citeMap),
   };
+}
+
+/** Everything a piece of a note's markdown can read while rendering, plus the vault's metaRev. */
+export interface RenderEnv extends NoteRenderInput {
+  metaRev: number;
+}
+
+/** Rendered HTML plus what it read, so it is only redone when one of those changed. */
+export interface Rendered {
+  html: string;
+  noteId: string;
+  resolve: Resolver;
+  citeMap: Map<string, Citation>;
+  mathResult: MathResult;
+  /** the notes it embedded (![[…]]), as they were */
+  embeds: Map<string, Note | undefined>;
+  /** metaRev when it ran a ```query (null: it ran none) */
+  metaRev: number | null;
+  /** the whole note's text when it drew a ```bibliography (null: it drew none) */
+  md: string | null;
+}
+
+/** renderMarkdown(text), recording what the render read from outside `text`. */
+export function renderTracked(text: string, env: RenderEnv): Rendered {
+  const base = noteRenderCtx(env);
+  const r: Rendered = {
+    html: "",
+    noteId: env.noteId,
+    resolve: env.resolve,
+    citeMap: env.citeMap,
+    mathResult: env.mathResult,
+    embeds: new Map(),
+    metaRev: null,
+    md: null,
+  };
+  r.html = renderMarkdown(text, {
+    ...base,
+    getNote: (id) => {
+      r.embeds.set(id, env.notesById.get(id));
+      return base.getNote!(id);
+    },
+    query: (src) => {
+      r.metaRev = env.metaRev;
+      return base.query!(src);
+    },
+    bibliography: () => {
+      r.md = env.md;
+      return base.bibliography!();
+    },
+  });
+  return r;
+}
+
+/** True when rendering the same text again in `env` would give the same HTML. */
+export function isFresh(r: Rendered, env: RenderEnv): boolean {
+  if (r.noteId !== env.noteId || r.resolve !== env.resolve || r.citeMap !== env.citeMap) return false;
+  if (r.mathResult !== env.mathResult) return false;
+  if (r.metaRev !== null && r.metaRev !== env.metaRev) return false;
+  if (r.md !== null && r.md !== env.md) return false;
+  for (const [id, n] of r.embeds) if (env.notesById.get(id) !== n) return false;
+  return true;
+}
+
+/**
+ * The store values these renders depend on beyond their own text (embedded notes, metaRev for
+ * queries) — for a shallow-compared selector, so a pane re-renders only when one of them changes.
+ */
+export function watchedBy(
+  rendered: Iterable<Rendered>,
+  s: { notesById: Map<string, Note>; metaRev: number },
+): unknown[] {
+  const out: unknown[] = [];
+  for (const r of rendered) {
+    if (r.metaRev !== null) out.push(s.metaRev);
+    for (const id of r.embeds.keys()) out.push(s.notesById.get(id));
+  }
+  return out;
 }
 
 // unique mermaid render ids across calls and panes (time-based ids could collide)

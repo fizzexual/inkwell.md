@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useVault } from "../store/useVault";
-import { useMath } from "../math/useMath";
 import { useSmoothScroll } from "../useSmoothScroll";
-import { renderMarkdown, parseFrontmatter } from "../markdown";
-import { noteRenderCtx, renderMermaid } from "../renderCtx";
+import { parseFrontmatter } from "../markdown";
+import { renderMermaid } from "../renderCtx";
+import { useNoteHtml } from "../useNoteHtml";
 import MarkdownEditor from "./MarkdownEditor";
 import LiveEditor from "./LiveEditor";
 import PropertiesPanel from "./PropertiesPanel";
@@ -19,10 +19,9 @@ function wordCount(md: string): number {
 }
 
 export default function ArticleView({ noteId, isActive }: { noteId: string; isActive: boolean }) {
-  const notes = useVault((s) => s.notes);
-  const notesById = useVault((s) => s.notesById);
-  const resolve = useVault((s) => s.resolve);
-  const citeMap = useVault((s) => s.citeMap);
+  // only this note (and, via useNoteHtml, what it embeds / queries): typing in another note
+  // never re-renders this pane
+  const note = useVault((s) => s.notesById.get(noteId));
   const editing = useVault((s) => s.editing);
   const setEditing = useVault((s) => s.setEditing);
   const editorMode = useVault((s) => s.editorMode);
@@ -35,21 +34,19 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const scrollTarget = useVault((s) => s.scrollTarget);
   const clearScrollTarget = useVault((s) => s.clearScrollTarget);
   const theme = useVault((s) => s.theme);
-  const mathResult = useMath((s) => s.result);
 
   const showEditor = isActive && editing;
   const [hover, setHover] = useState<{ x: number; y: number; id: string } | null>(null);
+  const hoverNote = useVault((s) => (hover ? s.notesById.get(hover.id) : undefined));
   const bodyRef = useRef<HTMLDivElement>(null);
   useSmoothScroll(bodyRef);
 
-  const note = notesById.get(noteId);
   const md = note?.content ?? "";
   const { data: frontmatter, body } = useMemo(() => parseFrontmatter(md), [md]);
-  const words = wordCount(body);
-  const html = useMemo(
-    () => renderMarkdown(md, noteRenderCtx({ md, noteId, notes, notesById, resolve, citeMap, mathResult })),
-    [md, resolve, notesById, citeMap, mathResult, notes, noteId],
-  );
+  const words = useMemo(() => wordCount(body), [body]);
+  // the preview isn't on screen while editing: don't render it on every keystroke
+  const htmlOf = useNoteHtml(noteId, md);
+  const html = showEditor ? "" : htmlOf(md);
   // React 19 diffs dangerouslySetInnerHTML by object identity, so a fresh {__html} on every
   // render rewrites innerHTML on ANY re-render (re-opening this note, hovering a link…) and
   // wipes the diagrams / highlighting / copy buttons the effects below added. Keep one object
@@ -138,7 +135,6 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
   const onPreviewOut = (e: MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("a.wikilink")) setHover(null);
   };
-  const hoverNote = hover ? notesById.get(hover.id) : null;
 
   return (
     <main className="article">
@@ -212,7 +208,6 @@ export default function ArticleView({ noteId, isActive }: { noteId: string; isAc
           <MarkdownEditor
             value={md}
             onChange={(v) => updateContent(noteId, v)}
-            notes={notes}
             selfId={noteId}
           />
         )
