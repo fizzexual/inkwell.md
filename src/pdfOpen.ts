@@ -2,6 +2,7 @@ import { useVault } from "./store/useVault";
 import { isTauri } from "./vault/disk";
 import { writeAttachment } from "./vault/attachments";
 import { attachmentRel } from "./pdfLinks";
+import { syncPdfIndex } from "./search/pdfIndex";
 
 /**
  * Open a PDF the user picked from disk. Desktop with a vault folder: the PDF is copied into the
@@ -15,6 +16,7 @@ export async function openPdfFile(file: File): Promise<void> {
   try {
     const rel = await writeAttachment(attachmentRel(file.name), buf.slice(0));
     openPdf(rel.slice(rel.lastIndexOf("/") + 1), buf, rel);
+    void syncPdfIndex(loadedVault); // the new PDF becomes searchable
   } catch (err) {
     toast(
       `Couldn't copy “${file.name}” into the vault (${typeof err === "string" ? err : ((err as Error)?.message ?? String(err))}) — it is open, but won't be there after a restart.`,

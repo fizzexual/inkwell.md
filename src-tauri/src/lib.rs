@@ -4,6 +4,7 @@
 // owned here, not by JS: it is only ever set by the native folder picker (or restored from the
 // file this side saved), and every note path is checked to stay inside it and end in `.md`.
 mod attachments;
+mod pdf_list;
 mod web;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -361,6 +362,7 @@ pub fn run() {
             web::fetch_page,
             attachments::write_attachment,
             attachments::read_attachment,
+            pdf_list::list_pdf_attachments,
             folders::read_vault_dirs,
             folders::create_folder,
             folders::rename_folder,
