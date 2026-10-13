@@ -57,3 +57,34 @@ describe("KeyManager says where keys are stored", () => {
     expect(await markup(createElement(KeyManager))).toContain("Couldn't save the Groq key");
   });
 });
+
+describe("Claude Code / Codex CLI providers in the key manager", () => {
+  async function renderWith(desktop: boolean, cli: { claude: string | null; codex: string | null } | null) {
+    const w = window as unknown as Record<string, unknown>;
+    if (desktop) w.__TAURI_INTERNALS__ = {};
+    else delete w.__TAURI_INTERNALS__;
+    vi.resetModules();
+    const { useChat, keysReady, clisReady } = await import("../ai/useChat");
+    await keysReady;
+    await clisReady;
+    useChat.setState({ keyManagerOpen: true, keys: {}, cli });
+    const { default: KeyManager } = await import("./KeyManager");
+    return markup(createElement(KeyManager));
+  }
+
+  it("desktop with Claude Code installed: offered, explained, no key field", async () => {
+    const html = await renderWith(true, { claude: "2.1.289 (Claude Code)", codex: null });
+    expect(html).toContain("Claude Code (your subscription)");
+    expect(html).toContain("Uses the Claude Code you already have installed and logged in. Runs without tools — it can only read the notes Inkwell gives it.");
+    expect(html).toContain("Found 2.1.289 (Claude Code)");
+    expect(html).toContain("edit proposals aren't available");
+    expect(html).not.toContain("Codex CLI (your subscription)");
+    const card = html.slice(html.indexOf("Claude Code (your subscription)"));
+    expect(card.slice(0, card.indexOf("km-card", 10))).not.toContain("<input");
+  });
+
+  it("hidden when not installed, and in the browser", async () => {
+    expect(await renderWith(true, { claude: null, codex: null })).not.toContain("your subscription");
+    expect(await renderWith(false, null)).not.toContain("your subscription");
+  });
+});

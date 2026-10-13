@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useChat } from "../ai/useChat";
-import { PROVIDERS } from "../ai/providers";
+import { PROVIDERS, visibleProviders } from "../ai/providers";
 import { Eye, EyeOff, Copy, Check, Trash2, KeyRound } from "lucide-react";
 import { listenEscape } from "../keys";
 import { isTauri } from "../vault/disk";
@@ -20,6 +20,7 @@ export default function KeyManager() {
   const modelsError = useChat((s) => s.modelsError);
   const loadModels = useChat((s) => s.loadModels);
   const error = useChat((s) => s.error);
+  const cli = useChat((s) => s.cli);
 
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export default function KeyManager() {
         {error && <div className="km-error">{error}</div>}
 
         <div className="km-list">
-          {PROVIDERS.map((p) => {
+          {visibleProviders(cli).map((p) => {
             const isActive = p.id === active;
             const hasKey = !!(keys[p.id] || "").trim();
             return (
@@ -106,7 +107,9 @@ export default function KeyManager() {
                 <div className="km-card-head">
                   <span className={"km-radio" + (isActive ? " on" : "")} />
                   <span className="km-name">{p.label}</span>
-                  {p.recommended ? (
+                  {p.kind === "cli" ? (
+                    <span className="km-badge key">Your subscription</span>
+                  ) : p.recommended ? (
                     <span className="km-badge rec">Free · recommended</span>
                   ) : p.keyless ? (
                     <span className="km-badge free">Local · no key</span>
@@ -122,7 +125,17 @@ export default function KeyManager() {
                   )}
                 </div>
                 <p className="km-note">{p.note}</p>
-                {p.keyless ? (
+                {p.kind === "cli" ? (
+                  <div className="km-key-row" onClick={(e) => e.stopPropagation()}>
+                    <span className="km-local">
+                      Found {(p.cli && cli?.[p.cli]) || ""} · no key needed · edit proposals aren't available with this
+                      provider.
+                    </span>
+                    <a href={p.keyUrl} target="_blank" rel="noreferrer">
+                      Docs ↗
+                    </a>
+                  </div>
+                ) : p.keyless ? (
                   <div className="km-key-row" onClick={(e) => e.stopPropagation()}>
                     <span className="km-local">No API key needed — runs on your machine.</span>
                     <a href={p.keyUrl} target="_blank" rel="noreferrer">
@@ -163,6 +176,7 @@ export default function KeyManager() {
                   </div>
                 )}
                 {isActive &&
+                  p.kind !== "cli" &&
                   (() => {
                     const live = fetchedModels[p.id];
                     const base = live && live.length ? live : p.models;
