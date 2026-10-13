@@ -1,6 +1,6 @@
 [package]
 name = "inkwellmd"
-version = "0.2.0"
+version = "0.3.0"
 description = "Inkwell — a local-first research workspace for Windows"
 authors = ["fizzexual"]
 edition = "2021"
