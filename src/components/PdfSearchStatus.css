@@ -1,0 +1,10 @@
+.pdf-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  padding: 0 8px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--tx-muted);
+  overflow-wrap: anywhere;
+}

@@ -35,6 +35,8 @@ import UpdateBanner from "./components/UpdateBanner";
 import ShortcutsModal from "./components/ShortcutsModal";
 import Resizer from "./components/Resizer";
 import { appShortcut } from "./keys";
+import { isTauri } from "./vault/disk";
+import { syncPdfIndex } from "./search/pdfIndex";
 import "./App.css";
 
 export default function App() {
@@ -49,6 +51,12 @@ export default function App() {
   const constellationOpen = useVault((s) => s.constellationOpen);
   const accent = useVault((s) => s.accent);
   const zen = useVault((s) => s.zen);
+  const loadedVault = useVault((s) => s.loadedVault);
+
+  // the vault's PDFs (Attachments/) become searchable; only new/changed ones are read
+  useEffect(() => {
+    if (isTauri()) void syncPdfIndex(loadedVault);
+  }, [loadedVault]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

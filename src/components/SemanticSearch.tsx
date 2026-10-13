@@ -3,6 +3,8 @@ import { useVault } from "../store/useVault";
 import { listenEscape } from "../keys";
 import { semanticSearch, isModelReady, type LoadProgress, type SemanticHit } from "../search/semantic";
 import { Sparkles } from "../icons";
+import { pdfName } from "../search/pdfText";
+import PdfSearchStatus, { useSyncPdfIndex } from "./PdfSearchStatus";
 import "./SemanticSearch.css";
 
 const strip = (md: string) =>
@@ -22,6 +24,8 @@ export default function SemanticSearch() {
   const notes = useVault((s) => s.notes);
   const notesById = useVault((s) => s.notesById);
   const openArticle = useVault((s) => s.openArticle);
+  const openPdfLink = useVault((s) => s.openPdfLink);
+  useSyncPdfIndex(open);
 
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SemanticHit[]>([]);
@@ -128,7 +132,7 @@ export default function SemanticSearch() {
               {progress?.stage === "download"
                 ? `Loading the on-device model… ${pct ?? 0}%`
                 : progress?.stage === "embedding"
-                  ? `Indexing your notes… ${pct ?? 0}%`
+                  ? `Indexing your notes and PDFs… ${pct ?? 0}%`
                   : "Thinking…"}
             </span>
             {!ready && progress?.stage === "download" && (
@@ -144,18 +148,46 @@ export default function SemanticSearch() {
         )}
 
         {!busy && !error && ran && hits.length === 0 && (
-          <div className="sem-empty">No notes matched that meaning.</div>
+          <div className="sem-empty">Nothing in your notes or PDFs matched that meaning.</div>
         )}
 
         {!busy && !ran && (
           <div className="sem-hint">
-            Finds notes by <b>meaning</b>, not just keywords — everything runs privately on your device.
+            Finds notes and PDF passages by <b>meaning</b>, not just keywords — everything runs privately on your
+            device.
           </div>
         )}
+
+        <PdfSearchStatus />
 
         {hits.length > 0 && (
           <ul className="sem-results">
             {hits.map((h) => {
+              if (h.pdf) {
+                const { rel, page, text } = h.pdf;
+                return (
+                  <li key={h.id}>
+                    <button
+                      className="sem-item"
+                      onClick={() => {
+                        void openPdfLink(rel, page);
+                        setOpen(false);
+                      }}
+                    >
+                      <div className="sem-item-head">
+                        <span className="sem-title">
+                          {pdfName(rel)} · p. {page}
+                        </span>
+                        <span className="sem-folder">PDF</span>
+                        <span className="sem-score" title="semantic similarity">
+                          <span className="sem-score-bar" style={{ width: `${Math.max(6, Math.round(h.score * 100))}%` }} />
+                        </span>
+                      </div>
+                      <span className="sem-snippet">{text.slice(0, 160)}</span>
+                    </button>
+                  </li>
+                );
+              }
               const n = notesById.get(h.id);
               if (!n) return null;
               return (

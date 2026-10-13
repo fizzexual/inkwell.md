@@ -19,3 +19,16 @@ export async function readAttachment(rel: string): Promise<ArrayBuffer> {
   const { invoke } = await core();
   return invoke<ArrayBuffer>("read_attachment", { rel });
 }
+
+/** A PDF in the vault's Attachments/ folder: size + modification time (ms) tell when it changed. */
+export interface PdfFileInfo {
+  rel: string;
+  size: number;
+  modified: number;
+}
+
+/** Every PDF under the open vault's Attachments/ folder. */
+export async function listPdfAttachments(): Promise<PdfFileInfo[]> {
+  const { invoke } = await core();
+  return invoke<PdfFileInfo[]>("list_pdf_attachments");
+}

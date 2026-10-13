@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({ desktop: false, writeAttachment: vi.fn() }));
 vi.mock("./vault/disk", async (orig) => ({ ...(await orig<typeof import("./vault/disk")>()), isTauri: () => h.desktop }));
 vi.mock("./vault/attachments", () => ({ writeAttachment: h.writeAttachment, readAttachment: vi.fn() }));
+const sync = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("./search/pdfIndex", () => ({ syncPdfIndex: sync }));
 
 import { useVault } from "./store/useVault";
 import { openPdfFile } from "./pdfOpen";
@@ -16,6 +18,7 @@ const file = (name: string) =>
 beforeEach(() => {
   h.desktop = false;
   h.writeAttachment.mockReset();
+  sync.mockClear();
   useVault.setState({ loadedVault: null, pdf: null, pdfRel: null });
 });
 
@@ -31,6 +34,8 @@ describe("openPdfFile", () => {
     expect((bytes as ArrayBuffer).byteLength).toBe("%PDF-1.4 test".length);
     expect(useVault.getState().pdfRel).toBe("Attachments/paper.pdf");
     expect(useVault.getState().pdf?.name).toBe("paper.pdf");
+    // the new PDF becomes searchable
+    expect(sync).toHaveBeenCalledWith("D:/Vault");
   });
 
   it("no vault open: just opens it", async () => {
@@ -39,6 +44,7 @@ describe("openPdfFile", () => {
     expect(h.writeAttachment).not.toHaveBeenCalled();
     expect(useVault.getState().pdf?.name).toBe("paper.pdf");
     expect(useVault.getState().pdfRel).toBeNull();
+    expect(sync).not.toHaveBeenCalled();
   });
 
   it("a refused copy still opens the PDF and says it won't survive a restart", async () => {

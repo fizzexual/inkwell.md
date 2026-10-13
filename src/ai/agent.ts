@@ -1,6 +1,9 @@
 import type { Note } from "../data/vault";
 import { parseTags } from "../markdown";
 import type { Provider } from "./providers";
+import type { SemanticHit } from "../search/semantic";
+import { pdfName } from "../search/pdfText";
+import { pdfHref } from "../pdfLinks";
 
 /** A pending write the agent wants to make — surfaced for the user to approve. */
 export interface Proposal {
@@ -23,6 +26,33 @@ export interface VaultAccess {
   propose?: (p: Omit<Proposal, "id">) => string;
   /** notes most relevant to the question by MEANING (on-device embeddings), when the index is warm. */
   semanticHits?: { id: string; title: string; folder: string; snippet: string }[];
+  /** passages of the vault's PDFs most relevant to the question (same on-device index). */
+  pdfHits?: PdfHit[];
+}
+
+/** One PDF passage handed to the model, with the in-app link it must cite. */
+export interface PdfHit {
+  name: string;
+  page: number;
+  snippet: string;
+  href: string;
+}
+
+/** The PDF passages among semantic hits, each with its `#/pdf/…?page=N` link. */
+export function toPdfHits(hits: SemanticHit[]): PdfHit[] {
+  return hits.flatMap((h) =>
+    h.pdf
+      ? [{ name: pdfName(h.pdf.rel), page: h.pdf.page, snippet: h.pdf.text.slice(0, 400), href: pdfHref(h.pdf.rel, h.pdf.page) }]
+      : [],
+  );
+}
+
+/** The prompt section listing PDF passages and exactly how to cite each ("" when there are none). */
+export function pdfPassagesPrompt(hits: PdfHit[]): string {
+  if (!hits.length) return "";
+  return `\n\nRELEVANT PDF PASSAGES (from PDFs in the vault, found by meaning, on-device):\n${hits
+    .map((h) => `- ${h.name}, p. ${h.page}: "${h.snippet.replace(/\s+/g, " ")}" — cite as [p. ${h.page}](${h.href})`)
+    .join("\n")}\nWhen you use a PDF passage, cite it with exactly its markdown link above (e.g. [p. ${hits[0].page}](${hits[0].href})) so the user can open the PDF at that page.`;
 }
 
 export interface ChatMsg {
@@ -88,7 +118,7 @@ Tools:
 - explore_links(title): returns the notes a given note links to and the notes that link back to it. Use it to walk the graph outward from a relevant note.
 - read_notes(titles): returns the full text of the named notes. Read only what you genuinely need to answer.
 
-Work in small steps: locate the few relevant notes from the map / search / links, read just those, then answer concisely. Cite every note you used as a [[Note Title]] wikilink so the user can click it. If the vault doesn't contain the answer, say so plainly — never invent facts that aren't in the notes.${semantic}
+Work in small steps: locate the few relevant notes from the map / search / links, read just those, then answer concisely. Cite every note you used as a [[Note Title]] wikilink so the user can click it. If the vault doesn't contain the answer, say so plainly — never invent facts that aren't in the notes.${semantic}${pdfPassagesPrompt(v.pdfHits ?? [])}
 
 VAULT MAP (${v.notes.length} notes):
 ${buildMap(v)}`;
@@ -410,7 +440,7 @@ async function answerWithContext(o: LoopOpts, headers: Record<string, string>, p
   const context = hits.length
     ? hits.map((n) => `### ${n.title} [${n.folder || "/"}]\n${(n.content ?? "").slice(0, 2000)}`).join("\n\n---\n\n")
     : "(no clearly relevant notes found)";
-  const sys = `You are the research assistant inside Inkwell, a personal knowledge vault. Answer the user's question using ONLY the notes below. Cite each note you use as a [[Note Title]] wikilink. If the notes don't contain the answer, say so plainly.\n\nNOTES:\n${context}`;
+  const sys = `You are the research assistant inside Inkwell, a personal knowledge vault. Answer the user's question using ONLY the notes below. Cite each note you use as a [[Note Title]] wikilink. If the notes don't contain the answer, say so plainly.\n\nNOTES:\n${context}${pdfPassagesPrompt(o.vault.pdfHits ?? [])}`;
   const res = await postWithRetry(
     `${o.provider.baseUrl}/chat/completions`,
     {
