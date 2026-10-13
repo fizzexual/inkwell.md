@@ -61,6 +61,37 @@ export const restoreBackup = (name: string) => invoke<string>("restore_backup", 
 /** Make the folder the last restore created the vault. Returns its path. */
 export const openRestoredVault = () => invoke<string | null>("open_restored_vault", {});
 
+// Git history: the repository is always the open vault folder (Rust's own record, never a path from here).
+export interface GitInfo {
+  /** the vault folder is a git repository */
+  repo: boolean;
+  /** Inkwell just made it one (false: it already was) */
+  created: boolean;
+  branch: string | null;
+}
+export interface GitCommit {
+  id: string;
+  /** ms since the epoch */
+  time: number;
+  summary: string;
+  author: string;
+}
+export interface GitCommitted {
+  id: string;
+  summary: string;
+  files: string[];
+}
+/** Whether the open vault is a git repository, and its branch. */
+export const gitInfo = () => invoke<GitInfo>("git_info", {});
+/** Make the open vault a git repository if it isn't one (an existing one is used as it is). */
+export const gitEnable = () => invoke<GitInfo>("git_enable", {});
+/** Commit the vault's changed notes and attachments; null when nothing changed. */
+export const gitCommit = () => invoke<GitCommitted | null>("git_commit", {});
+/** The commits that changed one note's file, newest first. */
+export const gitLog = (rel: string) => invoke<GitCommit[]>("git_log", { rel });
+/** A note's text as it was in commit `id`. */
+export const gitShow = (rel: string, id: string) => invoke<string>("git_show", { rel, id });
+
 /** Start the native filesystem watcher on the open vault folder (replaces any previous watch). */
 export const watchVault = () => invoke<void>("watch_vault", {});
 /** Stop watching the current vault folder. */
