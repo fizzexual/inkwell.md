@@ -69,6 +69,20 @@ describe("semantic index persistence", () => {
     expect(fakeEmbed.mock.calls[0][0]).toContain("Taxes");
   });
 
+  it("a note that only moved (new id, same text) reuses its stored vector instead of re-embedding", async () => {
+    await (await launch()).ensureIndexed(vault);
+    fakeEmbed.mockClear();
+    const moved = [{ ...vault[0], id: "Sub/a" }, vault[1], vault[2]];
+    const s = await launch();
+    await s.ensureIndexed(moved);
+    expect(fakeEmbed).not.toHaveBeenCalled();
+    expect((await s.relatedNotes("Sub/a", moved, 1))[0].id).toBe("b");
+    // and the old id is gone from the stored index for good
+    fakeEmbed.mockClear();
+    await (await launch()).ensureIndexed(moved);
+    expect(fakeEmbed).not.toHaveBeenCalled();
+  });
+
   it("an empty note list (vault still loading) does not wipe the stored index", async () => {
     await (await launch()).ensureIndexed(vault);
     await (await launch()).ensureIndexed([]);

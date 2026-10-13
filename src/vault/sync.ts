@@ -23,6 +23,7 @@ import {
 import type { Note } from "../data/vault";
 import { noteTitle } from "../data/derive";
 import { allFolderPaths, folderAddError, folderMoveError } from "../folders";
+import { applyIdMoves, saveMoves, takeMoves } from "./idMoves";
 
 type Written = Map<string, { rel: string; content: string }>;
 
@@ -35,6 +36,21 @@ let syncedPath: string | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 const lc = (rel: string) => rel.toLowerCase();
+
+/** Record which notes now live in a file other than their id, so the next load can re-key them. */
+function rememberMoves() {
+  if (!syncedPath) return;
+  const moves: Record<string, string> = {};
+  for (const [id, w] of written) if (id !== w.rel) moves[id] = w.rel;
+  saveMoves(syncedPath, moves);
+}
+
+/** Show a vault read from disk; per-note data of notes moved last session follows them first. */
+function showDiskVault(path: string, disk: Parameters<typeof diskNoteToNote>[0][], dirs: string[]) {
+  const notes = disk.map(diskNoteToNote);
+  applyIdMoves(takeMoves(path), notes.map((n) => n.id));
+  useVault.getState().loadDiskVault(path, notes, dirs);
+}
 
 // Write-outs and re-reads run one at a time, so a re-read never sees a half-done write-out.
 let queue: Promise<unknown> = Promise.resolve();
@@ -96,6 +112,7 @@ async function syncNow() {
       failed ??= note.title;
     }
   }
+  rememberMoves();
   if (failed) useVault.getState().toast(`Couldn't save “${failed}” to disk — will retry on the next edit`);
 }
 
@@ -356,6 +373,7 @@ export async function renameFolderFlow(from: string, to: string): Promise<string
     const move = (rel: string) => (inDirCI(rel, from) ? to + rel.slice(from.length) : rel);
     for (const [id, w] of written) if (inDirCI(w.rel, from)) written.set(id, { rel: move(w.rel), content: w.content });
     onDisk = new Set([...onDisk].map((p) => lc(move(p))));
+    rememberMoves();
     const err = useVault.getState().renameFolder(from, to);
     if (err) console.error("Inkwell: folder moved on disk but not in the app:", err);
     return err;
@@ -378,6 +396,7 @@ export async function deleteFolderFlow(path: string): Promise<string | null> {
     // the files went with the folder: forget them, so the sync engine doesn't try to delete them
     for (const [id, w] of written) if (inDirCI(w.rel, path)) written.delete(id);
     onDisk = new Set([...onDisk].filter((p) => !inDirCI(p, path)));
+    rememberMoves();
     const s = useVault.getState();
     const n = s.notesIn(path);
     s.removeFolder(path, false);
@@ -398,7 +417,7 @@ export async function openVaultFolderFlow() {
     const path = await pickVault();
     if (!path) return;
     const [disk, dirs] = await Promise.all([readVault(), readDirs()]);
-    v.loadDiskVault(path, disk.map(diskNoteToNote), dirs);
+    showDiskVault(path, disk, dirs);
     v.toast(`Opened vault · ${disk.length} note${disk.length === 1 ? "" : "s"}`);
   } catch (e) {
     v.toast("Couldn't open that folder");
@@ -419,7 +438,7 @@ export async function autoloadVault() {
       return;
     }
     const [disk, dirs] = await Promise.all([readVault(), readDirs()]);
-    useVault.getState().loadDiskVault(path, disk.map(diskNoteToNote), dirs);
+    showDiskVault(path, disk, dirs);
   } catch (e) {
     // folder moved/removed — nothing is written to it; the notes shown are the built-in ones
     console.error("Inkwell: couldn't load the vault folder", e);

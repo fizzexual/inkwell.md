@@ -23,6 +23,8 @@ interface HistState {
   /** false when the snapshot can't be kept (too big). */
   record: (id: string, content: string, at: number) => boolean;
   clear: (id: string) => void;
+  /** Move versions to the notes' new ids (`to` returns undefined for an id that stays). */
+  rekey: (to: (id: string) => string | undefined) => void;
 }
 
 let warned = false;
@@ -57,6 +59,17 @@ export const useHistory = create<HistState>((set, get) => ({
     set((s) => {
       const versions = { ...s.versions };
       delete versions[id];
+      persist({ ...s, versions });
+      return { versions };
+    }),
+  rekey: (to) =>
+    set((s) => {
+      // a moved note's versions win over stale ones already sitting under its new id
+      const versions: Record<string, Version[]> = {};
+      const moved = Object.entries(s.versions).filter(([id]) => to(id) !== undefined);
+      if (!moved.length) return {};
+      for (const [id, v] of Object.entries(s.versions)) if (to(id) === undefined) versions[id] = v;
+      for (const [id, v] of moved) versions[to(id)!] = v;
       persist({ ...s, versions });
       return { versions };
     }),

@@ -89,6 +89,17 @@ async function buildIndex(notes: Note[], onProgress?: (p: LoadProgress) => void)
   if (notes.length) {
     const live = new Set(notes.map((n) => n.id));
     const gone = [...index.keys()].filter((id) => !live.has(id));
+    // a note that only moved (its id is its file path in a disk vault) keeps its text: hand the
+    // vector of a vanished id with the same text hash to it instead of embedding it again
+    const spare = new Map(gone.map((id) => [index.get(id)!.hash, index.get(id)!]));
+    for (const n of notes) {
+      if (index.has(n.id)) continue;
+      const e = spare.get(hash(noteText(n)));
+      if (!e) continue;
+      spare.delete(e.hash);
+      index.set(n.id, e);
+      void store.put(n.id, e);
+    }
     for (const id of gone) index.delete(id);
     void store.remove(gone);
   }
